@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" xmlns:xlink="http://www.w3.org/1999/xlink" width="512"
+    height="512" x="0" y="0" viewBox="0 0 24 24" style="enable-background:new 0 0 512 512" xml:space="preserve"
+    class="">
+    <g>
+        <g data-name="Layer 2">
+            <path fill="#845ff9"
+                d="M16 19.75h-3A1.752 1.752 0 0 1 11.25 18V6A1.752 1.752 0 0 1 13 4.25h3a.75.75 0 0 1 0 1.5h-3a.25.25 0 0 0-.25.25v12a.25.25 0 0 0 .25.25h3a.75.75 0 0 1 0 1.5z"
+                opacity="1" data-original="#845ff9"></path>
+            <path fill="#845ff9" d="M12 12.75H8a.75.75 0 0 1 0-1.5h4a.75.75 0 0 1 0 1.5z" opacity="1"
+                data-original="#845ff9"></path>
+            <rect width="7.5" height="7.5" x="1.25" y="8.25" fill="#ffc545" rx="1.75" opacity="1"
+                data-original="#ffc545"></rect>
+            <g fill="#9d7dff">
+                <rect width="7.5" height="7.5" x="15.25" y="15.25" rx="1.75" fill="#9d7dff" opacity="1"
+                    data-original="#9d7dff" class=""></rect>
+                <rect width="7.5" height="7.5" x="15.25" y="1.25" rx="1.75" fill="#9d7dff" opacity="1"
+                    data-original="#9d7dff" class=""></rect>
+            </g>
+        </g>
+    </g>
+</svg>

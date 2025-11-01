@@ -3,22 +3,41 @@
         <div class="manage-content-block">
             <fv-navigation-view
                 v-model="currentNav"
-                :title="local(`Dataflow`)"
+                :title="''"
                 :options="navList"
-                :expand.sync="isExpand"
+                v-model:expand="isExpand"
                 :foreground="color"
                 :flyout-display="1368"
                 :mobile-display="1024"
                 class="navigation-view"
                 :show-back="false"
+                :show-search="false"
                 :show-setting="false"
                 @item-click="handleItemClick"
                 @back="$Back()"
             >
-                <template v-slot:title="{ show }">
-                    <div v-show="show" class="title-block name">
-                        <img :src="img.logo" alt="" />
-                        <p class="name title">{{ local(`Dataflow`) }}</p>
+                <template v-slot:banner>
+                    <div class="title-block name">
+                        <img class="nav-icon" :src="img.logo" alt="" />
+                        <p v-show="isExpand" class="title">{{ local(`Dataflow`) }}</p>
+                    </div>
+                </template>
+                <template v-slot:listItem="x">
+                    <div class="nav-item" :class="{ collapse: !isExpand }">
+                        <img
+                            v-show="x.item.type !== 'header' && x.item.img"
+                            class="nav-item-icon"
+                            :src="x.item.img"
+                            alt=""
+                        />
+                        <i
+                            v-show="x.item.type !== 'header' && !x.item.img"
+                            class="ms-Icon nav-item-icon"
+                            :class="['ms-Icon--' + x.item.icon]"
+                        ></i>
+                        <p class="name" :style="{ color: x.item.type === 'header' ? color : '' }">
+                            {{ x.valueTrigger(x.item.name) }}
+                        </p>
                     </div>
                 </template>
             </fv-navigation-view>
@@ -33,35 +52,30 @@ import { useAppConfig } from '@/stores/appConfig'
 import { useTheme } from '@/stores/theme'
 
 import logo from '@/assets/logo/logo.png'
+import dataflow from '@/assets/nav/dataflow.svg'
 
 export default {
     data() {
         return {
             currentNav: {
                 key: 0,
-                name: () => this.local('Playground'),
+                name: () => this.local('Dataflow'),
                 icon: 'World',
                 route: '/a/'
             },
             isExpand: true,
             navList: [
                 {
+                    key: -1,
+                    name: () => this.local('Data Preparation'),
+                    type: 'header'
+                },
+                {
                     key: 0,
-                    name: () => this.local('Playground'),
+                    name: () => this.local('Dataflow'),
                     icon: 'World',
+                    img: dataflow,
                     route: '/a/'
-                },
-                {
-                    key: 1,
-                    name: () => this.local('RL Analyizer'),
-                    icon: 'Diagnostic',
-                    route: '/a/rla'
-                },
-                {
-                    key: 2,
-                    name: () => this.local('Quality Manager'),
-                    icon: 'Leaf',
-                    route: '/a/qm'
                 },
                 {
                     key: -1,
@@ -128,9 +142,50 @@ export default {
             .title-block {
                 @include Vcenter;
 
-                img {
-                    width: 30px;
-                    height: 30px;
+                position: relative;
+                width: 100%;
+                height: 60px;
+                padding: 0px 10px;
+                user-select: none;
+
+                .nav-icon {
+                    width: 28px;
+                    height: 28px;
+                    margin-left: 5px;
+                    object-fit: cover;
+                }
+
+                .title {
+                    @include color-dataflow-title;
+
+                    margin-left: 5px;
+                    font-size: 20px;
+                    font-weight: 600;
+                    color: rgba(0, 0, 0, 1);
+                }
+            }
+
+            .nav-item {
+                @include Vcenter;
+
+                position: relative;
+                width: 100%;
+                height: 40px;
+                user-select: none;
+
+                &.collapse {
+                    .nav-item-icon {
+                        margin-left: 5px;
+                    }
+                }
+
+                .nav-item-icon {
+                    width: 15px;
+                    height: 15px;
+                    margin-left: 15px;
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
                     object-fit: cover;
                 }
             }

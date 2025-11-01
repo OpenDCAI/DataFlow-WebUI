@@ -16,7 +16,7 @@ $theme-orange-3: #ff8b00;
 $theme-orange-4: #bf8730;
 $theme-orange-5: #a66400;
 
-@mixin sas-color($color) {
+@mixin gradient-color($color) {
     background-image: $color;
     background-clip: text;
     -webkit-background-image: $color;
@@ -28,52 +28,52 @@ $theme-orange-5: #a66400;
     color: #8189a9;
 }
 
-@mixin color-pku-dair {
-    @include sas-color(linear-gradient(272deg, rgba(45, 80, 125, 1), rgba(108, 187, 232, 1)));
+@mixin color-dataflow-title {
+    @include gradient-color(linear-gradient(90deg, rgba(69, 98, 213, 1), rgba(161, 145, 206, 1)));
 }
 
 @mixin color-black-red {
-    @include sas-color(linear-gradient(to left, #c31432, #240b36));
+    @include gradient-color(linear-gradient(to left, #c31432, #240b36));
 }
 
 @mixin color-orange-pink {
-    @include sas-color(linear-gradient(45deg, #ca9928, #ff2c64));
+    @include gradient-color(linear-gradient(45deg, #ca9928, #ff2c64));
 }
 
 @mixin color-orange-gold {
-    @include sas-color(linear-gradient(to right, #f9cd5d, #ffc76e));
+    @include gradient-color(linear-gradient(to right, #f9cd5d, #ffc76e));
 }
 
 @mixin pink-a {
-    @include sas-color(linear-gradient(to right, #da4453, #89216b));
+    @include gradient-color(linear-gradient(to right, #da4453, #89216b));
 }
 
 @mixin pink-b {
-    @include sas-color(linear-gradient(to right, #ec008c, #fc6767));
+    @include gradient-color(linear-gradient(to right, #ec008c, #fc6767));
 }
 
 @mixin white-a {
-    @include sas-color(linear-gradient(to bottom, #ada996, #f2f2f2, #dbdbdb, #eaeaea));
+    @include gradient-color(linear-gradient(to bottom, #ada996, #f2f2f2, #dbdbdb, #eaeaea));
 }
 
 @mixin white-b {
-    @include sas-color(linear-gradient(to left, #8e9eab, #eef2f3));
+    @include gradient-color(linear-gradient(to left, #8e9eab, #eef2f3));
 }
 
 @mixin white-c {
-    @include sas-color(linear-gradient(to left, #eeeeee, #eef2f3));
+    @include gradient-color(linear-gradient(to left, #eeeeee, #eef2f3));
 }
 
 @mixin answer-a {
-    @include sas-color(linear-gradient(to bottom, #da4453, #89216b));
+    @include gradient-color(linear-gradient(to bottom, #da4453, #89216b));
 }
 
 @mixin gold-answer {
-    @include sas-color(linear-gradient(270deg, rgba(50, 190, 166, 1), rgba(30, 108, 50, 1)));
+    @include gradient-color(linear-gradient(270deg, rgba(50, 190, 166, 1), rgba(30, 108, 50, 1)));
 }
 
 @mixin grammar-score {
-    @include sas-color(linear-gradient(30deg, rgba(50, 49, 48, 1), rgba(132, 151, 176, 1)));
+    @include gradient-color(linear-gradient(30deg, rgba(50, 49, 48, 1), rgba(132, 151, 176, 1)));
 }
 
 @mixin a-link {

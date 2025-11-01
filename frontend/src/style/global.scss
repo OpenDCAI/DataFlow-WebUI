@@ -1,5 +1,7 @@
 @use "./dataflow.scss" as *;
 
+@forward "./dataflow.scss";
+
 @mixin app {
     position: absolute;
     width: 100%;

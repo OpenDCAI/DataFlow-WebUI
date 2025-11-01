@@ -221,10 +221,10 @@
     url "^0.11.4"
     vue "^3.5.13"
 
-"@creatorsn/vfluent3@^0.3.11":
-  version "0.3.11"
-  resolved "https://registry.yarnpkg.com/@creatorsn/vfluent3/-/vfluent3-0.3.11.tgz#4074c9b4e3c1d54379ce02de5d06195742f53568"
-  integrity sha512-3oIe+8R5XOSMH30et2MmGfjTihcDQiQnlGLcN5yvCTHJlAJAbGgjemyoizwJ9QUjcS7NyQ0s8G74DHiUkr21ZA==
+"@creatorsn/vfluent3@^0.3.13":
+  version "0.3.13"
+  resolved "https://registry.yarnpkg.com/@creatorsn/vfluent3/-/vfluent3-0.3.13.tgz#c0ad18bc99f7a208e1d521b7871f8e831392012e"
+  integrity sha512-uNkAVWqePyn+B4I6n1lp031mHTbxdBzEkotodtAO5pNvYgMLZ7qreTgKhf7ucwXhl2BREj7kobYbRM2EAAWrOA==
   dependencies:
     "@vue/shared" "^3.4.20"
     gsap "3.1.1"

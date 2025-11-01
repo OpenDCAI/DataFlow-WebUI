@@ -13,7 +13,7 @@
     },
     "dependencies": {
         "@creatorsn/powereditor3": "^0.1.0",
-        "@creatorsn/vfluent3": "^0.3.11",
+        "@creatorsn/vfluent3": "^0.3.13",
         "gsap": "^3.13.0",
         "office-ui-fabric-core": "^11.1.0",
         "onecolor": "^4.1.0",

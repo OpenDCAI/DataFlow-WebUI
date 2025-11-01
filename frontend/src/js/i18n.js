@@ -798,5 +798,9 @@ export default {
     "Are you sure to delete these instructions ?": {
         "en": "Are you sure to delete these instructions ?",
         "cn": "您确定删除这些指令吗？"
+    },
+    "Data Preparation": {
+        "en": "Data Preparation",
+        "cn": "数据准备"
     }
 }

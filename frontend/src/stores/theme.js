@@ -3,7 +3,7 @@ import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
 
 export const useTheme = defineStore('useTheme', () => {
-    const themeColor = ref('rgba(45, 80, 125, 1)');
+    const themeColor = ref('rgba(81, 99, 209, 1)');
     const Theme = ref('light')
 
     function reviseTheme(themeValue) {

@@ -7,6 +7,6 @@
     position: relative;
     width: 100%;
     height: 100%;
-    background-color: hsv(0, 0%, 95%);
+    background-color: rgba(241, 241, 241, 1);
 }
 </style>
