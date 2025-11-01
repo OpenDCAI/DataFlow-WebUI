@@ -1,0 +1,204 @@
+$theme-red-1: #f63e62;
+$theme-red-2: #f66f89;
+$theme-red-3: #ed002f;
+$theme-red-4: #b22d47;
+$theme-red-5: #9a001e;
+
+$theme-pink-1: rgba(182, 110, 157, 1);
+$theme-pink-2: #e869aa;
+$theme-pink-3: #d2006b;
+$theme-pink-4: #9d2763;
+$theme-pink-5: #880045;
+
+$theme-orange-1: #ffa840;
+$theme-orange-2: #ffbf73;
+$theme-orange-3: #ff8b00;
+$theme-orange-4: #bf8730;
+$theme-orange-5: #a66400;
+
+@mixin sas-color($color) {
+    background-image: $color;
+    background-clip: text;
+    -webkit-background-image: $color;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+@mixin color-gray {
+    color: #8189a9;
+}
+
+@mixin color-pku-dair {
+    @include sas-color(linear-gradient(272deg, rgba(45, 80, 125, 1), rgba(108, 187, 232, 1)));
+}
+
+@mixin color-black-red {
+    @include sas-color(linear-gradient(to left, #c31432, #240b36));
+}
+
+@mixin color-orange-pink {
+    @include sas-color(linear-gradient(45deg, #ca9928, #ff2c64));
+}
+
+@mixin color-orange-gold {
+    @include sas-color(linear-gradient(to right, #f9cd5d, #ffc76e));
+}
+
+@mixin pink-a {
+    @include sas-color(linear-gradient(to right, #da4453, #89216b));
+}
+
+@mixin pink-b {
+    @include sas-color(linear-gradient(to right, #ec008c, #fc6767));
+}
+
+@mixin white-a {
+    @include sas-color(linear-gradient(to bottom, #ada996, #f2f2f2, #dbdbdb, #eaeaea));
+}
+
+@mixin white-b {
+    @include sas-color(linear-gradient(to left, #8e9eab, #eef2f3));
+}
+
+@mixin white-c {
+    @include sas-color(linear-gradient(to left, #eeeeee, #eef2f3));
+}
+
+@mixin answer-a {
+    @include sas-color(linear-gradient(to bottom, #da4453, #89216b));
+}
+
+@mixin gold-answer {
+    @include sas-color(linear-gradient(270deg, rgba(50, 190, 166, 1), rgba(30, 108, 50, 1)));
+}
+
+@mixin grammar-score {
+    @include sas-color(linear-gradient(30deg, rgba(50, 49, 48, 1), rgba(132, 151, 176, 1)));
+}
+
+@mixin a-link {
+    @include nowrap;
+
+    font-size: 13.8px;
+    color: #8189a9;
+    user-select: none;
+    cursor: pointer;
+
+    &:hover {
+        color: #a6adc9;
+    }
+}
+
+@mixin narrow-scroll-bar() {
+    &::-webkit-scrollbar {
+        width: 10px;
+        height: 8px;
+
+        &:hover {
+            width: 16px;
+        }
+    }
+    /*定义滚动条轨道
+ 内阴影+圆角*/
+    &::-webkit-scrollbar-track {
+        border-radius: 10px;
+    }
+    /*定义滑块
+ 内阴影+圆角*/
+    &::-webkit-scrollbar-thumb {
+        border-right: rgba(191, 190, 189, 0.2) solid 5px;
+        background-color: rgba(191, 190, 189, 0);
+        transition: background-color 0.3s;
+        cursor: pointer;
+
+        &:hover {
+            border-radius: 10px;
+            border-color: transparent;
+            background-color: rgba(191, 190, 189, 0.6);
+        }
+
+        &:active {
+            background-color: rgba(191, 190, 189, 0.5);
+        }
+
+        &:horizontal {
+            border-right: none;
+            border-bottom: rgba(191, 190, 189, 0.2) solid 5px;
+        }
+    }
+}
+
+@mixin font-1 {
+    font-family:
+        Akkurat Std,
+        -apple-system,
+        BlinkMacSystemFont,
+        Segoe UI,
+        Roboto,
+        Oxygen,
+        Ubuntu,
+        Cantarell,
+        Helvetica Neue,
+        sans-serif;
+}
+
+@mixin manage-page-package {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    padding-left: 15px;
+    box-sizing: border-box;
+    flex: 1;
+
+    .s-h1 {
+        @include pink-a;
+
+        position: relative;
+        width: 100%;
+        height: 60px;
+        color: rgba(28, 30, 41, 1);
+        font-size: 20px;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+
+        span {
+            @include pink-a;
+        }
+    }
+
+    .s-h3 {
+        @include color-black-gray;
+
+        position: relative;
+        width: 100%;
+        margin: 0px;
+        margin-top: 25px;
+        border-bottom: rgba(28, 30, 41, 0) thin solid;
+        color: rgba(28, 30, 41, 1);
+        font-size: 18px;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+    }
+}
+
+@mixin retop {
+    position: fixed;
+    bottom: 45px;
+    right: 0;
+    width: 35px;
+    height: 35px;
+    background: rgba(0, 0, 0, 0.8);
+    border-top-left-radius: 5px;
+    border-bottom-left-radius: 5px;
+    cursor: pointer;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    transition: all 0.5s;
+
+    &:hover {
+        background: rgba(0, 120, 212, 1);
+    }
+}
