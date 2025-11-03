@@ -12,7 +12,7 @@
         "api": "api-cli get http://100.64.0.77:8000/openapi.json -d ./src/axios"
     },
     "dependencies": {
-        "@creatorsn/powereditor3": "^0.1.0",
+        "@creatorsn/powereditor3": "^0.1.9",
         "@creatorsn/vfluent3": "^0.3.13",
         "gsap": "^3.13.0",
         "office-ui-fabric-core": "^11.1.0",

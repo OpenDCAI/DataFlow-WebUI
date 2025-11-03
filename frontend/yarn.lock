@@ -174,12 +174,12 @@
     "@babel/helper-string-parser" "^7.27.1"
     "@babel/helper-validator-identifier" "^7.27.1"
 
-"@creatorsn/powereditor3@^0.1.0":
-  version "0.1.0"
-  resolved "https://registry.yarnpkg.com/@creatorsn/powereditor3/-/powereditor3-0.1.0.tgz#72ea15eb7d0cc2a43b8f05786b0474627adc4922"
-  integrity sha512-2XC5R99uBwxzOa5KyPPX5Hl50A+kpG57dNAPVmEph+k4kRmuS7KUjvxlUFjtD1eg5e8drMfETQlF8BpYKPATQQ==
+"@creatorsn/powereditor3@^0.1.9":
+  version "0.1.9"
+  resolved "https://registry.yarnpkg.com/@creatorsn/powereditor3/-/powereditor3-0.1.9.tgz#a539a464e57ece5f5860152ed5f3e59f2ec7cd92"
+  integrity sha512-rLVq9NIYHPqPPrAjh9jRiiPWHxwAGyxrQXk28LhPGzukOLop4W/fUC+1fTqP4f9dZyt2XroQPBOSakfMudfinw==
   dependencies:
-    "@creatorsn/vfluent3" "^0.3.3"
+    "@creatorsn/vfluent3" "^0.3.13"
     "@tiptap/core" "2.3.0"
     "@tiptap/extension-bubble-menu" "2.3.0"
     "@tiptap/extension-code-block" "2.3.0"
@@ -225,18 +225,6 @@
   version "0.3.13"
   resolved "https://registry.yarnpkg.com/@creatorsn/vfluent3/-/vfluent3-0.3.13.tgz#c0ad18bc99f7a208e1d521b7871f8e831392012e"
   integrity sha512-uNkAVWqePyn+B4I6n1lp031mHTbxdBzEkotodtAO5pNvYgMLZ7qreTgKhf7ucwXhl2BREj7kobYbRM2EAAWrOA==
-  dependencies:
-    "@vue/shared" "^3.4.20"
-    gsap "3.1.1"
-    onecolor "3.1.0"
-    pinia "^2.1.7"
-    swiper "8.3.2"
-    vue "^3.4.20"
-
-"@creatorsn/vfluent3@^0.3.3":
-  version "0.3.3"
-  resolved "https://registry.yarnpkg.com/@creatorsn/vfluent3/-/vfluent3-0.3.3.tgz#0b57f1cc9fb4ab325fbd83f0c6c7d79e7ebcd6aa"
-  integrity sha512-tlu8AG+XSpmUEpLQ3AT//n3R/K2rKibcnREaLwL+gQoWWHZf0XD0uSPBqQEjy4Ewf5741sxlVcFtWrr6shZ2Eg==
   dependencies:
     "@vue/shared" "^3.4.20"
     gsap "3.1.1"
