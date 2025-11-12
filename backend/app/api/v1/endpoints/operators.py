@@ -2,10 +2,11 @@ import os
 from fastapi import APIRouter, HTTPException
 from app.schemas.operator import OperatorSchema
 from app.services.operator_registry import _op_registry
+from typing import List
 
 router = APIRouter(tags=["operators"])
 
-@router.get("/", response_model=dict[str, OperatorSchema])
+@router.get("/", response_model=List[OperatorSchema])
 def list_operators():
     try:
         registry = _op_registry
