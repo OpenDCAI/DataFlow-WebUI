@@ -1,13 +1,12 @@
-import logging, sys
+from loguru import logger
+import sys
 
 def setup_logging():
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
-        handlers=[logging.StreamHandler(sys.stdout)],
-    )
+    pass
 
-if __name__ == "__main__":
-    setup_logging()
-    logger = logging.getLogger("example_logger")
-    logger.info("Logging is set up and ready to go!")
+
+# if __name__ == "__main__":
+#     setup_logging()
+#     logger.info("Logging is set up and ready to go!")
+#     logger.warning("This is a warning with colors!")
+#     logger.error("This is an error message.")

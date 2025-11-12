@@ -23,3 +23,11 @@ def get_dataset(ds_id: str):
     if not ds:
         raise HTTPException(404, "Dataset not found")
     return ds
+
+@router.delete("/{ds_id}")
+def delete_dataset(ds_id: str):
+    ds = _registry.get(ds_id)
+    if not ds:
+        raise HTTPException(404, "Dataset not found")
+    _registry.remove(ds_id)
+    return {"detail": "Dataset deleted"}

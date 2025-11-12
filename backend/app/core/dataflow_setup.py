@@ -1,5 +1,6 @@
 from app.core.config import settings
-import logging
+# import logging
+from loguru import logger as logging
 from app.api.v1.endpoints.datasets import register_dataset
 from app.schemas.dataset import DatasetIn
 def setup_dataflow_core():
@@ -26,8 +27,9 @@ def setup_dataflow_core():
     for pipeline_name in os.listdir(dataset_dir):
         pipeline_path = os.path.join(dataset_dir, pipeline_name)
         if os.path.isdir(pipeline_path):
-            logging.info(f"Pipeline '{pipeline_name}' found in DataFlow core.")
+            # logging.info(f"Pipeline '{pipeline_name}' found in DataFlow core.")
             # registry all files under this pipeline
+            cnt = 0
             for root, dirs, files in os.walk(pipeline_path):
                 for file in files:
                     file_path = os.path.join(root, file)
@@ -39,4 +41,6 @@ def setup_dataflow_core():
                         meta={}
                     )
                     register_dataset(payload)
-                    logging.info(f"Registered dataset from {relative_path}.")
+                    cnt += 1
+            logging.info(f"Registered {cnt} datasets from pipeline '{pipeline_name}'.")
+                    # logging.info(f"Registered dataset from {relative_path}.")
