@@ -42,6 +42,7 @@ class DatasetRegistry:
             ds["hash"] = self._load_file_hash(ds["root"])
         except Exception:
             raise FileNotFoundError(f"Cannot read file at {ds['root']}")
+        ds['type'] = ds.get('root','').split('.')[-1].lower()
         ds["added_at"] = pandas.Timestamp.now().isoformat()
         # 覆盖或新增
         datasets = data.get("datasets",{})
@@ -62,3 +63,5 @@ class DatasetRegistry:
             self._write(data)
             return True
         return False
+
+_DATASET_REGISTRY = DatasetRegistry()
