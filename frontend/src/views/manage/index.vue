@@ -61,7 +61,7 @@ export default {
                 key: 0,
                 name: () => this.local('Dataflow'),
                 icon: 'World',
-                route: '/a/'
+                route: '/m/'
             },
             isExpand: true,
             navList: [
@@ -75,7 +75,7 @@ export default {
                     name: () => this.local('Dataflow'),
                     icon: 'World',
                     img: dataflow,
-                    route: '/a/'
+                    route: '/m/'
                 },
                 {
                     key: -1,

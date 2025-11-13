@@ -2,7 +2,7 @@ import { createRouter, createWebHashHistory } from 'vue-router'
 
 import tool from "./tools";
 
-import Admin from "./Admin";
+import Manage from "./Manage";
 
 import home from "@/views/client/home/index.vue";
 
@@ -17,7 +17,7 @@ const router = createRouter({
                 title: "Dataflow"
             }
         },
-        Admin
+        Manage
     ]
 })
 

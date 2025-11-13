@@ -78,7 +78,7 @@
                                 value="bounceRotate"
                                 icon="Settings"
                                 style="width: 100%; margin: 10px 0px"
-                                @click="$Go('/a')"
+                                @click="$Go('/m')"
                             >
                                 <template v-slot:content>
                                     <div
@@ -157,7 +157,7 @@
                                     value="bounceRotate"
                                     icon="Settings"
                                     style="width: 100%; margin: 10px 0px"
-                                    @click="$Go('/a')"
+                                    @click="$Go('/m')"
                                 >
                                     <template v-slot:content>
                                         <div
@@ -248,7 +248,7 @@ export default {
     components: {},
     data() {
         return {
-            navOptions: [{ name: 'Console', href: '/a' }],
+            navOptions: [{ name: 'Console', href: '/m' }],
             img: {
                 defaultAvatar: defaultAvatar
             },
