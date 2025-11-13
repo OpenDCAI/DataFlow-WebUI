@@ -8,7 +8,7 @@ from app.api.v1.envelope import ApiResponse
 
 router = APIRouter(tags=["operators"])
 
-@router.get("/", response_model=ApiResponse[List[OperatorSchema]], operation_id="list_operators")
+@router.get("/", response_model=ApiResponse[List[OperatorSchema]], operation_id="list_operators", summary="返回目前所有注册的算子列表")
 def list_operators():
     try:
         registry = _op_registry
