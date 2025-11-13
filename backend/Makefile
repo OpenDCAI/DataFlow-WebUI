@@ -1,7 +1,7 @@
 .PHONY: dev test fmt lint
 
 dev:
-	uvicorn app.main:app --reload --port 8000  --reload-dir app
+	uvicorn app.main:app --reload --port 8000  --reload-dir app --host=0.0.0.0
 
 # 用默认浏览器打开文档页面
 	
