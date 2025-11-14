@@ -233,6 +233,18 @@
     swiper "8.3.2"
     vue "^3.4.20"
 
+"@creatorsn/vfluent3@^0.3.19":
+  version "0.3.19"
+  resolved "https://registry.yarnpkg.com/@creatorsn/vfluent3/-/vfluent3-0.3.19.tgz#13111862d59f29d862200904a59dc866af9d348b"
+  integrity sha512-QLWwJd17LuxgxFEtdeA3GROf4rk6CgYAZ/thkB6buvH6wbUtZ7JwbpJpJMPOKUicU1TrC1DGH/OhD9R6ZW66Og==
+  dependencies:
+    "@vue/shared" "^3.4.20"
+    gsap "3.1.1"
+    onecolor "3.1.0"
+    pinia "^2.1.7"
+    swiper "8.3.2"
+    vue "^3.4.20"
+
 "@esbuild/aix-ppc64@0.19.12":
   version "0.19.12"
   resolved "https://registry.yarnpkg.com/@esbuild/aix-ppc64/-/aix-ppc64-0.19.12.tgz#d1bc06aedb6936b3b6d313bf809a5a40387d2b7f"
@@ -944,6 +956,11 @@
   version "5.0.4"
   resolved "https://registry.yarnpkg.com/@vitejs/plugin-vue/-/plugin-vue-5.0.4.tgz#508d6a0f2440f86945835d903fcc0d95d1bb8a37"
   integrity sha512-WS3hevEszI6CEVEx28F8RjTX97k3KsrcY6kvTg7+Whm5y3oYvcqzVeGCU3hxSAn4uY2CLCkeokkGKpoctccilQ==
+
+"@vue-flow/background@^1.3.2":
+  version "1.3.2"
+  resolved "https://registry.yarnpkg.com/@vue-flow/background/-/background-1.3.2.tgz#0c90cd05e5d60da017bbaf5a1c3eb6af7ed9b778"
+  integrity sha512-eJPhDcLj1wEo45bBoqTXw1uhl0yK2RaQGnEINqvvBsAFKh/camHJd5NPmOdS1w+M9lggc9igUewxaEd3iCQX2w==
 
 "@vue-flow/core@^1.47.0":
   version "1.47.0"

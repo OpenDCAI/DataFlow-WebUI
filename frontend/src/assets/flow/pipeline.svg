@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" xmlns:xlink="http://www.w3.org/1999/xlink" width="512"
+    height="512" x="0" y="0" viewBox="0 0 128 128" style="enable-background:new 0 0 512 512" xml:space="preserve"
+    class="">
+    <g>
+        <path fill="#74b7fd"
+            d="M82 66H56a2 2 0 0 1 0-4h26a2 2 0 0 1 0 4zM60.592 46H56a2 2 0 0 1 0-4h4.592c3.116 0 5.743-2.433 5.982-5.54l.863-11.228C67.836 20.056 72.216 16 77.408 16H82a2 2 0 0 1 0 4h-4.592c-3.116 0-5.743 2.433-5.982 5.54l-.863 11.228C70.164 41.944 65.784 46 60.592 46zM82 112h-4.592c-5.192 0-9.572-4.056-9.971-9.233l-.863-11.227c-.239-3.107-2.866-5.54-5.982-5.54H56a2 2 0 0 1 0-4h4.592c5.192 0 9.572 4.056 9.971 9.233l.863 11.228c.239 3.106 2.867 5.54 5.982 5.54H82A2 2 0 0 1 82 112z"
+            opacity="1" data-original="#74b7fd" class=""></path>
+        <path fill="#91e2e1" d="M118 31H88a6 6 0 0 1-6-6V11a6 6 0 0 1 6-6h30a6 6 0 0 1 6 6v14a6 6 0 0 1-6 6z"
+            opacity="1" data-original="#00efc7" class=""></path>
+        <path fill="#ffffff"
+            d="M93.02 20c-1.104 0-2.005-.896-2.005-2s.89-2 1.995-2h.01a2 2 0 0 1 0 4zM103.02 20c-1.104 0-2.005-.896-2.005-2s.89-2 1.995-2h.01a2 2 0 0 1 0 4zM113.02 20c-1.104 0-2.005-.896-2.005-2s.89-2 1.995-2h.01a2 2 0 0 1 0 4z"
+            opacity="1" data-original="#51528c" class=""></path>
+        <path fill="#91aee2" d="M118 77H88a6 6 0 0 1-6-6V57a6 6 0 0 1 6-6h30a6 6 0 0 1 6 6v14a6 6 0 0 1-6 6z"
+            opacity="1" data-original="#fbc96e" class=""></path>
+        <path fill="#ffffff"
+            d="M93.02 66c-1.104 0-2.005-.896-2.005-2s.89-2 1.995-2h.01a2 2 0 0 1 0 4zM103.02 66c-1.104 0-2.005-.896-2.005-2s.89-2 1.995-2h.01a2 2 0 0 1 0 4zM113.02 66c-1.104 0-2.005-.896-2.005-2s.89-2 1.995-2h.01a2 2 0 0 1 0 4z"
+            opacity="1" data-original="#51528c" class=""></path>
+        <path fill="#dcade8" d="M118 123H88a6 6 0 0 1-6-6v-14a6 6 0 0 1 6-6h30a6 6 0 0 1 6 6v14a6 6 0 0 1-6 6z"
+            opacity="1" data-original="#f86aa5" class=""></path>
+        <path fill="#ffffff"
+            d="M93.02 112c-1.104 0-2.005-.896-2.005-2s.89-2 1.995-2h.01a2 2 0 0 1 0 4zM103.02 112c-1.104 0-2.005-.896-2.005-2s.89-2 1.995-2h.01a2 2 0 0 1 0 4zM113.02 112c-1.104 0-2.005-.896-2.005-2s.89-2 1.995-2h.01a2 2 0 0 1 0 4z"
+            opacity="1" data-original="#51528c" class=""></path>
+        <path fill="#9c9cd1" d="M51 100H9a5 5 0 0 1-5-5V33a5 5 0 0 1 5-5h42a5 5 0 0 1 5 5v62a5 5 0 0 1-5 5z" opacity="1"
+            data-original="#eceafd" class=""></path>
+        <g fill="#51528c">
+            <path
+                d="M46 54H14a2 2 0 0 1 0-4h32a2 2 0 0 1 0 4zM46 64H14a2 2 0 0 1 0-4h32a2 2 0 0 1 0 4zM46 74H14a2 2 0 0 1 0-4h32a2 2 0 0 1 0 4zM34 84H14a2 2 0 0 1 0-4h20a2 2 0 0 1 0 4z"
+                fill="#ffffff" opacity="1" data-original="#51528c" class=""></path>
+        </g>
+        <circle cx="30" cy="28" r="13" fill="#8787d5" opacity="1" data-original="#f24087" class=""></circle>
+        <path fill="#ffffff"
+            d="M30 35a2 2 0 0 1-2-2v-6.601l-.029.016a2 2 0 0 1-1.943-3.497l3-1.667A2 2 0 0 1 32 23v10a2 2 0 0 1-2 2z"
+            opacity="1" data-original="#ffffff" class=""></path>
+    </g>
+</svg>

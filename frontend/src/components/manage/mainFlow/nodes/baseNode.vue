@@ -3,6 +3,7 @@
         class="df-flow-default-node"
         :class="[{ selected: selected }]"
         :style="{
+            '--node-background': thisData.background,
             '--node-icon-color': thisData.iconColor,
             '--node-border-color': thisData.borderColor,
             '--node-shadow-color': thisData.shadowColor,
@@ -17,8 +18,8 @@
                 <fv-img v-else class="icon-img" :src="thisData.img"></fv-img>
             </div>
             <div class="content-block">
-                <p class="sub-status">{{ thisData.status }}</p>
-                <p class="main-title">{{ thisData.label }}</p>
+                <p class="sub-status" :title="thisData.status">{{ thisData.status }}</p>
+                <p class="main-title" :title="thisData.label">{{ thisData.label }}</p>
             </div>
             <div class="control-block">
                 <fv-button
@@ -78,6 +79,7 @@ const defaultData = {
     nodeInfo: '',
     icon: 'EndPoint',
     iconColor: '',
+    background: '',
     titleColor: '',
     statusColor: '',
     borderColor: '',
@@ -97,6 +99,7 @@ const y = computed(() => `${Math.round(props.position.y)}px`)
 
 <style lang="scss">
 .df-flow-default-node {
+    --node-background: rgba(252, 252, 252, 0.8);
     --node-title-color: rgba(100, 108, 126, 1);
     --node-status-color: rgba(168, 170, 176, 1);
     --node-shadow-color: rgba(122, 124, 206, 0.3);
@@ -107,7 +110,7 @@ const y = computed(() => `${Math.round(props.position.y)}px`)
     position: relative;
     width: 250px;
     padding: 5px 0px;
-    background: rgba(252, 252, 252, 0.8);
+    background: var(--node-background);
     border: 1px solid rgba(120, 120, 120, 0.1);
     border-radius: 8px;
     outline: 1.5px solid transparent;
@@ -117,6 +120,7 @@ const y = computed(() => `${Math.round(props.position.y)}px`)
         box-shadow 0.2s ease-in-out,
         outline 0.2s ease-in-out;
     backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
     box-shadow:
         0px 0px 1px var(--node-shadow-color),
         3px 6px 16px transparent,
@@ -171,7 +175,7 @@ const y = computed(() => `${Math.round(props.position.y)}px`)
             }
 
             .icon-img {
-                width: 20px;
+                width: auto;
                 height: 20px;
             }
         }
@@ -194,6 +198,9 @@ const y = computed(() => `${Math.round(props.position.y)}px`)
                 font-size: 13.8px;
                 font-weight: 600;
                 color: var(--node-title-color);
+                text-overflow: ellipsis;
+                white-space: nowrap;
+                overflow: hidden;
             }
 
             .sub-status {
@@ -203,6 +210,9 @@ const y = computed(() => `${Math.round(props.position.y)}px`)
                 font-size: 10px;
                 font-weight: 400;
                 color: var(--node-status-color);
+                text-overflow: ellipsis;
+                white-space: nowrap;
+                overflow: hidden;
             }
         }
 
@@ -263,6 +273,12 @@ const y = computed(() => `${Math.round(props.position.y)}px`)
             padding: 5px;
             display: flex;
             justify-content: space-between;
+
+            .info-value {
+                margin-left: 5px;
+                text-overflow: ellipsis;
+                text-align: right;
+            }
         }
 
         .info-title {
@@ -274,9 +290,15 @@ const y = computed(() => `${Math.round(props.position.y)}px`)
         }
 
         .info-value {
+            flex: 1;
             font-size: 12px;
             font-weight: 400;
             color: var(--node-title-color);
+            overflow: hidden;
+
+            &.tiny {
+                font-size: 10px;
+            }
         }
     }
 

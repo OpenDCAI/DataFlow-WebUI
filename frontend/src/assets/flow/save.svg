@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" xmlns:xlink="http://www.w3.org/1999/xlink" width="512"
+    height="512" x="0" y="0" viewBox="0 0 448 448" style="enable-background:new 0 0 512 512" xml:space="preserve"
+    class="">
+    <g>
+        <path
+            d="M32 448h384c17.6 0 32-14.4 32-32V109.6c0-8.8-3.2-16.8-9.6-22.4L360.8 9.6C355.2 3.2 347.2 0 338.4 0H32C14.4 0 0 14.4 0 32v384c0 17.6 14.4 32 32 32z"
+            style="" fill="#7f5da2" data-original="#9f2bfb" class="" opacity="1"></path>
+        <path d="M128 0H32v160c0 17.6 14.4 32 32 32h224c17.6 0 32-14.4 32-32V0H128z" style="" fill="#ffffff"
+            data-original="#f3e4ff" class="" opacity="1"></path>
+        <path d="M128 0v192H64c-17.6 0-32-14.4-32-32V0h96z" style="" fill="#f6eaff" data-original="#7720bc" class=""
+            opacity="1"></path>
+        <path d="M256 48v96c0 8.8 7.2 16 16 16s16-7.2 16-16V48c0-8.8-7.2-16-16-16s-16 7.2-16 16z" style=""
+            fill="#907de2" data-original="#e7c9ff" class="" opacity="1"></path>
+        <path
+            d="M288 264H64c-4.8 0-8-3.2-8-8s3.2-8 8-8h224c4.8 0 8 3.2 8 8s-3.2 8-8 8zM384 392H64c-4.8 0-8-3.2-8-8s3.2-8 8-8h320c4.8 0 8 3.2 8 8s-3.2 8-8 8zM384 264h-64c-4.8 0-8-3.2-8-8s3.2-8 8-8h64c4.8 0 8 3.2 8 8s-3.2 8-8 8zM384 328H128c-4.8 0-8-3.2-8-8s3.2-8 8-8h256c4.8 0 8 3.2 8 8s-3.2 8-8 8zM96 328H64c-4.8 0-8-3.2-8-8s3.2-8 8-8h32c4.8 0 8 3.2 8 8s-3.2 8-8 8z"
+            style="" fill="#f6eaff" data-original="#7720bc" class="" opacity="1"></path>
+    </g>
+</svg>
