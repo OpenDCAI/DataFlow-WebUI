@@ -6,17 +6,11 @@
         :width="width"
         :height="height"
         :background="theme === 'dark' ? 'rgba(0, 0, 0, 0.8)' : 'rgba(250, 250, 250, 0.3)'"
-        :title-size="16"
+        :title-size="18"
         :isAcrylic="true"
         :is-central-side="true"
         :is-footer="isFooter"
     >
-        <template v-slot:header>
-            <slot name="header">
-                <p class="panel-title" style="font-size: 15px">{{ title }}</p>
-            </slot>
-            <i class="ms-Icon ms-Icon--Cancel" @click="thisValue = !thisValue"></i>
-        </template>
         <template v-slot:container>
             <div class="base-panel-container" @keyup.enter="$emit('confirm')">
                 <slot name="content"></slot>
