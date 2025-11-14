@@ -7,7 +7,8 @@ from app.schemas.pipelines import (
     PipelineIn,
     PipelineOut, 
     PipelineConfig, 
-    PipelineExecutionResult
+    PipelineExecutionResult,
+    ExecutionStatus
 )
 
 logger = get_logger(__name__)
@@ -39,7 +40,8 @@ class PipelineRegistry:
             config=pipeline_data.config,
             tags=pipeline_data.tags,
             created_at=current_time,
-            updated_at=current_time
+            updated_at=current_time,
+            status=ExecutionStatus.queued
         )
         
         # 保存到注册表
@@ -57,14 +59,15 @@ class PipelineRegistry:
             raise ValueError(f"Pipeline with id {pipeline_id} not found")
         
         current_pipeline = self._pipeline_registry[pipeline_id]
-        # 更新字段，保留创建时间
+        # 更新字段，保留创建时间和状态
         updated_pipeline = PipelineOut(
             id=pipeline_id,
             name=pipeline_data.name,
             config=pipeline_data.config,
             tags=pipeline_data.tags,
             created_at=current_pipeline.created_at,
-            updated_at=self.get_current_time()
+            updated_at=self.get_current_time(),
+            status=current_pipeline.status
         )
         
         self._pipeline_registry[pipeline_id] = updated_pipeline
@@ -170,6 +173,9 @@ class PipelineRegistry:
             output={},
             logs=[f"[{self.get_current_time()}] Pipeline execution queued"]
         )
+        
+        # 保存执行结果到_execution_results字典
+        self._execution_results[execution_id] = initial_result
         
         return execution_id, pipeline_config, initial_result
     

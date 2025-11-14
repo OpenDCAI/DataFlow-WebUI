@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Dict
 from fastapi import APIRouter, HTTPException, BackgroundTasks, Request
 from app.schemas.pipelines import (
     PipelineIn,
@@ -61,7 +61,7 @@ def update_pipeline(pipeline_id: str, payload: PipelineIn):
         logger.error(f"Failed to update pipeline {pipeline_id}: {e}")
         raise HTTPException(400, f"Failed to update pipeline: {e}")
 
-@router.delete("/{pipeline_id}", operation_id="delete_pipeline", summary="删除指定的Pipeline")
+@router.delete("/{pipeline_id}", response_model=ApiResponse[Dict], operation_id="delete_pipeline", summary="删除指定的Pipeline") 
 def delete_pipeline(pipeline_id: str):
     try:
         success = _PIPELINE_REGISTRY.delete_pipeline(pipeline_id)
