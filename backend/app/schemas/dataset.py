@@ -14,4 +14,5 @@ class DatasetIn(BaseModel):
 class DatasetOut(DatasetIn):
     id: str
     num_samples: int = 0
+    file_size: int = 0
     hash: Optional[str] = None

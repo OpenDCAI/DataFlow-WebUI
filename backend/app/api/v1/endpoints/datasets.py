@@ -10,8 +10,9 @@ from app.api.v1.errors import *
 router = APIRouter(tags=["datasets"])
 _registry = _DATASET_REGISTRY
 
-@router.get("/", response_model=ApiResponse[list[DatasetOut]], operation_id="list_datasets", summary="返回目前所有注册的数据集列表")
+@router.get("/", response_model=ApiResponse[list[DatasetOut]], operation_id="list_datasets", summary="返回目前所有注册的数据集列表，包含每个数据集的条目数和文件大小")
 def list_datasets():
+    """返回所有数据集列表，每个数据集包含条目数(num_samples)和文件大小(file_size)信息"""
     return ok(_registry.list())
 
 @router.post("/", response_model=ApiResponse[DatasetOut], operation_id="register_dataset", summary="注册一个新的数据集或更新已有数据集的信息，根据路径作为唯一主键")
