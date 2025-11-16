@@ -1,33 +1,105 @@
 from enum import Enum
-from typing import List, Union
-from pydantic import BaseModel, Field
-from typing_extensions import Annotated
-import os
-from app.core.config import settings
+from typing import List, Dict, Any, Optional, Union
+from pydantic import BaseModel, Field, field_validator
+
+
 class Pipeline(str, Enum):
+    """Pipeline类型枚举"""
     undefined = "undefined"
-    Text2SQL = "text2sql"
-    Reasoning = "reasoning"
-    CodeGeneration = "code_generation"
-    Translation = "translation"
-    # 可继续扩展
+    agentic_rag = "agentic_rag"
+    chemistry = "chemistry"
+    code = "code"
+    conversation = "conversation"
+    core_speech = "core_speech"
+    db = "db"
+    core_text = "core_text"
+    core_vision = "core_vision"
+    general_text = "general_text"
+    knowledge_cleaning = "knowledge_cleaning"
+    text2sql = "text2sql"
+    reasoning = "reasoning"
+    code_generation = "code_generation"
+    translation = "translation"
+    text_pt = "text_pt"
+    text_sft = "text_sft"
 
 
-def generate_pipeline_enum(path: str):
-    """根据文件夹自动生成 Enum"""
+class ExecutionStatus(str, Enum):
+    """Pipeline执行状态枚举"""
+    queued = "queued"
+    running = "running"
+    completed = "completed"
+    failed = "failed"
 
-    items = [
-        name for name in os.listdir(path)
-        if os.path.isdir(os.path.join(path, name))
-    ]
-    if not items:
-        raise ValueError(f"No pipeline found in {path}")
-    return Enum("Pipeline", {name: name for name in items})
 
-# Pipeline = generate_pipeline_enum(os.path.join(settings.DataFlow_CORE_DIR, "example_data"))
+class PipelineOperator(BaseModel):
+    """Pipeline算子模型"""
+    name: str = Field(..., description="算子名称")
+    params: Dict[str, Any] = Field(default_factory=dict, description="算子参数配置")
+    
+    @field_validator('name')
+    def validate_operator_name(cls, v: str) -> str:
+        """验证算子名称格式"""
+        if not v.replace('_', '').isalnum():
+            raise ValueError('Operator name can only contain letters, numbers and underscores')
+            # 后续可以补充从可用算子集中验证算子名称是否存在
+        return v
 
-# print("Generated Pipeline Enum with items:", list(Pipeline))
-# OneOrManyPipelines = Annotated[
-#     Union[Pipeline, List[Pipeline]],
-#     Field(description="选择一个或多个 pipeline")
-# ]
+
+class PipelineConfig(BaseModel):
+    """Pipeline配置模型"""
+    input_dataset: str = Field(..., description="输入数据集ID")
+    # 用 list 的顺序代表算子执行顺序
+    operators: List[PipelineOperator] = Field(default_factory=list, description="算子执行序列")
+    run_config: Dict[str, Any] = Field(default_factory=dict, description="运行时配置参数")
+    
+    @field_validator('operators')
+    def validate_operators(cls, v: List[PipelineOperator]) -> List[PipelineOperator]:
+        """确保至少有一个算子"""
+        if not v:
+            raise ValueError('Pipeline must have at least one operator')
+        return v
+
+
+class PipelineIn(BaseModel):
+    """创建/更新Pipeline的请求模型"""
+    name: str = Field(..., description="Pipeline名称")
+    config: PipelineConfig = Field(..., description="Pipeline详细配置")
+    tags: List[str] = Field(default_factory=list, description="标签列表，用于分类和搜索")
+
+
+class PipelineOut(BaseModel):
+    """Pipeline响应模型, 包含完整信息"""
+    id: str = Field(..., description="Pipeline唯一标识符")
+    name: str = Field(..., description="Pipeline名称")
+    config: PipelineConfig = Field(..., description="Pipeline配置")
+    tags: List[str] = Field(default_factory=list, description="标签列表")
+    created_at: str = Field(..., description="创建时间")
+    updated_at: str = Field(..., description="更新时间")
+    status: ExecutionStatus = Field(..., description="当前执行状态")
+    
+    class Config:
+        from_attributes = True
+
+
+class PipelineExecutionRequest(BaseModel):
+    """Pipeline执行请求模型"""
+    pipeline_id: Optional[str] = Field(None, description="预定义Pipeline ID")
+    config: Optional[PipelineConfig] = Field(None, description="自定义Pipeline配置")
+    
+    @field_validator('pipeline_id', 'config')
+    def validate_at_least_one(cls, v, info):
+        """确保至少提供pipeline_id或config之一"""
+        if info.data.get('pipeline_id') is None and info.data.get('config') is None:
+            raise ValueError('Either pipeline_id or config must be provided')
+        return v
+
+
+class PipelineExecutionResult(BaseModel):
+    """Pipeline执行结果模型"""
+    execution_id: str = Field(..., description="执行会话唯一标识符")
+    status: ExecutionStatus = Field(..., description="执行状态")
+    output: Dict[str, Any] = Field(default_factory=dict, description="执行输出结果")
+    logs: List[str] = Field(default_factory=list, description="执行日志列表")
+    started_at: Optional[str] = Field(None, description="执行开始时间")
+    completed_at: Optional[str] = Field(None, description="执行完成时间")
