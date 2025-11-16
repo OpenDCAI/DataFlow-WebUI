@@ -3,6 +3,7 @@ from pydantic_settings import BaseSettings
 class Settings(BaseSettings):
     # 基本
     ENV: str = "dev"
+    DATA_DIR: str = "data"  # 数据目录
     DATA_REGISTRY: str = "data/registry.yaml"
     TASK_REGISTRY: str = "data/task_registry.yaml"
     PIPELINE_REGISTRY: str = "data/pipeline_registry.json"

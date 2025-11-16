@@ -3,3 +3,7 @@ uvicorn[standard]
 pydantic_settings
 pandas
 loguru
+numpy
+faiss-cpu
+httpx
+open-dataflow
