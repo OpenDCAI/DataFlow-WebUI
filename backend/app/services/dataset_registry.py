@@ -1,4 +1,5 @@
 import yaml, os, hashlib
+import json
 from typing import Dict, List
 from app.core.config import settings
 import pandas
@@ -22,8 +23,38 @@ class DatasetRegistry:
         with open(self.path, "w", encoding="utf-8") as f:
             yaml.safe_dump(data, f, allow_unicode=True, sort_keys=False)
 
+    def _count_file_entries(self, file_path: str) -> int:
+        """统计文件中的条目数量"""
+        # 根据文件类型使用不同的方法计算条目数
+        file_ext = file_path.split('.')[-1].lower()
+        
+        try:
+            if file_ext in ['csv', 'jsonl', 'txt', 'log']:
+                # 对于文本类文件，按行计数
+                with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                    return sum(1 for _ in f)
+            elif file_ext == 'json':
+                # 对于JSON文件，尝试加载并计算
+                with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                    data = json.load(f)
+                    if isinstance(data, list):
+                        return len(data)
+                    elif isinstance(data, dict):
+                        # 如果是字典，返回键的数量
+                        return len(data)
+                    else:
+                        return 1  # 单个值
+            else:
+                # 对于其他类型文件，默认为1个条目
+                return 1
+        except Exception:
+            # 出错时返回0
+            return 0
+    
     def list(self) -> List[Dict]:
-        return self._read()["datasets"].values()
+        """返回所有数据集列表，每个数据集包含条目数和文件大小信息"""
+        datasets = list(self._read()["datasets"].values())
+        return datasets
     
     def _load_file_hash(self, file_path: str) -> str:
         """计算文件的 MD5 哈希值"""
@@ -40,10 +71,19 @@ class DatasetRegistry:
         ds["id"] = ds_id
         try: 
             ds["hash"] = self._load_file_hash(ds["root"])
+            
+            # 计算文件大小（字节）
+            ds["file_size"] = os.path.getsize(ds["root"])
+            
+            # 计算文件条目数
+            ds["num_samples"] = self._count_file_entries(ds["root"])
+            
         except Exception:
             raise FileNotFoundError(f"Cannot read file at {ds['root']}")
+        
         ds['type'] = ds.get('root','').split('.')[-1].lower()
         ds["added_at"] = pandas.Timestamp.now().isoformat()
+        
         # 覆盖或新增
         datasets = data.get("datasets",{})
         datasets[ds_id] = ds
