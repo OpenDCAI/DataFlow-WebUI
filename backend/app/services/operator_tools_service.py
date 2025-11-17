@@ -3,6 +3,7 @@
 提供算子库管理、源码获取、RAG检索等功能
 从 DataFlow-Agent 的 op_tools.py 迁移而来
 """
+import importlib
 import inspect
 import json
 import os
@@ -98,6 +99,44 @@ class OperatorToolsService:
         except Exception:
             return []
     
+    @staticmethod
+    def _get_operator_relative_path(cls: type) -> str:
+        """获取算子类所在文件的相对路径"""
+        try:
+            file_path = Path(inspect.getfile(cls)).resolve()
+        except (TypeError, OSError):
+            return ""
+        
+        module_name = getattr(cls, "__module__", "") or ""
+        root_module_name = module_name.split(".")[0] if module_name else ""
+        candidate_roots: List[Path] = []
+        
+        if root_module_name:
+            try:
+                root_module = importlib.import_module(root_module_name)
+                module_file = getattr(root_module, "__file__", None)
+                if module_file:
+                    module_dir = Path(module_file).resolve().parent
+                    candidate_roots.extend([
+                        module_dir.parent,
+                        module_dir,
+                    ])
+            except Exception:
+                pass
+        
+        candidate_roots.append(Path.cwd())
+        
+        for base in candidate_roots:
+            if not base:
+                continue
+            try:
+                rel_path = file_path.relative_to(base)
+                return rel_path.as_posix()
+            except ValueError:
+                continue
+        
+        return file_path.as_posix()
+    
     def _gather_single_operator(self, op_name: str, cls: type, node_index: int) -> Tuple[str, Dict[str, Any]]:
         """收集单个算子的全部信息"""
         # 分类
@@ -114,6 +153,9 @@ class OperatorToolsService:
         init_params = self._get_method_params(cls.__init__, skip_first_self=True)
         run_params = self._get_method_params(getattr(cls, "run", None), skip_first_self=True)
         
+        # 路径
+        relative_path = self._get_operator_relative_path(cls)
+        
         info = {
             "node": node_index,
             "name": op_name,
@@ -125,6 +167,7 @@ class OperatorToolsService:
             "required": "",
             "depends_on": [],
             "mode": "",
+            "path": relative_path,
         }
         return category, info
     
@@ -138,6 +181,8 @@ class OperatorToolsService:
         idx = 1
         for op_name, cls in OPERATOR_REGISTRY:
             category, info = self._gather_single_operator(op_name, cls, idx)
+            if 'description' in info and isinstance(info['description'], Tuple):
+                info['description'] = '\n'.join(info['description'])
             all_ops.setdefault(category, []).append(info)
             default_bucket.append(info)
             idx += 1

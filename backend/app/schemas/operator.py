@@ -17,6 +17,7 @@ class OperatorDetailOut(BaseModel):
     required: str = ""
     depends_on: List[str] = []
     mode: str = ""
+    path: str = ""
 
 
 class OperatorCategoryIn(BaseModel):
@@ -57,4 +58,3 @@ class OperatorRAGOut(BaseModel):
     """RAG 算子检索输出模型"""
     query: Union[str, List[str]]
     results: Union[List[str], List[List[str]]]  # 单查询返回 List[str]，多查询返回 List[List[str]]
-
