@@ -33,29 +33,30 @@ def list_operators():
 
 # ============ 算子详细信息 API ============
 
-@router.get("/details", response_model=ApiResponse[List[OperatorDetailOut]], operation_id="list_operators_details", summary="返回指定类别的算子详细信息列表，包含参数等")
-def list_operators_details(category: Optional[str] = Query(None, description="算子类别，如 text2sql, rag 等。为空则返回所有")):
-    """返回算子详细信息，包含参数、描述等"""
+@router.get(
+    "/details",
+    response_model=ApiResponse[List[OperatorDetailOut]],
+    operation_id="list_operators_details",  # 或者随便一个唯一的名字
+    summary="返回算子详细信息列表，支持按类别和操作类型过滤"
+)
+def list_operators_details(
+    category: Optional[str] = Query(None, description="算子类别，如 text2sql, rag 等。为空则返回所有"),
+    op_type: Optional[str] = Query(None, description="操作类型，如 eval, refine, generate, filter。为空则不按操作类型过滤")
+):
+    """返回算子详细信息，包含参数、描述等，可按类别和操作类型过滤"""
     try:
-        details = _operator_tools_service.get_operator_content_list(category)
-        return ok(details)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get operator details: {e}")
-
-
-@router.get("/details/{category}", response_model=ApiResponse[List[OperatorDetailOut]], operation_id="get_operators_by_category", summary="根据类别获取算子详细信息")
-def get_operators_by_category(category: str):
-    """根据类别获取算子详细信息"""
-    try:
-        details = _operator_tools_service.get_operator_content_list(category)
-        if not details:
-            raise HTTPException(status_code=404, detail=f"Category '{category}' not found")
+        details = _operator_tools_service.get_operator_content_list(category, op_type)
+        # 如果你希望 category / op_type 没匹配到时返回 404，可以保留这一段
+        # if not details:
+        #     raise HTTPException(
+        #         status_code=404,
+        #         detail=f"Category '{category}' , Op Type '{op_type}' not found"
+        #     )
         return ok(details)
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get operators: {e}")
-
+        raise HTTPException(status_code=500, detail=f"Failed to get operator details: {e}")
 
 # ============ 算子源码 API ============
 

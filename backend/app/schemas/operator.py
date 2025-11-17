@@ -18,6 +18,7 @@ class OperatorDetailOut(BaseModel):
     depends_on: List[str] = []
     mode: str = ""
     path: str = ""
+    operation_type: str = ""
 
 
 class OperatorCategoryIn(BaseModel):

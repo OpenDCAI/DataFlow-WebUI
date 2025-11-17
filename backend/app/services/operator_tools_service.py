@@ -137,6 +137,18 @@ class OperatorToolsService:
         
         return file_path.as_posix()
     
+    @staticmethod
+    def _infer_operator_type(relative_path: str) -> str:
+        """根据路径推断算子类型（eval/refine/filter/generate）"""
+        valid_types = {"eval", "refine", "filter", "generate"}
+        if not relative_path:
+            return ""
+        try:
+            parent_dir = Path(relative_path).parent.name
+        except Exception:
+            return ""
+        return parent_dir if parent_dir in valid_types else ""
+    
     def _gather_single_operator(self, op_name: str, cls: type, node_index: int) -> Tuple[str, Dict[str, Any]]:
         """收集单个算子的全部信息"""
         # 分类
@@ -155,6 +167,7 @@ class OperatorToolsService:
         
         # 路径
         relative_path = self._get_operator_relative_path(cls)
+        operation_type = self._infer_operator_type(relative_path)
         
         info = {
             "node": node_index,
@@ -168,6 +181,7 @@ class OperatorToolsService:
             "depends_on": [],
             "mode": "",
             "path": relative_path,
+            "operation_type": operation_type,
         }
         return category, info
     
@@ -223,12 +237,21 @@ class OperatorToolsService:
         
         return json.dumps(content, ensure_ascii=False, indent=2)
     
-    def get_operator_content_list(self, category: Optional[str] = None) -> List[Dict[str, Any]]:
+    def get_operator_content_list(self, category: Optional[str] = None, op_type: Optional[str] = None) -> List[Dict[str, Any]]:
         """
         返回算子列表（Python对象，不是JSON字符串）
         """
         all_ops = self.dump_all_ops_to_file()
-        
+        print(category, op_type)
+        if op_type:
+            filtered_ops = []
+            for cat, ops in all_ops.items():
+                if category and cat != category:
+                    continue
+                for op in ops:
+                    if op.get("operation_type") == op_type:
+                        filtered_ops.append(op)
+            return filtered_ops
         if category and category in all_ops:
             return all_ops[category]
         elif category is None:
