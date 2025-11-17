@@ -1,6 +1,6 @@
 """
 算子工具服务层
-提供算子库管理、源码获取、RAG检索等功能
+提供算子库管理、源码获取等功能
 从 DataFlow-Agent 的 op_tools.py 迁移而来
 """
 import importlib
@@ -9,11 +9,7 @@ import json
 import os
 import random
 from pathlib import Path
-from typing import Any, Dict, List, Tuple, Union, Optional
-
-import numpy as np
-import faiss
-import httpx
+from typing import Any, Dict, List, Tuple, Optional
 
 from dataflow.utils.registry import OPERATOR_REGISTRY
 from app.core.config import settings
@@ -242,7 +238,6 @@ class OperatorToolsService:
         返回算子列表（Python对象，不是JSON字符串）
         """
         all_ops = self.dump_all_ops_to_file()
-        print(category, op_type)
         if op_type:
             filtered_ops = []
             for cat, ops in all_ops.items():
@@ -299,200 +294,6 @@ class OperatorToolsService:
             except OSError:
                 out[c.__name__] = "# 源码不可用（可能是C扩展/找不到源码/zip导入）"
         return out
-    
-    # ============ RAG 检索部分 ============
-    
-    @staticmethod
-    def _call_openai_embedding_api(
-        texts: List[str],
-        model_name: str = "text-embedding-ada-002",
-        base_url: str = "https://api.openai.com/v1/embeddings",
-        api_key: str | None = None,
-        timeout: float = 30.0,
-    ) -> np.ndarray:
-        """调用 OpenAI API 获取文本向量"""
-        if api_key is None:
-            api_key = os.getenv("DF_API_KEY")
-        if not api_key:
-            raise RuntimeError("必须提供 OpenAI API-Key，可通过参数或环境变量 DF_API_KEY")
-        
-        headers = {
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json",
-        }
-        
-        vecs: List[List[float]] = []
-        with httpx.Client(timeout=timeout) as client:
-            for t in texts:
-                resp = client.post(
-                    base_url,
-                    headers=headers,
-                    json={"model": model_name, "input": t},
-                )
-                try:
-                    resp.raise_for_status()
-                except httpx.HTTPStatusError as e:
-                    raise RuntimeError(f"调用 OpenAI embedding 失败: {e}\n{resp.text}") from e
-                
-                try:
-                    data = resp.json()
-                    vec = data["data"][0]["embedding"]
-                except Exception as e:
-                    raise RuntimeError(f"解析返回 JSON 失败: {resp.text}") from e
-                
-                vecs.append(vec)
-        
-        arr = np.asarray(vecs, dtype=np.float32)
-        faiss.normalize_L2(arr)
-        return arr
-    
-    def get_operators_by_rag(
-        self,
-        search_queries: Union[str, List[str]],
-        category: Optional[str] = None,
-        top_k: int = 5,
-        model_name: str = "text-embedding-3-small",
-        base_url: str = "http://123.129.219.111:3000/v1/embeddings",
-        api_key: Optional[str] = None,
-    ) -> Union[List[str], List[List[str]]]:
-        """
-        通过 RAG 检索算子
-        
-        Args:
-            search_queries: 单个查询字符串或查询列表
-            category: 算子类别，None 表示读取全部
-            top_k: 每个查询返回 top-k 结果
-            model_name: embedding 模型
-            base_url: API 地址
-            api_key: API 密钥
-        
-        Returns:
-            单查询返回 List[str]，多查询返回 List[List[str]]
-        """
-        # 检查索引缓存
-        faiss_index_path = self.resource_dir / f"faiss_{category or 'all'}.index"
-        
-        searcher = RAGOperatorSearch(
-            ops_json_path=str(self.ops_json_path),
-            category=category,
-            faiss_index_path=str(faiss_index_path) if faiss_index_path else None,
-            model_name=model_name,
-            base_url=base_url,
-            api_key=api_key or os.getenv("DF_API_KEY"),
-        )
-        
-        return searcher.search(search_queries, top_k=top_k)
-
-
-class RAGOperatorSearch:
-    """RAG 算子检索类，支持向量持久化和批量查询"""
-    
-    def __init__(
-        self,
-        ops_json_path: str,
-        category: Optional[str] = None,
-        faiss_index_path: Optional[str] = None,
-        model_name: str = "text-embedding-ada-002",
-        base_url: str = "https://api.openai.com/v1/embeddings",
-        api_key: Optional[str] = None,
-    ):
-        self.ops_json_path = ops_json_path
-        self.category = category
-        self.faiss_index_path = faiss_index_path
-        self.model_name = model_name
-        self.base_url = base_url
-        self.api_key = api_key
-        
-        self.index = None
-        self.ops_list = []
-        
-        self._load_or_build_index()
-    
-    def _load_operators(self) -> List[Dict]:
-        """加载算子数据"""
-        with open(self.ops_json_path, "r", encoding="utf-8") as f:
-            all_ops = json.load(f)
-        
-        if self.category:
-            ops = all_ops.get(self.category, [])
-        else:
-            ops = []
-            for cat, op_list in all_ops.items():
-                ops.extend(op_list)
-        
-        return ops
-    
-    def _load_or_build_index(self):
-        """加载或构建 FAISS 索引"""
-        import pickle
-        
-        # 检查是否可以复用索引
-        if self.faiss_index_path and os.path.exists(self.faiss_index_path):
-            meta_path = self.faiss_index_path + ".meta"
-            if os.path.exists(meta_path):
-                self.index = faiss.read_index(self.faiss_index_path)
-                with open(meta_path, "rb") as f:
-                    self.ops_list = pickle.load(f)
-                return
-        
-        # 重新构建索引
-        self.ops_list = self._load_operators()
-        
-        if not self.ops_list:
-            raise ValueError("没有找到任何算子数据！")
-        
-        # 生成文本描述
-        texts = [f"{op['name']} {op.get('description', '')}" for op in self.ops_list]
-        
-        # 调用 API 获取向量
-        embeddings = OperatorToolsService._call_openai_embedding_api(
-            texts,
-            model_name=self.model_name,
-            base_url=self.base_url,
-            api_key=self.api_key,
-        )
-        
-        # 构建 FAISS 索引
-        dim = embeddings.shape[1]
-        self.index = faiss.IndexFlatIP(dim)
-        self.index.add(embeddings)
-        
-        # 保存索引
-        if self.faiss_index_path:
-            os.makedirs(os.path.dirname(self.faiss_index_path) or ".", exist_ok=True)
-            faiss.write_index(self.index, self.faiss_index_path)
-            with open(self.faiss_index_path + ".meta", "wb") as f:
-                pickle.dump(self.ops_list, f)
-    
-    def search(
-        self,
-        queries: Union[str, List[str]],
-        top_k: int = 5
-    ) -> Union[List[str], List[List[str]]]:
-        """检索最相关的算子"""
-        # 统一处理为列表
-        is_single = isinstance(queries, str)
-        if is_single:
-            queries = [queries]
-        
-        # 批量获取 query 向量
-        query_vecs = OperatorToolsService._call_openai_embedding_api(
-            queries,
-            model_name=self.model_name,
-            base_url=self.base_url,
-            api_key=self.api_key,
-        )
-        
-        # 检索
-        D, I = self.index.search(query_vecs, top_k)
-        
-        # 组织结果
-        results = []
-        for i, indices in enumerate(I):
-            matched_ops = [self.ops_list[idx]["name"] for idx in indices]
-            results.append(matched_ops)
-        
-        return results[0] if is_single else results
 
 
 # 全局实例

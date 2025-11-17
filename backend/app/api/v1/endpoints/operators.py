@@ -8,13 +8,11 @@ from app.schemas.operator import (
     OperatorSourceOut,
     OperatorPromptSourceIn,
     OperatorPromptSourceOut,
-    OperatorRAGIn,
-    OperatorRAGOut,
 )
 from app.services.operator_registry import _op_registry
 from app.services.operator_tools_service import _operator_tools_service
-from typing import List, Optional, Union
-from app.api.v1.resp import ok, created
+from typing import List, Optional
+from app.api.v1.resp import ok
 from app.api.v1.envelope import ApiResponse
 
 router = APIRouter(tags=["operators"])
@@ -102,40 +100,6 @@ def get_operator_prompt_source(operator_name: str):
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to get prompt sources: {e}")
-
-
-# ============ RAG 智能检索 API ============
-
-@router.post("/recommend", response_model=ApiResponse[OperatorRAGOut], operation_id="recommend_operators", summary="基于 AI 语义检索推荐相关算子（RAG）")
-def recommend_operators(payload: OperatorRAGIn):
-    """
-    使用 RAG（检索增强生成）技术，根据用户的自然语言描述推荐最相关的算子
-    
-    支持单个查询或批量查询：
-    - 单查询：query = "我想清洗文本数据"
-    - 批量查询：query = ["清洗数据", "生成SQL"]
-    
-    需要配置环境变量 DF_API_KEY
-    """
-    try:
-        results = _operator_tools_service.get_operators_by_rag(
-            search_queries=payload.query,
-            category=payload.category,
-            top_k=payload.top_k,
-        )
-        
-        response = OperatorRAGOut(
-            query=payload.query,
-            results=results
-        )
-        return ok(response)
-    except RuntimeError as e:
-        # API Key 相关错误
-        raise HTTPException(status_code=401, detail=str(e))
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to recommend operators: {e}")
 
 
 # ============ 缓存管理 API ============
