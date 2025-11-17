@@ -37,8 +37,8 @@ class VisualizeDatasetService:
         if not read_func:
             raise ValueError(f"No read function found for type: {file_type}")
         
-        df = read_func(file_path)
-        return df.iloc[start:end].to_dict(orient="records")
+        df: pd.DataFrame = read_func(file_path)
+        return df.iloc[start:end].to_json(orient="records")
     
     def list_supported_file_types(self):
         return list(self.pandas_read_func_map.keys())

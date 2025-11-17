@@ -42,7 +42,7 @@ def delete_dataset(ds_id: str):
 # getting sample data for visualization
 from app.services.visualize_dataset import VisualizeDatasetService
 _visualize_service = VisualizeDatasetService()
-@router.get("/pandas_type_sample/{ds_id}", response_model=ApiResponse[dict], operation_id="get_pandas_data", summary="获取指定数据集的 Pandas 类型样本数据,用于前端展示预览，可以通过start和end参数控制获取多少数据")
+@router.get("/pandas_type_sample/{ds_id}", response_model=ApiResponse[str], operation_id="get_pandas_data", summary="获取指定数据集的 Pandas 类型样本数据,用于前端展示预览，可以通过start和end参数控制获取多少数据")
 def get_pandas_data(ds_id: str, start: int = 0, end: int = 5):
     try:
         ds = _registry.get(ds_id)
