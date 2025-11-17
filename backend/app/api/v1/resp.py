@@ -2,7 +2,7 @@ from fastapi import status
 from fastapi.responses import JSONResponse
 from .envelope import ApiResponse
 
-def ok(data=None, message="OK", meta: dict | None = None):
+def ok(data=None, message="OK", meta: dict | None = {}):
     return ApiResponse(success=True, code=status.HTTP_200_OK, message=message, data=data, meta=meta)
 
 def created(data=None, message="Created"):

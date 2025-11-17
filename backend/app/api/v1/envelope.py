@@ -8,4 +8,4 @@ class ApiResponse(BaseModel, Generic[T]):
     code: int = Field(default=0, description="业务错误码，0 表示成功")
     message: str = Field(default="OK")
     data: Optional[T] = None
-    meta: Optional[dict] = None  # 可放分页信息等
+    meta: Optional[dict] = {}  # 可放分页信息等
