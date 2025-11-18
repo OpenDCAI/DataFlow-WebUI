@@ -1,115 +1,86 @@
-import os
-from fastapi import APIRouter, HTTPException, Query
+# app/api/v1/endpoints/operators.py
+
+import json
+from fastapi import APIRouter, HTTPException
+from typing import List, Dict, Any 
+from loguru import logger as log
+
+# --- 1. 导入所有需要的 Schema 和响应封装 ---
 from app.schemas.operator import (
-    OperatorSchema,
-    OperatorDetailOut,
-    OperatorCategoryIn,
-    OperatorSourceIn,
-    OperatorSourceOut,
-    OperatorPromptSourceIn,
-    OperatorPromptSourceOut,
+    OperatorSchema, 
+    OperatorDetailsResponseSchema 
 )
-from app.services.operator_registry import _op_registry
-from app.services.operator_tools_service import _operator_tools_service
-from typing import List, Optional
 from app.api.v1.resp import ok
 from app.api.v1.envelope import ApiResponse
 
+# --- 2. 导入服务层 ---
+from app.services.operator_registry import _op_registry, OPS_JSON_PATH
+
+
 router = APIRouter(tags=["operators"])
 
-# ============ 基础算子列表 API ============
-
-@router.get("/", response_model=ApiResponse[List[OperatorSchema]], operation_id="list_operators", summary="返回目前所有注册的算子列表")
+@router.get(
+    "/", 
+    response_model=ApiResponse[List[OperatorSchema]],
+    operation_id="list_operators", 
+    summary="返回注册算子列表 (简化版)"
+)
 def list_operators():
-    """返回所有注册的算子列表（简化版）"""
+    """返回所有注册的算子列表（简化版）。"""
     try:
-        registry = _op_registry
-        return ok(registry.get_op_list())
+        op_list = _op_registry.get_op_list()
+        return ok(op_list)
     except Exception as e:
+        log.error(f"获取算子列表失败: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# ============ 算子详细信息 API ============
-
 @router.get(
     "/details",
-    response_model=ApiResponse[List[OperatorDetailOut]],
-    operation_id="list_operators_details",  # 或者随便一个唯一的名字
-    summary="返回算子详细信息列表，支持按类别和操作类型过滤"
+    response_model=ApiResponse[OperatorDetailsResponseSchema],
+    operation_id="list_operators_details", 
+    summary="返回所有算子详细信息 (从缓存读取)"
 )
-def list_operators_details(
-    category: Optional[str] = Query(None, description="算子类别，如 text2sql, rag 等。为空则返回所有"),
-    op_type: Optional[str] = Query(None, description="操作类型，如 eval, refine, generate, filter。为空则不按操作类型过滤")
-):
-    """返回算子详细信息，包含参数、描述等，可按类别和操作类型过滤"""
+def list_operators_details():
+    """
+    从后端缓存的 ops.json 文件中读取详细的算子列表。
+    """
     try:
-        details = _operator_tools_service.get_operator_content_list(category, op_type)
-        # 如果你希望 category / op_type 没匹配到时返回 404，可以保留这一段
-        # if not details:
-        #     raise HTTPException(
-        #         status_code=404,
-        #         detail=f"Category '{category}' , Op Type '{op_type}' not found"
-        #     )
-        return ok(details)
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get operator details: {e}")
-
-# ============ 算子源码 API ============
-
-@router.get("/source/{operator_name}", response_model=ApiResponse[OperatorSourceOut], operation_id="get_operator_source", summary="根据算子名称获取算子的 Python 源码")
-def get_operator_source(operator_name: str):
-    """获取指定算子的源码"""
-    try:
-        source_code = _operator_tools_service.get_operator_source_by_name(operator_name)
+        if not OPS_JSON_PATH.exists():
+            log.warning(f"ops.json 缓存文件未找到, 请先调用 /refresh-cache")
+            raise HTTPException(
+                status_code=404, 
+                detail="Cache file not found. Please run POST /refresh-cache first."
+            )
+            
+        with open(OPS_JSON_PATH, "r", encoding="utf-8") as f:
+            ops_data = json.load(f)
+            
+        return ok(ops_data)
         
-        # 检查是否是错误信息
-        if source_code.startswith("#"):
-            # 可能是错误或警告信息
-            if "未找到算子" in source_code or "无法获取源码" in source_code:
-                raise HTTPException(status_code=404, detail=source_code)
-        
-        result = OperatorSourceOut(
-            operator_name=operator_name,
-            source_code=source_code
-        )
-        return ok(result)
-    except HTTPException:
-        raise
+    except json.JSONDecodeError as e:
+        log.error(f"ops.json 文件已损坏: {e}")
+        raise HTTPException(status_code=500, detail=f"Cache file is corrupted: {e}")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get operator source: {e}")
+        log.error(f"获取算子详情失败: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
-# ============ Prompt 模板源码 API ============
-
-@router.get("/prompt-source/{operator_name}", response_model=ApiResponse[OperatorPromptSourceOut], operation_id="get_operator_prompt_source", summary="获取算子的 Prompt 模板源码（随机2个示例）")
-def get_operator_prompt_source(operator_name: str):
-    """获取算子使用的 Prompt 模板源码"""
-    try:
-        prompt_sources = _operator_tools_service.get_prompt_sources_of_operator(operator_name)
-        
-        result = OperatorPromptSourceOut(
-            operator_name=operator_name,
-            prompt_sources=prompt_sources
-        )
-        return ok(result)
-    except KeyError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get prompt sources: {e}")
-
-
-# ============ 缓存管理 API ============
-
-@router.post("/refresh-cache", response_model=ApiResponse[dict], operation_id="refresh_operator_cache", summary="刷新算子缓存，重新扫描 OPERATOR_REGISTRY 并生成 ops.json")
+@router.post(
+    "/refresh-cache", 
+    response_model=ApiResponse[Dict[str, Any]], # <-- 这个接口返回简单消息，保持不变
+    operation_id="refresh_operator_cache", 
+    summary="刷新算子缓存 (写入 ops.json)"
+)
 def refresh_operator_cache():
-    """手动刷新算子缓存"""
+    """手动触发服务端的算子扫描。"""
     try:
-        all_ops = _operator_tools_service.dump_all_ops_to_file()
-        return ok({"message": "Cache refreshed successfully", "total_operators": len(all_ops.get("Default", []))})
+        all_ops_data = _op_registry.dump_ops_to_json()
+        
+        return ok({
+            "message": "Cache refreshed successfully", 
+            "total_operators": len(all_ops_data.get("Default", []))
+        })
     except Exception as e:
+        log.error(f"刷新缓存失败: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to refresh cache: {e}")
-
