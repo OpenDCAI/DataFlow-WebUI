@@ -1,5 +1,3 @@
-# app/services/operator_registry.py
-
 import json
 import inspect
 from pathlib import Path
@@ -58,6 +56,7 @@ def _get_method_params(
     except Exception as e:
         log.warning(f"获取方法 {method} 参数出错: {e}")
         return []
+        
 def _call_get_desc_static(cls: type, lang: str = "zh") -> str | None:
     """
     仅当类的 get_desc 被显式声明为 @staticmethod 时才调用。
