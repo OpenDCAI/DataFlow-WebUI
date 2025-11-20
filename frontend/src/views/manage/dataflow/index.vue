@@ -16,33 +16,39 @@
                     class="command-bar"
                 >
                     <template v-slot:optionItem="x">
-                        <fv-img v-if="x.item.img" class="option-img" :src="x.item.img" alt="" />
-                        <i
-                            v-else
-                            class="ms-Icon icon"
-                            :class="[`ms-Icon--${x.valueTrigger(x.item.icon)}`]"
-                            :style="{ color: x.valueTrigger(x.item.foreground) }"
-                        ></i>
-                        <p
-                            class="option-name"
-                            :style="{ color: x.valueTrigger(x.item.foreground) }"
-                        >
-                            {{ x.valueTrigger(x.item.name) }}
-                        </p>
-                        <i
-                            v-show="x.item.secondary.length > 0"
-                            class="ms-Icon ms-Icon--ChevronDown icon"
-                        ></i>
+                        <div class="command-bar-item-wrapper">
+                            <fv-img v-if="x.item.img" class="option-img" :src="x.item.img" alt="" />
+                            <i
+                                v-else
+                                class="ms-Icon icon"
+                                :class="[`ms-Icon--${x.valueTrigger(x.item.icon)}`]"
+                                :style="{ color: x.valueTrigger(x.item.foreground) }"
+                            ></i>
+                            <p
+                                class="option-name"
+                                :style="{ color: x.valueTrigger(x.item.foreground) }"
+                            >
+                                {{ x.valueTrigger(x.item.name) }}
+                            </p>
+                            <i
+                                v-show="x.item.secondary.length > 0"
+                                class="ms-Icon ms-Icon--ChevronDown icon"
+                            ></i>
+                        </div>
                     </template>
                     <template v-slot:right-space>
                         <div class="command-bar-right-space">
                             <fv-button
                                 theme="dark"
                                 icon="Play"
-                                background="rgba(97, 112, 211, 0.6)"
+                                background="linear-gradient(90deg, rgba(69, 98, 213, 1), rgba(161, 145, 206, 1))"
                                 foreground="rgba(255, 255, 255, 1)"
-                                border-color="whitesmoke"
+                                border-color="rgba(255, 255, 255, 0.3)"
                                 border-radius="30"
+                                :reveal-background-color="[
+                                    'rgba(255, 255, 255, 0.5)',
+                                    'rgba(103, 105, 251, 0.6)'
+                                ]"
                             >
                                 {{ this.local('Run') }}
                             </fv-button>
@@ -67,6 +73,7 @@
             :title="local('Database')"
             @confirm="confirmDataset"
         ></datasetPanel>
+        <operatorPanel v-model="show.operator" :title="local('Operator')"></operatorPanel>
     </div>
 </template>
 
@@ -77,15 +84,18 @@ import { useVueFlow } from '@vue-flow/core'
 
 import mainFlow from '@/components/manage/mainFlow/index.vue'
 import datasetPanel from '@/components/manage/mainFlow/panels/datasetPanel.vue'
+import operatorPanel from '@/components/manage/mainFlow/panels/operatorPanel.vue'
 
 import databaseIcon from '@/assets/flow/database.svg'
 import pipelineIcon from '@/assets/flow/pipeline.svg'
+import operatorIcon from '@/assets/flow/operator.svg'
 import saveIcon from '@/assets/flow/save.svg'
 
 export default {
     components: {
         mainFlow,
-        datasetPanel
+        datasetPanel,
+        operatorPanel
     },
     data() {
         return {
@@ -103,6 +113,13 @@ export default {
                 {
                     name: () => this.local('Pipeline'),
                     img: pipelineIcon
+                },
+                {
+                    name: () => this.local('Operator'),
+                    img: operatorIcon,
+                    func: () => {
+                        this.show.operator = true
+                    }
                 },
                 {
                     name: () => this.local('Save'),
@@ -182,7 +199,8 @@ export default {
             ],
             sourceDatabase: null,
             show: {
-                dataset: false
+                dataset: false,
+                operator: false
             }
         }
     },
@@ -270,9 +288,25 @@ export default {
             -webkit-backdrop-filter: blur(10px);
             box-shadow: 0px 1px 2px rgba(0, 0, 0, 0.1);
 
+            .command-bar-item-wrapper {
+                position: relative;
+                width: 100%;
+                height: 100%;
+                display: flex;
+                align-items: center;
+
+                &:hover {
+                    .option-img {
+                        filter: grayscale(0);
+                    }
+                }
+            }
+
             .option-img {
                 width: auto;
                 height: 15px;
+                filter: grayscale(100%);
+                transition: filter 0.2s;
             }
 
             .option-name {

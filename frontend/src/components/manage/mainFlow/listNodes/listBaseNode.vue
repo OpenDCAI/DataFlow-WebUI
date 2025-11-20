@@ -1,6 +1,6 @@
 <template>
     <div
-        class="df-flow-default-node"
+        class="df-flow-default-list-node"
         :class="[{ selected: selected }]"
         :style="{
             '--node-background': thisData.background,
@@ -46,26 +46,18 @@
                         <p class="info-value">{{ selected }}</p>
                     </div>
                     <span class="info-title">Position Info</span>
-                    <p class="info-value">{{ x }} {{ y }}</p>
                 </div>
             </slot>
         </div>
-        <Handle type="source" class="handle-item" :position="Position.Right" />
     </div>
 </template>
 
 <script setup>
 import { computed } from 'vue'
-import { Position, Handle } from '@vue-flow/core'
 
 const props = defineProps({
-    position: {
-        type: Object,
-        required: true
-    },
     selected: {
-        type: Boolean,
-        default: false
+        type: Object
     },
     data: {
         type: Object,
@@ -94,12 +86,10 @@ const thisData = computed(() => {
         ...props.data
     }
 })
-const x = computed(() => `${Math.round(props.position.x)}px`)
-const y = computed(() => `${Math.round(props.position.y)}px`)
 </script>
 
 <style lang="scss">
-.df-flow-default-node {
+.df-flow-default-list-node {
     --node-background: rgba(252, 252, 252, 0.8);
     --node-title-color: rgba(100, 108, 126, 1);
     --node-status-color: rgba(168, 170, 176, 1);

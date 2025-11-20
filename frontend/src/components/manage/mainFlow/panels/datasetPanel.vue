@@ -1,12 +1,5 @@
 <template>
-    <basePanel
-        v-model="thisValue"
-        :title="title"
-        width="800px"
-        height="80%"
-        isFooter="false"
-        theme="light"
-    >
+    <basePanel v-model="thisValue" :title="title" width="800px" height="80%" theme="light">
         <template v-slot:content>
             <div class="panel-dataset-content-block">
                 <fv-Collapse
@@ -118,7 +111,7 @@ export default {
         numSamples() {
             return (item) => {
                 let num = item.num_samples ? item.num_samples : 0
-                return `${this.local('Total')}: ${num} ${this.local('samples')}`
+                return `${this.local('Total')}: ${num} ${this.local('samples')}, ${this.local('Size')}: ${(item.file_size / 1000).toFixed(2)} KB`
             }
         }
     },
