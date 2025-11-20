@@ -83,7 +83,7 @@ import { useAppConfig } from '@/stores/appConfig'
 import { useVueFlow } from '@vue-flow/core'
 
 import mainFlow from '@/components/manage/mainFlow/index.vue'
-import datasetPanel from '@/components/manage/mainFlow/panels/datasetPanel.vue'
+import datasetPanel from '@/components/manage/mainFlow/panels/datasetPanel/index.vue'
 import operatorPanel from '@/components/manage/mainFlow/panels/operatorPanel.vue'
 
 import databaseIcon from '@/assets/flow/database.svg'

@@ -32,6 +32,10 @@ $theme-orange-5: #a66400;
     @include gradient-color(linear-gradient(90deg, rgba(69, 98, 213, 1), rgba(161, 145, 206, 1)));
 }
 
+@mixin color-golden {
+    @include gradient-color(linear-gradient(130deg, rgba(225, 107, 56, 1), rgba(225, 107, 56, 1)));
+}
+
 @mixin color-black-red {
     @include gradient-color(linear-gradient(to left, #c31432, #240b36));
 }

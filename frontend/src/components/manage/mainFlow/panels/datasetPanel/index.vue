@@ -3,12 +3,13 @@
         <template v-slot:content>
             <div class="panel-dataset-content-block">
                 <fv-Collapse
+                    v-model="item.expanded"
                     v-for="(item, index) in datasets"
                     :key="index"
                     class="dataset-item"
                     :title="item.name"
                     :content="numSamples(item)"
-                    :maxHeight="380"
+                    :maxHeight="item.showPreview ? 690 : 380"
                     background="rgba(251, 251, 251, 1)"
                 >
                     <template v-slot:icon>
@@ -17,29 +18,22 @@
                             style="width: auto; height: 30px; margin: 0px 5px"
                         ></fv-img>
                     </template>
-                    <div class="collapse-item-content">
-                        <hr />
-                        <div class="bp-row column">
-                            <p class="bp-title">{{ local('Pipeline') }}</p>
-                            <p class="bp-bold-info">{{ item.pipeline }}</p>
-                        </div>
-                        <hr />
-                        <div class="bp-row column">
-                            <p class="bp-light-title">{{ local('ID') }}</p>
-                            <p class="bp-std-info">{{ item.id }}</p>
-                        </div>
-                        <hr />
-                        <div class="bp-row column">
-                            <p class="bp-light-title">{{ local('Root') }}</p>
-                            <p class="bp-std-info">{{ item.root }}</p>
-                        </div>
-                        <hr />
-                        <div class="bp-row column">
-                            <p class="bp-light-title">{{ local('Hash') }}</p>
-                            <p class="bp-std-info">{{ item.hash }}</p>
-                        </div>
-                    </div>
+                    <data-info v-if="!item.showPreview" :item="item"></data-info>
+                    <table-info
+                        v-if="item.showPreview"
+                        :item="item"
+                        @back="item.showPreview = false"
+                    ></table-info>
                     <template v-slot:extension>
+                        <fv-button
+                            theme="dark"
+                            :background="'linear-gradient(130deg, rgba(210, 79, 22, 1), rgba(225, 107, 56, 1))'"
+                            :borderRadius="8"
+                            :isBoxShadow="true"
+                            style="margin-right: 5px"
+                            @click="showPreview(item, $event)"
+                            >{{ local('Preview') }}
+                        </fv-button>
                         <fv-button
                             theme="dark"
                             :background="gradient"
@@ -70,12 +64,16 @@ import { useAppConfig } from '@/stores/appConfig'
 import { useTheme } from '@/stores/theme'
 
 import basePanel from '@/components/general/basePanel.vue'
+import dataInfo from './preview/dataInfo.vue'
+import tableInfo from './preview/tableInfo.vue'
 
 import databaseIcon from '@/assets/flow/database.svg'
 
 export default {
     components: {
-        basePanel
+        basePanel,
+        dataInfo,
+        tableInfo
     },
     props: {
         modelValue: {
@@ -120,7 +118,12 @@ export default {
         async getDatasets() {
             this.$api.datasets.list_datasets().then((res) => {
                 if (res.success) {
-                    this.datasets = res.data
+                    let datasets = res.data
+                    datasets.forEach((item) => {
+                        item.showPreview = false
+                        item.expanded = false
+                    })
+                    this.datasets = datasets
                 } else {
                     this.$barWarning(res.message, {
                         status: 'warning'
@@ -131,6 +134,11 @@ export default {
         selectDataset(event, item) {
             event.stopPropagation()
             this.$emit('confirm', item)
+        },
+        showPreview(item, event) {
+            event.stopPropagation()
+            item.expanded = true
+            item.showPreview = !item.showPreview
         }
     }
 }
