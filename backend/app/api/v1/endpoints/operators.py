@@ -16,7 +16,6 @@ from app.api.v1.envelope import ApiResponse
 # --- 2. 导入服务层 ---
 from app.services.operator_registry import _op_registry, OPS_JSON_PATH
 
-
 router = APIRouter(tags=["operators"])
 
 @router.get(
@@ -39,48 +38,25 @@ def list_operators():
     "/details",
     response_model=ApiResponse[OperatorDetailsResponseSchema],
     operation_id="list_operators_details", 
-    summary="返回所有算子详细信息 (从缓存读取)"
+    summary="返回所有算子详细信息 (首次扫描生成，其后从缓存读取)"
 )
 def list_operators_details():
     """
-    从后端缓存的 ops.json 文件中读取详细的算子列表。
+    如果缓存文件 ops.json 不存在，则执行一次算子扫描并生成缓存；
+    如果已存在，则直接从缓存文件中读取并返回详细算子列表。
     """
     try:
         if not OPS_JSON_PATH.exists():
-            log.warning(f"ops.json 缓存文件未找到, 请先调用 /refresh-cache")
-            raise HTTPException(
-                status_code=404, 
-                detail="Cache file not found. Please run POST /refresh-cache first."
-            )
-            
-        with open(OPS_JSON_PATH, "r", encoding="utf-8") as f:
-            ops_data = json.load(f)
-            
+            log.info("ops.json 缓存文件未找到，自动触发一次算子扫描并生成缓存...")
+            ops_data = _op_registry.dump_ops_to_json()
+        else:
+            with open(OPS_JSON_PATH, "r", encoding="utf-8") as f:
+                ops_data = json.load(f)
+
         return ok(ops_data)
-        
     except json.JSONDecodeError as e:
         log.error(f"ops.json 文件已损坏: {e}")
         raise HTTPException(status_code=500, detail=f"Cache file is corrupted: {e}")
     except Exception as e:
         log.error(f"获取算子详情失败: {e}")
         raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post(
-    "/refresh-cache", 
-    response_model=ApiResponse[Dict[str, Any]], # <-- 这个接口返回简单消息，保持不变
-    operation_id="refresh_operator_cache", 
-    summary="刷新算子缓存 (写入 ops.json)"
-)
-def refresh_operator_cache():
-    """手动触发服务端的算子扫描。"""
-    try:
-        all_ops_data = _op_registry.dump_ops_to_json()
-        
-        return ok({
-            "message": "Cache refreshed successfully", 
-            "total_operators": len(all_ops_data.get("Default", []))
-        })
-    except Exception as e:
-        log.error(f"刷新缓存失败: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to refresh cache: {e}")
