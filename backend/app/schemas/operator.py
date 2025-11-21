@@ -1,5 +1,3 @@
-# app/schemas/operator.py
-
 from pydantic import BaseModel, Field
 from typing import Optional, List, Dict, Any
 
@@ -40,6 +38,9 @@ class OperatorDetailSchema(BaseModel):
     """
     node: int
     name: str
+    # 公共字段：与 OperatorSchema 保持结构一致
+    type: Dict[str, str]
+    allowed_prompts: Optional[List[str]] = []
     description: str
     parameter: ParameterGroupsSchema
     required: str

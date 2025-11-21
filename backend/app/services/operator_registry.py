@@ -1,20 +1,17 @@
-# app/services/operator_registry.py
-
 import json
 import inspect
 from pathlib import Path
 from typing import Dict, List, Any, Tuple, Optional, Callable
 from loguru import logger as log
 from dataflow.utils.registry import OPERATOR_REGISTRY, PROMPT_REGISTRY
+from app.core.config import settings
 
 # --- 1. 路径定义 ---
 # __file__ 是: .../backend/app/services/operator_registry.py
 # .parent.parent.parent 是: .../backend
-BACKEND_DIR = Path(__file__).parent.parent.parent 
-# 定义资源目录位于: .../backend/resources
-RESOURCE_DIR = BACKEND_DIR / "resources"
-# 定义缓存文件路径: .../backend/resources/ops.json
-OPS_JSON_PATH = RESOURCE_DIR / "ops.json"
+BACKEND_DIR = Path(__file__).parent.parent.parent
+OPS_JSON_PATH = BACKEND_DIR / settings.OPS_JSON_PATH
+RESOURCE_DIR = OPS_JSON_PATH.parent
 
 
 # --- 2. 私有辅助函数 (模块内部实现) ---
@@ -59,6 +56,7 @@ def _get_method_params(
     except Exception as e:
         log.warning(f"获取方法 {method} 参数出错: {e}")
         return []
+        
 def _call_get_desc_static(cls: type, lang: str = "zh") -> str | None:
     """
     仅当类的 get_desc 被显式声明为 @staticmethod 时才调用。
@@ -99,7 +97,7 @@ def _gather_single_operator(
     """
     收集单个算子的全部详细信息，用于生成缓存。
     """
-    # 1) 分类
+    # 1) 分类（大类 category，用于 ops.json 的顶层 key）
     category = "unknown"
     if hasattr(cls, "__module__"):
         parts = cls.__module__.split(".")
@@ -109,7 +107,16 @@ def _gather_single_operator(
     # 2) 描述 (使用 staticmethod 逻辑)
     description = _call_get_desc_static(cls, lang="zh") or ""
 
-    # 3) command 形参
+    # 3) 简化信息里也有的 type（三级分类）和 allowed_prompts
+    op_type_category = OPERATOR_REGISTRY.get_type_of_objects().get(op_name, "Unknown/Unknown")
+    _ = op_type_category[0]  # 只是表征是算子还是 prompt
+    type1 = op_type_category[1] if len(op_type_category) > 1 else "Unknown"
+    type2 = op_type_category[2] if len(op_type_category) > 2 else "Unknown"
+
+    allowed_prompt_templates = getattr(cls, "ALLOWED_PROMPTS", [])
+    allowed_prompt_templates = [prompt_name.__name__ for prompt_name in allowed_prompt_templates]
+
+    # 4) command 形参
     init_params = _get_method_params(getattr(cls, "__init__", None), skip_first_self=True)
     run_params = _get_method_params(getattr(cls, "run", None), skip_first_self=True)
 
@@ -117,6 +124,11 @@ def _gather_single_operator(
         "node": node_index,
         "name": op_name,
         "description": description,
+        "type": {
+            "level_1": type1,
+            "level_2": type2,
+        },
+        "allowed_prompts": allowed_prompt_templates,
         "parameter": {
             "init": init_params,
             "run": run_params,
@@ -151,25 +163,23 @@ class OperatorRegistry:
 
 
     def get_op_list(self, lang: str = "zh") -> list[dict]:
-        """
-        获取简化的算子列表 (实时计算)。
-        此方法用于快速预览，不包含详细参数。
-        """
-        op_list = []
-        for op_name, op_cls in self.op_obj_map.items():
-            op_type_category = self.op_to_type.get(op_name, "Unknown/Unknown")
-            
-            _ = op_type_category[0] 
-            type1 = op_type_category[1] if len(op_type_category) > 1 else "Unknown"
-            type2 = op_type_category[2] if len(op_type_category) > 2 else "Unknown"
+        """获取简化的算子列表 (实时计算)，用于前端列表展示。"""
 
-            # 描述 (使用原始的通用逻辑)
+        op_list: list[dict] = []
+        for op_name, op_cls in self.op_obj_map.items():
+            # 类型信息，三级分类
+            op_type_category = self.op_to_type.get(op_name, "Unknown/Unknown")
+
+            import loguru
+            loguru.logger.info(op_type_category)
+
+            _ = op_type_category[0]  # 只是表征是算子还是 prompt
+            type1 = op_type_category[1] if len(op_type_category) > 1 else "Unknown"   # 大类，比如 "text2sql"
+            type2 = op_type_category[2] if len(op_type_category) > 2 else "Unknown"   # 小类，比如 "generate" 等
+
+            # 描述
             if hasattr(op_cls, "get_desc") and callable(op_cls.get_desc):
-                try:
-                    desc = op_cls.get_desc(lang=lang)
-                except TypeError:
-                    # 兼容 staticmethod(self, lang) 这种调用
-                    desc = _call_get_desc_static(op_cls, lang=lang)
+                desc = op_cls.get_desc(lang=lang)
             else:
                 desc = "N/A"
             desc = str(desc)
@@ -178,16 +188,18 @@ class OperatorRegistry:
             allowed_prompt_templates = getattr(op_cls, "ALLOWED_PROMPTS", [])
             allowed_prompt_templates = [prompt_name.__name__ for prompt_name in allowed_prompt_templates]
 
+            # get parameter info in .run()（这里只保留简要信息，不展开参数细节）
             op_info = {
                 "name": op_name,
                 "type": {
                     "level_1": type1,
-                    "level_2": type2
+                    "level_2": type2,
                 },
                 "description": desc,
-                "allowed_prompts": allowed_prompt_templates
+                "allowed_prompts": allowed_prompt_templates,
             }
             op_list.append(op_info)
+
         return op_list
     
 
