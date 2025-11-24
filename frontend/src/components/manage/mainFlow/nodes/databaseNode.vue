@@ -48,6 +48,10 @@ import databaseIcon from '@/assets/flow/database.svg'
 const emits = defineEmits(['switch-database'])
 
 const props = defineProps({
+    id: {
+        type: String,
+        required: true
+    },
     position: {
         type: Object,
         required: true
@@ -70,9 +74,11 @@ const defaultData = {
     background: 'linear-gradient(130deg, rgba(161, 145, 206, 0.8), rgba(252, 252, 252, 0.8))',
     titleColor: '',
     statusColor: 'rgba(90, 90, 90, 1)',
+    infoTitleColor: 'rgba(90, 90, 90, 1)',
     borderColor: '',
     shadowColor: '',
     groupBackground: 'rgba(255, 255, 255, 0.8)',
+    useTargetHandle: false,
     enableDelete: true
 }
 const thisData = computed(() => {

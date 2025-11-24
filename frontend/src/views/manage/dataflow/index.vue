@@ -6,6 +6,9 @@
                 v-model:nodes="nodes"
                 v-model:edges="edges"
                 @switch-database="show.dataset = true"
+                @connect="onConnect"
+                @connect-start="onConnectStart"
+                @connect-end="onConnectEnd"
             ></mainFlow>
             <div class="control-menu-block">
                 <fv-command-bar
@@ -127,75 +130,53 @@ export default {
                 }
             ],
             nodes: [
-                {
-                    id: '1',
-                    type: 'base-node',
-                    position: { x: 70, y: 160 },
-                    data: {
-                        label: 'Node 1',
-                        nodeInfo:
-                            'Node Info: This is node info block for displaying node information.',
-                        iconColor: 'rgba(0, 108, 126, 1)'
-                    }
-                },
-
-                {
-                    id: '2',
-                    type: 'base-node',
-                    position: { x: 100, y: 400 },
-                    data: {
-                        label: 'Node 2',
-                        nodeInfo:
-                            'Node Info: This is node info block for displaying node information.',
-                        icon: 'Accept'
-                    }
-                },
-
-                {
-                    id: '3',
-                    type: 'base-node',
-                    position: { x: 400, y: 800 },
-                    data: { label: 'Node 3', icon: 'Cloud' }
-                },
-
-                {
-                    id: '4',
-                    type: 'base-node',
-                    position: { x: 600, y: 600 },
-                    data: {
-                        label: 'Node 4',
-                        hello: 'world',
-                        icon: 'World'
-                    }
-                }
+                // {
+                //     id: '1',
+                //     type: 'base-node',
+                //     position: { x: 70, y: 160 },
+                //     data: {
+                //         label: 'Node 1',
+                //         nodeInfo:
+                //             'Node Info: This is node info block for displaying node information.',
+                //         iconColor: 'rgba(0, 108, 126, 1)'
+                //     }
+                // },
+                // {
+                //     id: '2',
+                //     type: 'base-node',
+                //     position: { x: 100, y: 400 },
+                //     data: {
+                //         label: 'Node 2',
+                //         nodeInfo:
+                //             'Node Info: This is node info block for displaying node information.',
+                //         icon: 'Accept'
+                //     }
+                // },
+                // {
+                //     id: '3',
+                //     type: 'base-node',
+                //     position: { x: 400, y: 800 },
+                //     data: { label: 'Node 3', icon: 'Cloud' }
+                // }
             ],
 
             edges: [
-                {
-                    id: 'e1->2',
-                    type: 'base-edge',
-                    source: '1',
-                    target: '2'
-                },
-
-                {
-                    id: 'e2->3',
-                    type: 'base-edge',
-                    source: '2',
-                    target: '3',
-                    animated: true
-                },
-
-                {
-                    id: 'e3->4',
-                    type: 'base-edge',
-                    source: '3',
-                    target: '4',
-
-                    data: {
-                        label: 'world'
-                    }
-                }
+                // {
+                //     id: 'e1->2',
+                //     type: 'base-edge',
+                //     source: '1',
+                //     target: '2'
+                // },
+                // {
+                //     id: 'e2->3',
+                //     type: 'base-edge',
+                //     source: '2',
+                //     target: '3',
+                //     animated: true,
+                //     data: {
+                //         label: 'world'
+                //     }
+                // }
             ],
             sourceDatabase: null,
             show: {
@@ -234,6 +215,7 @@ export default {
                     type: 'database-node',
                     position: { x: 500, y: 160 },
                     data: {
+                        flowId: this.flowId,
                         label: this.sourceDatabase.name,
                         ...this.sourceDatabase
                     }
@@ -243,6 +225,66 @@ export default {
         confirmDataset(dataset) {
             this.sourceDatabase = dataset
             this.show.dataset = false
+        },
+        onConnect(connection) {
+            const { source, sourceHandle, target, targetHandle } = connection
+            let sourceType = sourceHandle ? sourceHandle.split('::')[1] : 'null_source'
+            let targetType = targetHandle ? targetHandle.split('::')[1] : 'null_target'
+            let sourceKeyName = sourceHandle ? sourceHandle.split('::')[0] : null
+            let targetKeyName = targetHandle ? targetHandle.split('::')[0] : null
+            let sourceKeyType = sourceHandle ? sourceHandle.split('::')[2] : 'node'
+            let targetKeyType = targetHandle ? targetHandle.split('::')[2] : 'node'
+            if (sourceType === targetType) return
+            if (sourceKeyType !== targetKeyType) {
+                this.$barWarning(this.local('Illegal connection'), {
+                    status: 'warning'
+                })
+                return
+            }
+            const flow = useVueFlow(this.flowId)
+            let existsEdge = this.edges.find(
+                (edge) =>
+                    edge.source === source &&
+                    edge.target === target &&
+                    edge.sourceHandle === sourceHandle &&
+                    edge.targetHandle === targetHandle
+            )
+            if (existsEdge) {
+                flow.removeEdges(existsEdge.id)
+            } else {
+                flow.addEdges({
+                    id: this.$Guid(),
+                    type: 'base-edge',
+                    source: source,
+                    target: target,
+                    sourceHandle: sourceHandle,
+                    targetHandle: targetHandle,
+                    animated: sourceKeyType !== 'node',
+                    data: {
+                        label: sourceKeyType === 'node' ? 'Node' : 'Key'
+                    }
+                })
+                if (sourceKeyType === 'run_key') {
+                    let sourceNode = flow.findNode(source)
+                    let targetNode = flow.findNode(target)
+                    if (sourceNode && targetNode) {
+                        let targetIndex = targetNode.data.operatorParams.run.findIndex(
+                            (item) => item.name === targetKeyName
+                        )
+                        let sourceIndex = sourceNode.data.operatorParams.run.findIndex(
+                            (item) => item.name === sourceKeyName
+                        )
+                        if (targetIndex !== -1 && sourceIndex !== -1) {
+                            targetNode.data.operatorParams.run[targetIndex].value =
+                                sourceNode.data.operatorParams.run[sourceIndex].value
+                        }
+                    }
+                }
+            }
+        },
+        onConnectStart(params) {},
+        onConnectEnd(event) {
+            console.log(event)
         }
     }
 }

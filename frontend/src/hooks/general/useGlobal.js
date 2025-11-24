@@ -16,5 +16,8 @@ export function useGlobal() {
         $Go: proxy.$Go,
         $Back: proxy.$Back,
         $Jump: proxy.$Jump,
+        $Guid: proxy.$Guid,
+        $infoBox: proxy.$infoBox,
+        $barWarning: proxy.$barWarning,
     }
 }

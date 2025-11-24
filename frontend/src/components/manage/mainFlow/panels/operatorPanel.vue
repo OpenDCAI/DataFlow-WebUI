@@ -54,10 +54,12 @@
                     <div class="collapse-item-content">
                         <listBaseNode
                             v-show="op.show"
+                            draggable="true"
                             v-for="(op, opKey) in val.items"
                             :key="opKey"
                             :data="op"
                             style="width: 100%"
+                            @dragstart="dragStart($event, op)"
                         >
                             <mdTextBlock
                                 class="expander-desc"
@@ -151,42 +153,54 @@ export default {
                     statusColor: 'rgba(0, 153, 204, 1)',
                     iconColor: 'rgba(255, 255, 255, 1)',
                     iconBackground:
-                        'linear-gradient(90deg, rgba(73, 131, 251, 1) 0%, rgba(100, 161, 252, 1) 100%)'
+                        'linear-gradient(90deg, rgba(73, 131, 251, 1) 0%, rgba(100, 161, 252, 1) 100%)',
+                    borderColor: 'rgba(73, 131, 251, 0.6)',
+                    shadowColor: 'rgba(73, 131, 251, 0.1)'
                 },
                 parser: {
                     icon: 'Document',
                     statusColor: 'rgba(255, 153, 0, 1)',
                     iconColor: 'rgba(255, 255, 255, 1)',
                     iconBackground:
-                        'linear-gradient(90deg, rgba(255, 153, 0, 1) 0%, rgba(255, 204, 0, 1) 100%)'
+                        'linear-gradient(90deg, rgba(255, 153, 0, 1) 0%, rgba(255, 204, 0, 1) 100%)',
+                    borderColor: 'rgba(255, 153, 0, 0.6)',
+                    shadowColor: 'rgba(255, 153, 0, 0.1)'
                 },
                 filter: {
                     icon: 'PostUpdate',
                     statusColor: 'rgba(255, 102, 0, 1)',
                     iconColor: 'rgba(255, 255, 255, 1)',
                     iconBackground:
-                        'linear-gradient(90deg, rgba(255, 102, 0, 1) 0%, rgba(255, 153, 0, 1) 100%)'
+                        'linear-gradient(90deg, rgba(255, 102, 0, 1) 0%, rgba(255, 153, 0, 1) 100%)',
+                    borderColor: 'rgba(255, 102, 0, 0.6)',
+                    shadowColor: 'rgba(255, 102, 0, 0.1)'
                 },
                 generate: {
                     icon: 'Library',
                     statusColor: 'rgba(255, 51, 0, 1)',
                     iconColor: 'rgba(255, 255, 255, 1)',
                     iconBackground:
-                        'linear-gradient(90deg, rgba(255, 51, 0, 1) 0%, rgba(255, 102, 0, 1) 100%)'
+                        'linear-gradient(90deg, rgba(255, 51, 0, 1) 0%, rgba(255, 102, 0, 1) 100%)',
+                    borderColor: 'rgba(255, 51, 0, 0.6)',
+                    shadowColor: 'rgba(255, 51, 0, 0.1)'
                 },
                 eval: {
                     icon: 'Bullseye',
                     statusColor: 'rgba(255, 0, 0, 1)',
                     iconColor: 'rgba(255, 255, 255, 1)',
                     iconBackground:
-                        'linear-gradient(90deg, rgba(255, 0, 0, 1) 0%, rgba(255, 51, 0, 1) 100%)'
+                        'linear-gradient(90deg, rgba(255, 0, 0, 1) 0%, rgba(255, 51, 0, 1) 100%)',
+                    borderColor: 'rgba(255, 0, 0, 0.6)',
+                    shadowColor: 'rgba(255, 0, 0, 0.1)'
                 },
                 refine: {
                     icon: 'Market',
                     statusColor: 'rgba(0, 153, 0, 1)',
                     iconColor: 'rgba(255, 255, 255, 1)',
                     iconBackground:
-                        'linear-gradient(90deg, rgba(0, 153, 0, 1) 0%, rgba(0, 204, 0, 1) 100%)'
+                        'linear-gradient(90deg, rgba(0, 153, 0, 1) 0%, rgba(0, 204, 0, 1) 100%)',
+                    borderColor: 'rgba(0, 153, 0, 0.6)',
+                    shadowColor: 'rgba(0, 153, 0, 0.1)'
                 }
             },
             img: {
@@ -254,7 +268,9 @@ export default {
                             icon: this.styleDict[styleKey].icon,
                             iconColor: this.styleDict[styleKey].iconColor,
                             iconBackground: this.styleDict[styleKey].iconBackground,
+                            borderColor: this.styleDict[styleKey].borderColor,
                             shadowColor: 'rgba(0, 0, 0, 0.05)',
+                            nodeShadowColor: this.styleDict[styleKey].shadowColor,
                             enableDelete: false,
                             show: true,
                             ...operator
@@ -311,9 +327,11 @@ export default {
                 item.description.toLowerCase().includes(searchText)
             )
         },
-        selectDataset(event, item) {
-            event.stopPropagation()
-            this.$emit('confirm', item)
+        dragStart(event, item) {
+            if (event.dataTransfer) {
+                event.dataTransfer.setData('application/vueflow', JSON.stringify(item))
+                event.dataTransfer.setData('event/offsetX', event.offsetX)
+            }
         }
     }
 }
@@ -379,7 +397,7 @@ export default {
             gap: 5px;
             display: flex;
             flex-direction: column;
-            transition: all 0.3s;
+            transition: all 0.1s;
 
             .expander-desc {
                 position: relative;

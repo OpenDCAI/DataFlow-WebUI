@@ -32,6 +32,12 @@ app.config.globalProperties.$Jump = (str) => {
     window.open(str)
 }
 
+app.config.globalProperties.$Guid = () => {
+    let guid = app.config.globalProperties.$SUtility.Guid();
+    guid = guid.split('-')[0];
+    return guid;
+}
+
 app.use(apiPlugin);
 
 app.mount('#app')

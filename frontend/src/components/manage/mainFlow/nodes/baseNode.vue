@@ -9,7 +9,9 @@
             '--node-shadow-color': thisData.shadowColor,
             '--node-group-background': thisData.groupBackground,
             '--node-title-color': thisData.titleColor,
-            '--node-status-color': thisData.statusColor
+            '--node-status-color': thisData.statusColor,
+            '--node-info-title-color': thisData.infoTitleColor,
+            '--default-handle-color': thisData.defaultHandleColor
         }"
     >
         <div class="node-banner">
@@ -30,6 +32,12 @@
                     background="rgba(215, 95, 95, 1)"
                     border-color="rgba(255, 255, 255, 0.1)"
                     style="width: 25px; height: 25px"
+                    @click="
+                        $emit('delete-node', {
+                            id: id,
+                            data: thisData
+                        })
+                    "
                 >
                     <i class="ms-Icon ms-Icon--Cancel"></i>
                 </fv-button>
@@ -50,7 +58,26 @@
                 </div>
             </slot>
         </div>
-        <Handle type="source" class="handle-item" :position="Position.Right" />
+        <Handle
+            v-if="thisData.useTargetHandle"
+            :id="`node::target::node`"
+            type="target"
+            class="handle-item"
+            :position="Position.Left"
+            :style="{ background: 'var(--default-handle-color)', top: thisData.defaultTargetTop }"
+        />
+        <Handle
+            v-if="thisData.useSourceHandle"
+            :id="`node::source::node`"
+            type="source"
+            class="handle-item"
+            :position="Position.Right"
+            :style="{
+                background: 'var(--default-handle-color)',
+                top: thisData.defaultSourceHandleTop
+            }"
+            Handle
+        />
     </div>
 </template>
 
@@ -59,6 +86,10 @@ import { computed } from 'vue'
 import { Position, Handle } from '@vue-flow/core'
 
 const props = defineProps({
+    id: {
+        type: String,
+        required: true
+    },
     position: {
         type: Object,
         required: true
@@ -83,10 +114,16 @@ const defaultData = {
     background: '',
     titleColor: '',
     statusColor: '',
+    infoTitleColor: '',
     borderColor: '',
     shadowColor: '',
+    defaultHandleColor: '',
     groupBackground: '',
-    enableDelete: true
+    enableDelete: true,
+    defaultSourceHandleTop: '',
+    defaultTargetHandleTop: '',
+    useSourceHandle: true,
+    useTargetHandle: true
 }
 const thisData = computed(() => {
     return {
@@ -103,10 +140,12 @@ const y = computed(() => `${Math.round(props.position.y)}px`)
     --node-background: rgba(252, 252, 252, 0.8);
     --node-title-color: rgba(100, 108, 126, 1);
     --node-status-color: rgba(168, 170, 176, 1);
+    --node-info-title-color: rgba(168, 170, 176, 1);
     --node-shadow-color: rgba(122, 124, 206, 0.3);
     --node-border-color: rgba(163, 164, 236, 1);
     --node-icon-color: rgba(100, 108, 126, 1);
     --node-group-background: rgba(245, 245, 245, 0.8);
+    --default-handle-color: rgba(163, 164, 236, 1);
 
     position: relative;
     width: 250px;
@@ -268,12 +307,18 @@ const y = computed(() => `${Math.round(props.position.y)}px`)
 
         .node-row-item {
             position: relative;
-            width: calc(100% - 20px);
+            width: 100%;
             height: auto;
-            margin-left: 10px;
-            padding: 5px;
+            padding: 5px 15px;
             display: flex;
             justify-content: space-between;
+
+            &.col {
+                gap: 5px;
+                flex-direction: column;
+                justify-content: flex-start;
+                align-items: flex-start;
+            }
 
             .info-value {
                 margin-left: 5px;
@@ -282,10 +327,17 @@ const y = computed(() => `${Math.round(props.position.y)}px`)
             }
         }
 
+        hr {
+            width: calc(100% - 20px);
+            margin-left: 10px;
+            border: 0px;
+            border-top: 1px solid rgba(120, 120, 120, 0.1);
+        }
+
         .info-title {
             font-size: 8px;
             font-weight: 600;
-            color: var(--node-status-color);
+            color: var(--node-info-title-color);
             display: flex;
             align-items: center;
         }
