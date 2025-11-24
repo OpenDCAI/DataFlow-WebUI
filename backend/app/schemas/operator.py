@@ -19,7 +19,7 @@ class OperatorParameterSchema(BaseModel):
     (对应 _param_to_dict 的输出)
     """
     name: str
-    default: Any  # 默认值可以是任何类型，所以用 Any
+    default_value: Any  # 默认值可以是任何类型，所以用 Any
     kind: str     # 例如 "POSITIONAL_OR_KEYWORD"
 
 

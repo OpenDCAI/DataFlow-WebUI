@@ -36,7 +36,7 @@ def _param_to_dict(p: inspect.Parameter) -> Dict[str, Any]:
     """把 inspect.Parameter 转成 JSON 可序列化的字典"""
     return {
         "name": p.name,
-        "default": _safe_json_val(p.default),
+        "default_value": _safe_json_val(p.default),
         "kind": p.kind.name,  # POSITIONAL_OR_KEYWORD / VAR_POSITIONAL / ...
     }
 
