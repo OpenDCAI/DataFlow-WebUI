@@ -7,5 +7,6 @@ class Settings(BaseSettings):
     TASK_REGISTRY: str = "data/task_registry.yaml"
     PIPELINE_REGISTRY: str = "data/pipeline_registry.yaml"
     DataFlow_CORE_DIR: str = "data/dataflow_core"
+    OPS_JSON_PATH: str = "resources/ops.json"  
 
 settings = Settings()
