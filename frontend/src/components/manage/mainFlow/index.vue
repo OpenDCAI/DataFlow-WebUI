@@ -192,9 +192,5 @@ const deleteNode = (nodeInfo) => {
     position: relative;
     width: 100%;
     height: 100%;
-
-    aside {
-        background: blue;
-    }
 }
 </style>

@@ -1,5 +1,5 @@
 <template>
-    <svg>
+    <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" style="overflow: visible">
         <defs>
             <!-- 定义一个线性渐变 -->
             <linearGradient id="edge-gradient" x1="0" y1="0" x2="1" y2="0">

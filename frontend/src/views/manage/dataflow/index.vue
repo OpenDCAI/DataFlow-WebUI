@@ -199,7 +199,18 @@ export default {
     computed: {
         ...mapState(useAppConfig, ['local'])
     },
+    mounted() {
+        this.setViewport()
+    },
     methods: {
+        setViewport() {
+            const flow = useVueFlow(this.flowId)
+            flow.setViewport({
+                x: 0,
+                y: 0,
+                zoom: 1
+            })
+        },
         updateDatabaseNode() {
             if (!this.sourceDatabase) return
             const flow = useVueFlow(this.flowId)
