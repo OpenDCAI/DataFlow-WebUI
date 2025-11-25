@@ -37,6 +37,7 @@
                     v-bind="nodeProps"
                     @delete-node="deleteNode"
                     @update-node-data="updateNodeData"
+                    @update-run-value="updateRunValue"
                 />
             </template>
 
@@ -70,7 +71,8 @@ const emits = defineEmits([
     'update:edges',
     'connect',
     'connect-end',
-    'connect-start'
+    'connect-start',
+    'update-run-value'
 ])
 
 const props = defineProps({
@@ -125,6 +127,10 @@ const updateNodeData = (nodeInfo) => {
     if (existsNode) {
         flow.updateNodeData(existsNode.id, nodeInfo.data)
     }
+}
+
+const updateRunValue = (runValue) => {
+    emits('update-run-value', runValue)
 }
 
 const isDragOver = ref(false)

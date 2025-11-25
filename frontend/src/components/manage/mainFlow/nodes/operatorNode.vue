@@ -64,6 +64,7 @@
                 border-radius="8"
                 :reveal-border="true"
                 style="width: 100%; height: 35px"
+                @update:modelValue="emitUpdateRunValue(item)"
             ></fv-text-box>
         </div>
     </base-node>
@@ -79,7 +80,7 @@ import baseNode from '@/components/manage/mainFlow/nodes/baseNode.vue'
 
 const { $api } = useGlobal()
 
-const emits = defineEmits(['switch-database'])
+const emits = defineEmits(['switch-database', 'update-node-data', 'update-run-value'])
 
 const props = defineProps({
     id: {
@@ -99,6 +100,29 @@ const props = defineProps({
         default: () => ({})
     }
 })
+
+const defaultData = {
+    label: 'Operator',
+    status: 'Operator',
+    nodeInfo: '',
+    background: '',
+    titleColor: '',
+    statusColor: 'rgba(90, 90, 90, 1)',
+    infoTitleColor: 'rgba(28, 28, 30, 1)',
+    borderColor: '',
+    shadowColor: '',
+    groupBackground: 'rgba(255, 255, 255, 0.8)',
+    enableDelete: true
+}
+const thisData = computed(() => {
+    return {
+        ...defaultData,
+        ...props.data,
+        shadowColor: props.data.nodeShadowColor ? props.data.nodeShadowColor : 'rgba(0, 0, 0, 0.05)'
+    }
+})
+
+const appConfig = useAppConfig()
 
 const loading = ref(false)
 const paramsWrapper = (objs) => {
@@ -143,28 +167,12 @@ onMounted(() => {
     getNodeDetail()
 })
 
-const defaultData = {
-    label: 'Operator',
-    status: 'Operator',
-    nodeInfo: '',
-    background: '',
-    titleColor: '',
-    statusColor: 'rgba(90, 90, 90, 1)',
-    infoTitleColor: 'rgba(28, 28, 30, 1)',
-    borderColor: '',
-    shadowColor: '',
-    groupBackground: 'rgba(255, 255, 255, 0.8)',
-    enableDelete: true
+const emitUpdateRunValue = (item) => {
+    emits('update-run-value', {
+        nodeId: props.id,
+        ...item
+    })
 }
-const thisData = computed(() => {
-    return {
-        ...defaultData,
-        ...props.data,
-        shadowColor: props.data.nodeShadowColor ? props.data.nodeShadowColor : 'rgba(0, 0, 0, 0.05)'
-    }
-})
-
-const appConfig = useAppConfig()
 </script>
 
 <style lang="scss">

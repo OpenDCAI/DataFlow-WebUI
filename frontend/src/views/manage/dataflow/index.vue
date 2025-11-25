@@ -9,6 +9,7 @@
                 @connect="onConnect"
                 @connect-start="onConnectStart"
                 @connect-end="onConnectEnd"
+                @update-run-value="syncRunValue"
             ></mainFlow>
             <div class="control-menu-block">
                 <fv-command-bar
@@ -225,6 +226,24 @@ export default {
         confirmDataset(dataset) {
             this.sourceDatabase = dataset
             this.show.dataset = false
+        },
+        syncRunValue(item) {
+            const flow = useVueFlow(this.flowId)
+            let edges = flow.edges.value.filter((edge) => edge.source === item.nodeId)
+            for (let edge of edges) {
+                let sourceKeyName = edge.sourceHandle ? edge.sourceHandle.split('::')[0] : null
+                if (sourceKeyName !== item.name) continue
+                let targetNode = flow.findNode(edge.target)
+                let targetKeyName = edge.targetHandle ? edge.targetHandle.split('::')[0] : null
+                if (targetNode) {
+                    let targetIndex = targetNode.data.operatorParams.run.findIndex(
+                        (item) => item.name === targetKeyName
+                    )
+                    if (targetIndex !== -1) {
+                        targetNode.data.operatorParams.run[targetIndex].value = item.value
+                    }
+                }
+            }
         },
         onConnect(connection) {
             const { source, sourceHandle, target, targetHandle } = connection
