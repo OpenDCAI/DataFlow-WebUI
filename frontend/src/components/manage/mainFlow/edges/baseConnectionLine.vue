@@ -16,7 +16,7 @@
                 class="vue-flow__connection"
                 fill="none"
                 :stroke="'url(#edge-gradient)'"
-                :stroke-width="2.5"
+                :stroke-width="3"
                 :d="getBezierPath(props)[0]"
             />
 
@@ -67,7 +67,7 @@ const props = defineProps({
 })
 
 const defaultData = {
-    colors: ['#3498db', '#9b59b6']
+    colors: ['rgba(229, 123, 67, 1)', 'rgba(225, 107, 56, 1)']
 }
 const thisData = computed(() => {
     return {

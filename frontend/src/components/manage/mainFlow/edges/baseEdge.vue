@@ -27,7 +27,7 @@
             :path="path[0]"
             :style="{
                 stroke: 'url(#edge-gradient)',
-                strokeWidth: 3,
+                strokeWidth: 4,
                 filter: 'url(#edge-glow)'
             }"
         />
@@ -39,7 +39,7 @@
             :style="{
                 pointerEvents: 'all',
                 position: 'absolute',
-                background: edgeColors[0],
+                background: `linear-gradient(${edgeColors.join(',')})`,
                 transform: `translate(-50%, -50%) translate(${path[1]}px,${path[2]}px)`
             }"
             class="nodrag nopan df-flow-default-edge-label"
@@ -87,7 +87,7 @@ const props = defineProps({
 const path = computed(() => getBezierPath(props))
 const defaultData = {
     label: '',
-    colors: ['#3498db', '#9b59b6']
+    colors: ['rgba(229, 123, 67, 1)', 'rgba(225, 107, 56, 1)']
 }
 const thisData = computed(() => {
     return {

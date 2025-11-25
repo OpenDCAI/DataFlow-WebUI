@@ -41,10 +41,7 @@
             </template>
 
             <template #connection-line="connectionLineProps">
-                <baseConnectionLine
-                    v-bind="connectionLineProps"
-                    @delete-node="deleteNode"
-                ></baseConnectionLine>
+                <baseConnectionLine v-bind="connectionLineProps"></baseConnectionLine>
             </template>
             <template #edge-base-edge="edgeProps">
                 <baseEdge v-bind="edgeProps" />

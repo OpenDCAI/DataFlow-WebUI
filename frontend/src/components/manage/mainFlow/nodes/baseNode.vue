@@ -11,7 +11,8 @@
             '--node-title-color': thisData.titleColor,
             '--node-status-color': thisData.statusColor,
             '--node-info-title-color': thisData.infoTitleColor,
-            '--default-handle-color': thisData.defaultHandleColor
+            '--default-handle-color': thisData.defaultHandleColor,
+            '--default-handle-shadow-color': thisData.defaultHandleShadowColor
         }"
     >
         <div class="node-banner">
@@ -62,18 +63,19 @@
             v-if="thisData.useTargetHandle"
             :id="`node::target::node`"
             type="target"
-            class="handle-item"
+            class="handle-item default"
             :position="Position.Left"
-            :style="{ background: 'var(--default-handle-color)', top: thisData.defaultTargetTop }"
+            :style="{
+                top: thisData.defaultTargetTop
+            }"
         />
         <Handle
             v-if="thisData.useSourceHandle"
             :id="`node::source::node`"
             type="source"
-            class="handle-item"
+            class="handle-item default"
             :position="Position.Right"
             :style="{
-                background: 'var(--default-handle-color)',
                 top: thisData.defaultSourceHandleTop
             }"
             Handle
@@ -118,6 +120,7 @@ const defaultData = {
     borderColor: '',
     shadowColor: '',
     defaultHandleColor: '',
+    defaultHandleShadowColor: '',
     groupBackground: '',
     enableDelete: true,
     defaultSourceHandleTop: '',
@@ -146,6 +149,7 @@ const y = computed(() => `${Math.round(props.position.y)}px`)
     --node-icon-color: rgba(100, 108, 126, 1);
     --node-group-background: rgba(245, 245, 245, 0.8);
     --default-handle-color: rgba(163, 164, 236, 1);
+    --default-handle-shadow-color: rgba(122, 124, 206, 0.3);
 
     position: relative;
     width: 250px;
@@ -367,6 +371,14 @@ const y = computed(() => `${Math.round(props.position.y)}px`)
             width: 18px;
             height: 18px;
             outline: 3px solid var(--node-shadow-color);
+        }
+
+        &.default {
+            background: var(--default-handle-color);
+
+            &:hover {
+                outline: 3px solid var(--default-handle-shadow-color);
+            }
         }
 
         &.title {

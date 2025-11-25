@@ -13,7 +13,7 @@
     },
     "dependencies": {
         "@creatorsn/powereditor3": "^0.1.9",
-        "@creatorsn/vfluent3": "^0.3.24",
+        "@creatorsn/vfluent3": "^0.3.27",
         "@vue-flow/background": "^1.3.2",
         "@vue-flow/core": "^1.47.0",
         "gsap": "^3.13.0",

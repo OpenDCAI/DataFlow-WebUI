@@ -330,6 +330,14 @@ export default {
             -webkit-backdrop-filter: blur(10px);
             box-shadow: 0px 1px 2px rgba(0, 0, 0, 0.1);
 
+            .command-bar-item {
+                &:hover {
+                    .option-img {
+                        filter: grayscale(0);
+                    }
+                }
+            }
+
             .command-bar-item-wrapper {
                 position: relative;
                 width: 100%;

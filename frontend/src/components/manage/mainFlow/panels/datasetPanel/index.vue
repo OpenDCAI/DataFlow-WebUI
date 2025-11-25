@@ -27,15 +27,17 @@
                     <template v-slot:extension>
                         <fv-button
                             theme="dark"
-                            :background="'linear-gradient(130deg, rgba(210, 79, 22, 1), rgba(225, 107, 56, 1))'"
+                            :icon="item.showPreview ? 'Hide' : 'View'"
+                            :background="'linear-gradient(130deg, rgba(229, 123, 67, 1), rgba(225, 107, 56, 1))'"
                             :borderRadius="8"
                             :isBoxShadow="true"
                             style="margin-right: 5px"
                             @click="showPreview(item, $event)"
-                            >{{ local('Preview') }}
+                            >{{ item.showPreview ? local('Hide') : local('Preview') }}
                         </fv-button>
                         <fv-button
                             theme="dark"
+                            icon="Touch"
                             :background="gradient"
                             :borderRadius="8"
                             :isBoxShadow="true"

@@ -9,10 +9,10 @@
                 :fontSize="12"
                 background="rgba(255, 255, 255, 1)"
                 :sliderBackground="gradient"
-                :borderRadius="'8px'"
+                :borderRadius="8"
                 padding="0px 5px"
                 itemPadding="0px 10px"
-                sliderBorderRadius="12px"
+                :sliderBorderRadius="12"
             ></fv-pivot>
             <hr />
             <fv-text-box
