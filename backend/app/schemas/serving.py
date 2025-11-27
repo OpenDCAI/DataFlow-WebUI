@@ -15,6 +15,11 @@ class ServingCreateSchema(BaseModel):
     cls_name: str = Field(..., description="Serving类的名称")
     params: List[ServingParamSchema] = Field(..., description="Serving实例的参数列表")
 
+class ServingUpdateSchema(BaseModel):
+    name: Optional[str] = Field(None, description="Serving实例的名称")
+    params: Optional[List[ServingParamSchema]] = Field(None, description="Serving实例的参数列表")
+    # cls_name is not allowed to be updated
+
 class ServingDetailSchema(ServingQuerySchema, ServingCreateSchema):
     pass
 

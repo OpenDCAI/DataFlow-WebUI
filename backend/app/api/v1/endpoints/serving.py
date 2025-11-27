@@ -11,7 +11,8 @@ from app.schemas.serving import (
     ServingDetailSchema,
     ServingClassSchema,
     ServingResponseSchema,
-    ServingTestSchema
+    ServingTestSchema,
+    ServingUpdateSchema
 )
 from app.services.serving_registry import _SERVING_REGISTRY, SERVING_CLS_REGISTRY
 
@@ -72,6 +73,33 @@ def get_serving_detail(id: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     
+@router.put(
+    "/{id}",
+    response_model=ApiResponse[ServingQuerySchema],
+    operation_id="update_serving_instance",
+    summary="更新 Serving 实例"
+)
+def update_serving_instance(id: str, body: ServingUpdateSchema):
+    """
+    更新 Serving 实例的配置。
+    """
+    try:
+        params_list = None
+        if body.params is not None:
+            params_list = [p.model_dump() for p in body.params]
+        success = _SERVING_REGISTRY._update(
+            id, 
+            name=body.name, 
+            params=params_list
+        )
+        if not success:
+            raise HTTPException(status_code=404, detail=f"Serving instance with id {id} not found")
+            
+        return ok({'id': id})
+    except Exception as e:
+        print(e)
+        raise HTTPException(status_code=500, detail=str(    e))
+
 @router.post(
     "/",
     response_model=ApiResponse[ServingQuerySchema],

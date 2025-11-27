@@ -55,6 +55,25 @@ class ServingRegistry:
             yaml.dump(data, f)
         return id
 
+    def _update(self, id: str, name: str | None = None, cls_name: str | None = None, params: List[Dict[str, Any]] | None = None) -> bool:
+        data = self._get_all()
+        if id not in data:
+            return False
+        
+        if name:
+            data[id]["name"] = name
+        if cls_name:
+            raise ValueError("cls_name is not allowed to be updated")
+        if params is not None:
+            current_params = {p['name']: p for p in data[id].get("params", [])}
+            for p in params:
+                current_params[p['name']] = p
+            data[id]["params"] = list(current_params.values())
+            
+        with open(self.path, 'w') as f:
+            yaml.dump(data, f)
+        return True
+
     def get_serving_classes(self) -> List[Dict[str, Any]]:
         """获取所有注册的Serving类及其初始化参数信息"""
         result = []
