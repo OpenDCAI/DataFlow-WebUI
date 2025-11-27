@@ -47,7 +47,8 @@ def list_serving_classes():
     """
     try:
         classes_info = _SERVING_REGISTRY.get_serving_classes()
-        return ok(classes_info)
+        api_llm_info = [x for x in classes_info if x['cls_name'] == 'APILLMServing_request']
+        return ok(api_llm_info)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -64,6 +65,7 @@ def get_serving_detail(id: str):
     """
     try:
         serving_data = _SERVING_REGISTRY._get(id)
+        print(type(serving_data))
         if not serving_data:
             raise HTTPException(status_code=404, detail=f"Serving instance with id {id} not found")
         return ok(serving_data)

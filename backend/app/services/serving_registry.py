@@ -39,9 +39,11 @@ class ServingRegistry:
     
     def _get(self, id: str) -> Dict[str, Any] | None:
         data = self._get_all()
-        return data.get(id)
+        item = data.get(id)
+        item['id'] = id
+        return item
                 
-    def _set(self, name: str, cls_name: str, params: Dict[str, Any]) -> str:
+    def _set(self, name: str, cls_name: str, params: List[Dict[str, Any]]) -> str:
         data = self._get_all() or {}
         id = os.urandom(8).hex()
         data[id] = {
