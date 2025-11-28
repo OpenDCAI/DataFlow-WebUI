@@ -264,6 +264,7 @@ const y = computed(() => `${Math.round(props.position.y)}px`)
             position: relative;
             width: auto;
             height: 40px;
+            padding: 0px;
             display: flex;
             flex-direction: row;
             justify-content: center;

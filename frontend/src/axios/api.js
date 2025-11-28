@@ -1860,3 +1860,364 @@ prompts.get_prompt_source_api_v1_prompts_source__prompt_name__get.fullPath=`${ax
 * @description get_prompt_source_api_v1_prompts_source__prompt_name__get url链接，不包含baseURL
 */
 prompts.get_prompt_source_api_v1_prompts_source__prompt_name__get.path=`/api/v1/prompts/source/{prompt_name}`
+
+export class serving {
+ 
+  /**
+  * @summary List Serving Instances
+  * @param {CancelTokenSource} [cancelSource] Axios Cancel Source 对象，可以取消该请求
+  * @param {Function} [uploadProgress] 上传回调函数
+  * @param {Function} [downloadProgress] 下载回调函数
+  */
+  static async list_serving_instances_api_v1_serving__get(cancelSource,uploadProgress,downloadProgress){
+    return await new Promise((resolve,reject)=>{
+      let responseType = "json";
+      let options = {
+        method:'get',
+        url:'/api/v1/serving/',
+        data:{},
+        params:{},
+        headers:{
+          "Content-Type":""
+        },
+        onUploadProgress:uploadProgress,
+        onDownloadProgress:downloadProgress
+      }
+      // support wechat mini program
+      if (cancelSource!=undefined){
+        options.cancelToken = cancelSource.token
+      }
+      if (responseType != "json"){
+        options.responseType = responseType;
+      }
+      axios(options)
+      .then(res=>{
+        if (res.config.responseType=="blob"){
+          resolve(new Blob([res.data],{
+            type: res.headers["content-type"].split(";")[0]
+          }))
+        }else{
+          resolve(res.data);
+          return res.data
+        }
+      }).catch(err=>{
+        if (err.response){
+          if (err.response.data)
+            reject(err.response.data)
+          else
+            reject(err.response);
+        }else{
+          reject(err)
+        }
+      })
+    })
+  }
+ 
+  /**
+  * @summary 创建新的 Serving 实例
+  * @param {String} [name] 
+  * @param {String} [cls_name] 
+  * @param {array} [array] 
+  * @param {CancelTokenSource} [cancelSource] Axios Cancel Source 对象，可以取消该请求
+  * @param {Function} [uploadProgress] 上传回调函数
+  * @param {Function} [downloadProgress] 下载回调函数
+  */
+  static async create_serving_instance(name,cls_name,array,cancelSource,uploadProgress,downloadProgress){
+    return await new Promise((resolve,reject)=>{
+      let responseType = "json";
+      let options = {
+        method:'post',
+        url:'/api/v1/serving/',
+        data:array,
+        params:{name,cls_name},
+        headers:{
+          "Content-Type":"application/json"
+        },
+        onUploadProgress:uploadProgress,
+        onDownloadProgress:downloadProgress
+      }
+      // support wechat mini program
+      if (cancelSource!=undefined){
+        options.cancelToken = cancelSource.token
+      }
+      if (responseType != "json"){
+        options.responseType = responseType;
+      }
+      axios(options)
+      .then(res=>{
+        if (res.config.responseType=="blob"){
+          resolve(new Blob([res.data],{
+            type: res.headers["content-type"].split(";")[0]
+          }))
+        }else{
+          resolve(res.data);
+          return res.data
+        }
+      }).catch(err=>{
+        if (err.response){
+          if (err.response.data)
+            reject(err.response.data)
+          else
+            reject(err.response);
+        }else{
+          reject(err)
+        }
+      })
+    })
+  }
+ 
+  /**
+  * @summary 获取所有可用Serving类定义
+  * @param {CancelTokenSource} [cancelSource] Axios Cancel Source 对象，可以取消该请求
+  * @param {Function} [uploadProgress] 上传回调函数
+  * @param {Function} [downloadProgress] 下载回调函数
+  */
+  static async list_serving_classes(cancelSource,uploadProgress,downloadProgress){
+    return await new Promise((resolve,reject)=>{
+      let responseType = "json";
+      let options = {
+        method:'get',
+        url:'/api/v1/serving/classes',
+        data:{},
+        params:{},
+        headers:{
+          "Content-Type":""
+        },
+        onUploadProgress:uploadProgress,
+        onDownloadProgress:downloadProgress
+      }
+      // support wechat mini program
+      if (cancelSource!=undefined){
+        options.cancelToken = cancelSource.token
+      }
+      if (responseType != "json"){
+        options.responseType = responseType;
+      }
+      axios(options)
+      .then(res=>{
+        if (res.config.responseType=="blob"){
+          resolve(new Blob([res.data],{
+            type: res.headers["content-type"].split(";")[0]
+          }))
+        }else{
+          resolve(res.data);
+          return res.data
+        }
+      }).catch(err=>{
+        if (err.response){
+          if (err.response.data)
+            reject(err.response.data)
+          else
+            reject(err.response);
+        }else{
+          reject(err)
+        }
+      })
+    })
+  }
+ 
+  /**
+  * @summary 获取指定 Serving 实例的详细信息
+  * @param {String} [pathid] 
+  * @param {CancelTokenSource} [cancelSource] Axios Cancel Source 对象，可以取消该请求
+  * @param {Function} [uploadProgress] 上传回调函数
+  * @param {Function} [downloadProgress] 下载回调函数
+  */
+  static async get_serving_detail(pathid,cancelSource,uploadProgress,downloadProgress){
+    return await new Promise((resolve,reject)=>{
+      let responseType = "json";
+      let options = {
+        method:'get',
+        url:'/api/v1/serving/'+pathid+'',
+        data:{},
+        params:{},
+        headers:{
+          "Content-Type":""
+        },
+        onUploadProgress:uploadProgress,
+        onDownloadProgress:downloadProgress
+      }
+      // support wechat mini program
+      if (cancelSource!=undefined){
+        options.cancelToken = cancelSource.token
+      }
+      if (responseType != "json"){
+        options.responseType = responseType;
+      }
+      axios(options)
+      .then(res=>{
+        if (res.config.responseType=="blob"){
+          resolve(new Blob([res.data],{
+            type: res.headers["content-type"].split(";")[0]
+          }))
+        }else{
+          resolve(res.data);
+          return res.data
+        }
+      }).catch(err=>{
+        if (err.response){
+          if (err.response.data)
+            reject(err.response.data)
+          else
+            reject(err.response);
+        }else{
+          reject(err)
+        }
+      })
+    })
+  }
+ 
+  /**
+  * @summary 更新 Serving 实例
+  * @param {String} [pathid] 
+  * @param {UserModel.ServingUpdateSchema} [servingupdateschema] 
+  * @param {CancelTokenSource} [cancelSource] Axios Cancel Source 对象，可以取消该请求
+  * @param {Function} [uploadProgress] 上传回调函数
+  * @param {Function} [downloadProgress] 下载回调函数
+  */
+  static async update_serving_instance(pathid,servingupdateschema,cancelSource,uploadProgress,downloadProgress){
+    return await new Promise((resolve,reject)=>{
+      let responseType = "json";
+      let options = {
+        method:'put',
+        url:'/api/v1/serving/'+pathid+'',
+        data:servingupdateschema,
+        params:{},
+        headers:{
+          "Content-Type":"application/json"
+        },
+        onUploadProgress:uploadProgress,
+        onDownloadProgress:downloadProgress
+      }
+      // support wechat mini program
+      if (cancelSource!=undefined){
+        options.cancelToken = cancelSource.token
+      }
+      if (responseType != "json"){
+        options.responseType = responseType;
+      }
+      axios(options)
+      .then(res=>{
+        if (res.config.responseType=="blob"){
+          resolve(new Blob([res.data],{
+            type: res.headers["content-type"].split(";")[0]
+          }))
+        }else{
+          resolve(res.data);
+          return res.data
+        }
+      }).catch(err=>{
+        if (err.response){
+          if (err.response.data)
+            reject(err.response.data)
+          else
+            reject(err.response);
+        }else{
+          reject(err)
+        }
+      })
+    })
+  }
+ 
+  /**
+  * @summary 测试指定 Serving 实例的响应
+  * @param {String} [pathid] 
+  * @param {UserModel.ServingTestSchema} [servingtestschema] 
+  * @param {CancelTokenSource} [cancelSource] Axios Cancel Source 对象，可以取消该请求
+  * @param {Function} [uploadProgress] 上传回调函数
+  * @param {Function} [downloadProgress] 下载回调函数
+  */
+  static async test_serving_instance(pathid,servingtestschema,cancelSource,uploadProgress,downloadProgress){
+    return await new Promise((resolve,reject)=>{
+      let responseType = "json";
+      let options = {
+        method:'post',
+        url:'/api/v1/serving/'+pathid+'/test',
+        data:servingtestschema,
+        params:{},
+        headers:{
+          "Content-Type":"application/json"
+        },
+        onUploadProgress:uploadProgress,
+        onDownloadProgress:downloadProgress
+      }
+      // support wechat mini program
+      if (cancelSource!=undefined){
+        options.cancelToken = cancelSource.token
+      }
+      if (responseType != "json"){
+        options.responseType = responseType;
+      }
+      axios(options)
+      .then(res=>{
+        if (res.config.responseType=="blob"){
+          resolve(new Blob([res.data],{
+            type: res.headers["content-type"].split(";")[0]
+          }))
+        }else{
+          resolve(res.data);
+          return res.data
+        }
+      }).catch(err=>{
+        if (err.response){
+          if (err.response.data)
+            reject(err.response.data)
+          else
+            reject(err.response);
+        }else{
+          reject(err)
+        }
+      })
+    })
+  }
+}
+
+// class serving static method properties bind
+/**
+* @description list_serving_instances_api_v1_serving__get url链接，包含baseURL
+*/
+serving.list_serving_instances_api_v1_serving__get.fullPath=`${axios.defaults.baseURL}/api/v1/serving/`
+/**
+* @description list_serving_instances_api_v1_serving__get url链接，不包含baseURL
+*/
+serving.list_serving_instances_api_v1_serving__get.path=`/api/v1/serving/`
+/**
+* @description create_serving_instance url链接，包含baseURL
+*/
+serving.create_serving_instance.fullPath=`${axios.defaults.baseURL}/api/v1/serving/`
+/**
+* @description create_serving_instance url链接，不包含baseURL
+*/
+serving.create_serving_instance.path=`/api/v1/serving/`
+/**
+* @description list_serving_classes url链接，包含baseURL
+*/
+serving.list_serving_classes.fullPath=`${axios.defaults.baseURL}/api/v1/serving/classes`
+/**
+* @description list_serving_classes url链接，不包含baseURL
+*/
+serving.list_serving_classes.path=`/api/v1/serving/classes`
+/**
+* @description get_serving_detail url链接，包含baseURL
+*/
+serving.get_serving_detail.fullPath=`${axios.defaults.baseURL}/api/v1/serving/{id}`
+/**
+* @description get_serving_detail url链接，不包含baseURL
+*/
+serving.get_serving_detail.path=`/api/v1/serving/{id}`
+/**
+* @description update_serving_instance url链接，包含baseURL
+*/
+serving.update_serving_instance.fullPath=`${axios.defaults.baseURL}/api/v1/serving/{id}`
+/**
+* @description update_serving_instance url链接，不包含baseURL
+*/
+serving.update_serving_instance.path=`/api/v1/serving/{id}`
+/**
+* @description test_serving_instance url链接，包含baseURL
+*/
+serving.test_serving_instance.fullPath=`${axios.defaults.baseURL}/api/v1/serving/{id}/test`
+/**
+* @description test_serving_instance url链接，不包含baseURL
+*/
+serving.test_serving_instance.path=`/api/v1/serving/{id}/test`

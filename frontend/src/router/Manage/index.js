@@ -9,6 +9,10 @@ export default {
         {
             path: '',
             component: () => AsyncLoad(() => import("@/views/manage/dataflow/index.vue"))
+        },
+        {
+            path: 'serving',
+            component: () => AsyncLoad(() => import("@/views/manage/serving/index.vue"))
         }
     ]
 };

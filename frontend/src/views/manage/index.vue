@@ -53,6 +53,7 @@ import { useTheme } from '@/stores/theme'
 
 import logo from '@/assets/logo/logo.png'
 import dataflow from '@/assets/nav/dataflow.svg'
+import serving from '@/assets/nav/serving.svg'
 
 export default {
     data() {
@@ -76,6 +77,13 @@ export default {
                     icon: 'World',
                     img: dataflow,
                     route: '/m/'
+                },
+                {
+                    key: 1,
+                    name: () => this.local('Serving'),
+                    icon: 'World',
+                    img: serving,
+                    route: '/m/serving'
                 },
                 {
                     key: -1,
@@ -108,9 +116,9 @@ export default {
         routeFormat() {
             let path = this.$route.path
             for (let item of this.navList) {
-                if (item.route === '') continue
-                let targetPath = `/a/${item.route}`
-                if (path.startsWith(targetPath)) {
+                if (!item.route || item.type === 'header') continue
+                let targetPath = item.route
+                if (path == targetPath) {
                     this.currentNav = item
                     break
                 }
