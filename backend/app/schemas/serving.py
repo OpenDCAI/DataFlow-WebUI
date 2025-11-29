@@ -4,7 +4,7 @@ from typing import Optional, List, Dict, Any
 class ServingParamSchema(BaseModel):
     name: str = Field(..., description="参数名称")
     type: str = Field(..., description="参数类型")
-    default: Any = Field(None, description="默认值")
+    default_value: Any = Field(None, description="默认值")
     required: bool = Field(True, description="是否必填")
 
 class ServingQuerySchema(BaseModel):

@@ -140,9 +140,9 @@ def test_serving_instance(id: str, body: ServingTestSchema):
         ## This part of code is only for APILLMServing_request
         for params in serving_info['params']:
             if params['name'] == 'key_name_of_api_key':
-                os.environ['DF_API_KEY'] = params['default']
-                params['default'] = 'DF_API_KEY'
-            params_dict[params['name']] = params['default']
+                os.environ['DF_API_KEY'] = params['default_value']
+                params['default_value'] = 'DF_API_KEY'
+            params_dict[params['name']] = params['default_value']
         serving_instance = SERVING_CLS_REGISTRY[serving_info['cls_name']](**params_dict)
         responses = serving_instance.generate_from_input([prompt])
         if not serving_instance:
