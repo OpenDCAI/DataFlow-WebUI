@@ -138,7 +138,7 @@ def update_serving_instance(id: str, body: ServingUpdateSchema):
     summary="创建新的 Serving 实例"
 )
 def create_serving_instance(
-    name: str,
+    serving_name: str,
     cls_name: str,
     params: List[Dict[str, Any]],
 ):
@@ -179,7 +179,7 @@ def create_serving_instance(
 
         new_params = list(final_params_map.values())
 
-        new_id = _SERVING_REGISTRY._set(name, cls_name, new_params)
+        new_id = _SERVING_REGISTRY._set(serving_name, cls_name, new_params)
         return ok({
             'id': new_id
         })
