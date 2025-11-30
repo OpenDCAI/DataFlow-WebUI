@@ -138,7 +138,7 @@ def update_serving_instance(id: str, body: ServingUpdateSchema):
     summary="创建新的 Serving 实例"
 )
 def create_serving_instance(
-    serving_name: str,
+    name: str,
     cls_name: str,
     params: List[Dict[str, Any]],
 ):
@@ -163,23 +163,23 @@ def create_serving_instance(
         
         # Merge User Params
         for user_p in params:
-            name = user_p['name']
+            pname = user_p['name']
             
             # Special validation for APILLMServing_request
             if cls_name == 'APILLMServing_request' and name == 'key_name_of_api_key':
                 raise ValueError("key_name_of_api_key should not be provided in input")
 
-            if name in final_params_map:
+            if pname in final_params_map:
                 # Update existing param with user provided value
                 if 'value' in user_p:
-                    final_params_map[name]['value'] = user_p['value']
+                    final_params_map[pname]['value'] = user_p['value']
             else:
                 # New param (e.g. api_key)
-                final_params_map[name] = user_p
+                final_params_map[pname] = user_p
 
         new_params = list(final_params_map.values())
 
-        new_id = _SERVING_REGISTRY._set(serving_name, cls_name, new_params)
+        new_id = _SERVING_REGISTRY._set(name, cls_name, new_params)
         return ok({
             'id': new_id
         })
