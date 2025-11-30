@@ -3,9 +3,10 @@ from typing import Optional, List, Dict, Any
 
 class ServingParamSchema(BaseModel):
     name: str = Field(..., description="参数名称")
-    type: str = Field(..., description="参数类型")
+    type: Optional[str] = Field(None, description="参数类型")
     default_value: Any = Field(None, description="默认值")
-    required: bool = Field(True, description="是否必填")
+    value: Any = Field(None, description="参数值")
+    required: Optional[bool] = Field(True, description="是否必填")
 
 class ServingQuerySchema(BaseModel):
     id: Optional[str] = Field(None, description="Serving实例的唯一标识符")

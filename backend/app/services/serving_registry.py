@@ -65,10 +65,20 @@ class ServingRegistry:
         if cls_name:
             raise ValueError("cls_name is not allowed to be updated")
         if params is not None:
-            current_params = {p['name']: p for p in data[id].get("params", [])}
-            for p in params:
-                current_params[p['name']] = p
-            data[id]["params"] = list(current_params.values())
+            # Update parameter values only, keeping other metadata
+            current_params_map = {p['name']: p for p in data[id].get("params", [])}
+            
+            for new_p in params:
+                name = new_p.get('name')
+                if name in current_params_map:
+                    # Only update the value if present in the new param
+                    if 'value' in new_p:
+                         current_params_map[name]['value'] = new_p['value']
+                else:
+                     # If it's a new parameter (like api_key), add it
+                     current_params_map[name] = new_p
+                     
+            data[id]["params"] = list(current_params_map.values())
             
         with open(self.path, 'w') as f:
             yaml.dump(data, f)
@@ -115,7 +125,7 @@ class ServingRegistry:
                         params.append({
                             "name": name,
                             "type": p_type,
-                            "default": default_val,
+                            "default_value": default_val,
                             "required": required
                         })
                 except ValueError:
