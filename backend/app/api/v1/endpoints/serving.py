@@ -131,6 +131,24 @@ def update_serving_instance(id: str, body: ServingUpdateSchema):
         print(e)
         raise HTTPException(status_code=500, detail=str(    e))
 
+@router.delete(
+    "/{id}",
+    response_model=ApiResponse[ServingQuerySchema],
+    operation_id="delete_serving_instance",
+    summary="删除 Serving 实例"
+)
+def delete_serving_instance(id: str):
+    """
+    删除指定的 Serving 实例。
+    """
+    try:
+        success = _SERVING_REGISTRY._delete(id)
+        if not success:
+            raise HTTPException(status_code=404, detail=f"Serving instance with id {id} not found")
+        return ok({'id': id})
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @router.post(
     "/",
     response_model=ApiResponse[ServingQuerySchema],

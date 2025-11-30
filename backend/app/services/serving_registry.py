@@ -84,6 +84,15 @@ class ServingRegistry:
             yaml.dump(data, f)
         return True
 
+    def _delete(self, id: str) -> bool:
+        data = self._get_all()
+        if id not in data:
+            return False
+        del data[id]
+        with open(self.path, 'w') as f:
+            yaml.dump(data, f)
+        return True
+
     def get_serving_classes(self) -> List[Dict[str, Any]]:
         """获取所有注册的Serving类及其初始化参数信息"""
         result = []
