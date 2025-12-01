@@ -33,7 +33,7 @@ class ExecutionStatus(str, Enum):
     failed = "failed"
 
 
-class PipelineOperator(OperatorDetailSchema): # 画布上的pipeline类
+class PipelineOperator(BaseModel): # 画布上的pipeline类
     """Pipeline算子模型"""
     name: str = Field(..., description="算子名称")
     params: Dict[str, Any] = Field(default_factory=dict, description="算子参数配置")

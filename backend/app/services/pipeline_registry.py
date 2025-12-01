@@ -83,6 +83,21 @@ class PipelineRegistry:
         with open(self.path, "w", encoding="utf-8") as f:
             yaml.safe_dump(data, f, allow_unicode=True, sort_keys=False)
     
+    def parse_frontend_params(self, params_list):
+        """
+        将前端 [{name: xxx, value: yyy}] 解析成字典 {xxx: yyy}
+        """
+        if not params_list:
+            return {}
+
+        parsed = {}
+        for item in params_list:
+            # item = {"name": "...", "value": ...}
+            key = item.get("name")
+            value = item.get("value")
+            if key is not None:
+                parsed[key] = value
+        return parsed
 
     def get_current_time(self):
         """获取当前时间的ISO格式字符串"""

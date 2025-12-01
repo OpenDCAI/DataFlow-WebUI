@@ -34,6 +34,11 @@ def create_pipeline(request: Request, payload: PipelineIn):
     try:
         logger.info(f"Request: {request.method} {request.url.path}, Pipeline name: {payload.name}")
         pipeline_in_data = payload.model_dump()
+
+        operators = pipeline_in_data.get("config", {}).get("operators", [])
+        for op in operators:
+            op["params"] = _PIPELINE_REGISTRY.parse_frontend_params(op.get("params", []))
+
         pipeline = _PIPELINE_REGISTRY.create_pipeline(pipeline_in_data)
         return created(pipeline)
     except ValueError as e:
@@ -54,6 +59,11 @@ def get_pipeline(pipeline_id: str):
 def update_pipeline(pipeline_id: str, payload: PipelineIn):
     try:
         pipeline_in_data = payload.model_dump()
+
+        operators = pipeline_in_data.get("config", {}).get("operators", [])
+        for op in operators:
+            op["params"] = _PIPELINE_REGISTRY.parse_frontend_params(op.get("params", []))
+
         updated_pipeline = _PIPELINE_REGISTRY.update_pipeline(pipeline_id, pipeline_in_data)
         return ok(updated_pipeline)
     except ValueError as e:
@@ -82,6 +92,10 @@ async def execute_pipeline(request: Request, payload: PipelineExecutionRequest, 
     try:
         logger.info(f"Request: {request.method} {request.url.path}")
         
+        if payload.config:
+            for op in payload.config.operators:
+                op.params = _PIPELINE_REGISTRY.parse_frontend_params(op.params)
+
         # 调用服务层开始执行
         execution_id, pipeline_config, initial_result = _PIPELINE_REGISTRY.start_execution(
             pipeline_id=payload.pipeline_id, 
