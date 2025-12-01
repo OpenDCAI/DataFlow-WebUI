@@ -36,7 +36,7 @@ class PipelineOperator(OperatorDetailSchema): # 画布上的pipeline类
     """Pipeline算子模型"""
     name: str = Field(..., description="算子名称")
     params: Dict[str, Any] = Field(default_factory=dict, description="算子参数配置")
-    
+    location: tuple[int, int] = Field(default=(0, 0), description="算子在画布上的位置, 包含x和y两个坐标值")
     # @field_validator('name')
     # def validate_operator_name(cls, v: str) -> str:
     #     """验证算子名称格式"""
@@ -51,7 +51,6 @@ class PipelineConfig(BaseModel):
     input_dataset: str = Field(..., description="输入数据集ID")
     # 用 list 的顺序代表算子执行顺序
     operators: List[PipelineOperator] = Field(default_factory=list, description="算子执行序列")
-    run_config: Dict[str, Any] = Field(default_factory=dict, description="运行时配置参数")
     
     @field_validator('operators')
     def validate_operators(cls, v: List[PipelineOperator]) -> List[PipelineOperator]:
