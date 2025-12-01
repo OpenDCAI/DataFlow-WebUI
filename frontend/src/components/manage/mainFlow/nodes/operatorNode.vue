@@ -16,6 +16,17 @@
             }}</span>
         </div>
         <hr />
+        <div v-if="allowedPrompts.length > 0" class="node-row-item col" @mousedown.stop @click.stop>
+            <span class="info-title">{{ appConfig.local('Allowed Prompts') }}</span>
+            <fv-combobox
+                :placeholder="appConfig.local('Select Prompt')"
+                :options="allowedPrompts"
+                :choosen-slider-background="thisData.borderColor"
+                :reveal-border-color="thisData.borderColor"
+                border-radius="8"
+                style="width: 100%"
+            ></fv-combobox>
+        </div>
         <div
             v-if="thisData.operatorParams"
             v-for="(item, index) in thisData.operatorParams.init"
@@ -30,6 +41,8 @@
                 border-radius="8"
                 :reveal-border="true"
                 style="width: 100%; height: 35px"
+                @mousedown.stop
+                @click.stop
             ></fv-text-box>
         </div>
         <div class="node-row-item">
@@ -65,6 +78,8 @@
                 :reveal-border="true"
                 style="width: 100%; height: 35px"
                 @update:modelValue="emitUpdateRunValue(item)"
+                @mousedown.stop
+                @click.stop
             ></fv-text-box>
         </div>
     </base-node>
@@ -120,6 +135,17 @@ const thisData = computed(() => {
         ...props.data,
         shadowColor: props.data.nodeShadowColor ? props.data.nodeShadowColor : 'rgba(0, 0, 0, 0.05)'
     }
+})
+const allowedPrompts = computed(() => {
+    let allowed_prompts = thisData.value.allowed_prompts || []
+    let results = []
+    allowed_prompts.forEach((item, index) => {
+        results.push({
+            key: item,
+            text: item
+        })
+    })
+    return results
 })
 
 const appConfig = useAppConfig()
