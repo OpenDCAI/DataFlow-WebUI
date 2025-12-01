@@ -50,7 +50,6 @@ class PipelineRegistry:
                                 "config": {
                                     "file_path": os.path.join(api_pipelines_dir, filename),
                                     "module_name": f"{settings.DataFlow_CORE_DIR.replace('/', '.')}.api_pipelines.{filename[:-3]}",
-                                    "type": "api_pipeline",
                                     "input_dataset": ""
                                 },
                                 "tags": ["api"],

@@ -1,7 +1,7 @@
 from enum import Enum
 from typing import List, Dict, Any, Optional, Union
 from pydantic import BaseModel, Field, field_validator
-
+from app.schemas.operator import OperatorDetailSchema
 
 class Pipeline(str, Enum):
     """Pipeline类型枚举"""
@@ -32,18 +32,18 @@ class ExecutionStatus(str, Enum):
     failed = "failed"
 
 
-class PipelineOperator(BaseModel):
+class PipelineOperator(OperatorDetailSchema): # 画布上的pipeline类
     """Pipeline算子模型"""
     name: str = Field(..., description="算子名称")
     params: Dict[str, Any] = Field(default_factory=dict, description="算子参数配置")
     
-    @field_validator('name')
-    def validate_operator_name(cls, v: str) -> str:
-        """验证算子名称格式"""
-        if not v.replace('_', '').isalnum():
-            raise ValueError('Operator name can only contain letters, numbers and underscores')
-            # 后续可以补充从可用算子集中验证算子名称是否存在
-        return v
+    # @field_validator('name')
+    # def validate_operator_name(cls, v: str) -> str:
+    #     """验证算子名称格式"""
+    #     if not v.replace('_', '').isalnum():
+    #         raise ValueError('Operator name can only contain letters, numbers and underscores')
+    #         # 后续可以补充从可用算子集中验证算子名称是否存在
+    #     return v
 
 
 class PipelineConfig(BaseModel):
