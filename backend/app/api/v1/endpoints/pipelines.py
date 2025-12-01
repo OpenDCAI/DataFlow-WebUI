@@ -33,7 +33,13 @@ def list_pipelines(request: Request):
 def create_pipeline(request: Request, payload: PipelineIn):
     try:
         logger.info(f"Request: {request.method} {request.url.path}, Pipeline name: {payload.name}")
-        pipeline = _PIPELINE_REGISTRY.create_pipeline(payload)
+        pipeline_in_data = payload.model_dump()
+
+        operators = pipeline_in_data.get("config", {}).get("operators", [])
+        for op in operators:
+            op["params"] = _PIPELINE_REGISTRY.parse_frontend_params(op.get("params", []))
+
+        pipeline = _PIPELINE_REGISTRY.create_pipeline(pipeline_in_data)
         return created(pipeline)
     except ValueError as e:
         logger.error(f"Invalid pipeline configuration: {str(e)}", exc_info=True)
@@ -52,7 +58,13 @@ def get_pipeline(pipeline_id: str):
 @router.put("/{pipeline_id}", response_model=ApiResponse[PipelineOut], operation_id="update_pipeline", summary="更新指定的Pipeline")
 def update_pipeline(pipeline_id: str, payload: PipelineIn):
     try:
-        updated_pipeline = _PIPELINE_REGISTRY.update_pipeline(pipeline_id, payload)
+        pipeline_in_data = payload.model_dump()
+
+        operators = pipeline_in_data.get("config", {}).get("operators", [])
+        for op in operators:
+            op["params"] = _PIPELINE_REGISTRY.parse_frontend_params(op.get("params", []))
+
+        updated_pipeline = _PIPELINE_REGISTRY.update_pipeline(pipeline_id, pipeline_in_data)
         return ok(updated_pipeline)
     except ValueError as e:
         logger.error(f"Failed to update pipeline: {str(e)}")
@@ -80,6 +92,10 @@ async def execute_pipeline(request: Request, payload: PipelineExecutionRequest, 
     try:
         logger.info(f"Request: {request.method} {request.url.path}")
         
+        if payload.config:
+            for op in payload.config.operators:
+                op.params = _PIPELINE_REGISTRY.parse_frontend_params(op.params)
+
         # 调用服务层开始执行
         execution_id, pipeline_config, initial_result = _PIPELINE_REGISTRY.start_execution(
             pipeline_id=payload.pipeline_id, 
