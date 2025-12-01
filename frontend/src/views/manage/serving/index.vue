@@ -20,9 +20,10 @@
                             theme="dark"
                             :is-box-shadow="true"
                             :background="gradient"
-                            :disabled="!checkAdd()"
+                            :disabled="!checkAdd() || !lock.add"
                             border-radius="6"
                             style="width: 90px; margin-right: 5px"
+                            @click="confirmAdd"
                         >
                             {{ local('Confirm') }}
                         </fv-button>
@@ -83,11 +84,24 @@
                     v-for="(item, index) in servingList"
                     :key="index"
                     class="serving-item"
-                    icon="Cloud"
+                    icon="DialShape4"
                     :title="item.name"
                     :content="item.cls_name"
-                    :max-height="670"
+                    :max-height="740"
                 >
+                    <template v-slot:extension>
+                        <fv-button
+                            theme="dark"
+                            background="rgba(191, 95, 95, 1)"
+                            foreground="rgba(255, 255, 255, 1)"
+                            border-radius="6"
+                            :is-box-shadow="true"
+                            style="width: 90px"
+                            @click="$event.stopPropagation(), delServing(item)"
+                        >
+                            {{ local('Delete') }}
+                        </fv-button>
+                    </template>
                     <template v-slot:default>
                         <hr />
                         <div class="serving-item-row sep">
@@ -101,8 +115,9 @@
                                 :is-box-shadow="true"
                                 :background="gradient"
                                 border-radius="6"
-                                :disabled="!checkEdit(item)"
+                                :disabled="!checkEdit(item) || !lock.edit"
                                 style="width: 90px; margin-right: 5px"
+                                @click="confirmEdit(item)"
                             >
                                 {{ local('Confirm') }}
                             </fv-button>
@@ -141,6 +156,25 @@
                             </div>
                             <hr />
                         </div>
+                        <div class="serving-item-row column">
+                            <p class="serving-item-title">{{ local('Serving Testing') }}</p>
+                            <div class="serving-item-row no-pad">
+                                <fv-button
+                                    border-radius="8"
+                                    style="width: 30px; height: 30px"
+                                    :disabled="!lock.test"
+                                    @click="testServing(item)"
+                                >
+                                    <i
+                                        class="ms-Icon ms-Icon--ProgressRingDots"
+                                        :class="[{ 'ring-animation': !lock.test }]"
+                                    ></i>
+                                </fv-button>
+                                <p class="serving-item-bold-info" style="margin-left: 15px">
+                                    {{ local('Response') }}: {{ item.response }}
+                                </p>
+                            </div>
+                        </div>
                     </template>
                 </fv-Collapse>
             </div>
@@ -160,8 +194,24 @@ export default {
             choosenClsItem: {},
             servingName: '',
             servingList: [],
+            defaultValues: {
+                str: '',
+                int: '0',
+                Any: ''
+            },
+            formatValues: {
+                str: (val) => val.toString(),
+                int: (val) => parseInt(val),
+                Any: (val) => val.toString()
+            },
             show: {
                 add: false
+            },
+            lock: {
+                add: true,
+                edit: true,
+                test: true,
+                delete: true
             }
         }
     },
@@ -182,7 +232,9 @@ export default {
                         item.key = item.cls_name
                         item.text = item.cls_name
                         for (let param of item.params) {
-                            param.value = param.default.toString()
+                            if (param.default_value !== null)
+                                param.value = param.default_value.toString()
+                            else param.value = this.defaultValues[param.type]
                         }
                     })
                     this.createProps = createProps
@@ -194,34 +246,168 @@ export default {
                 if (res.data) {
                     let servingList = res.data
                     servingList.forEach((item) => {
-                        this.resetEditParams(item)
+                        this.resetEditParams(item, true)
                     })
                     this.servingList = servingList
                 }
             })
         },
         resetAddParams() {
+            this.servingName = ''
             if (this.choosenClsItem.params) {
                 for (let param of this.choosenClsItem.params) {
-                    param.value = param.default.toString()
+                    if (param.default_value !== null) param.value = param.default_value.toString()
+                    else param.value = this.defaultValues[param.type]
                 }
             }
         },
-        resetEditParams(item) {
+        resetEditParams(item, overide = false) {
             item.serving_name = item.name
             if (item.params) {
                 for (let param of item.params) {
-                    param.value = param.default.toString()
+                    if (overide) {
+                        if (param.value) param.default_value = param.value
+                    } else {
+                        if (param.default_value !== null)
+                            param.value = param.default_value.toString()
+                        else param.value = this.defaultValues[param.type]
+                    }
                 }
             }
+        },
+        valueBuilder(item) {
+            let type = item.type
+            return this.formatValues[type](item.value)
         },
         handleAdd() {
             this.show.add ^= true
             this.resetAddParams()
         },
+        confirmAdd() {
+            if (!this.lock.add) return
+            if (!this.checkAdd()) return
+            this.lock.add = false
+            let params = []
+            if (this.choosenClsItem.params) {
+                for (let param of this.choosenClsItem.params) {
+                    params.push({
+                        name: param.name,
+                        value: this.valueBuilder(param)
+                    })
+                }
+            }
+            this.$api.serving
+                .create_serving_instance(this.servingName, this.choosenClsItem.cls_name, params)
+                .then((res) => {
+                    if (res.code === 200) {
+                        this.getServingList()
+                        this.resetAddParams()
+                        this.show.add ^= true
+                    } else {
+                        this.$barWarning(res.message, {
+                            status: 'warning'
+                        })
+                    }
+                    this.lock.add = true
+                })
+                .catch((err) => {
+                    this.$barWarning(err, {
+                        status: 'error'
+                    })
+                    this.lock.add = true
+                })
+        },
+        confirmEdit(item) {
+            if (!this.lock.edit) return
+            if (!this.checkEdit(item)) return
+            this.lock.edit = false
+            let params = []
+            if (item.params) {
+                for (let param of item.params) {
+                    params.push({
+                        name: param.name,
+                        value: this.valueBuilder(param)
+                    })
+                }
+            }
+            this.$api.serving
+                .update_serving_instance(item.id, {
+                    name: item.serving_name,
+                    params
+                })
+                .then((res) => {
+                    if (res.code === 200) {
+                        this.getServingList()
+                        item.edit ^= true
+                        this.resetEditParams(item)
+                        this.$barWarning(this.local('Update Success'), {
+                            status: 'correct'
+                        })
+                    } else {
+                        this.$barWarning(res.message, {
+                            status: 'warning'
+                        })
+                    }
+                    this.lock.edit = true
+                })
+                .catch((err) => {
+                    this.$barWarning(err, {
+                        status: 'error'
+                    })
+                    this.lock.edit = true
+                })
+        },
         handleEdit(item) {
             item.edit ^= true
             this.resetEditParams(item)
+        },
+        testServing(item) {
+            if (!this.lock.test) return
+            this.lock.test = false
+            this.$api.serving
+                .test_serving_instance(item.id, {
+                    prompt: '你好'
+                })
+                .then((res) => {
+                    if (res.code === 200) {
+                        item.response = res.data.response
+                    } else {
+                        this.$barWarning(res.message, {
+                            status: 'warning'
+                        })
+                    }
+                    this.lock.test = true
+                })
+        },
+        delServing(item) {
+            this.$infoBox(this.local('Are you sure to delete this serving?'), {
+                status: 'error',
+                confirm: () => {
+                    if (!this.lock.delete) return
+                    this.lock.delete = false
+                    this.$api.serving
+                        .delete_serving_instance(item.id)
+                        .then((res) => {
+                            if (res.code === 200) {
+                                this.getServingList()
+                                this.$barWarning(this.local('Delete Success'), {
+                                    status: 'correct'
+                                })
+                            } else {
+                                this.$barWarning(res.message, {
+                                    status: 'warning'
+                                })
+                            }
+                            this.lock.delete = true
+                        })
+                        .catch((err) => {
+                            this.$barWarning(err, {
+                                status: 'error'
+                            })
+                            this.lock.delete = true
+                        })
+                }
+            })
         },
         checkAdd() {
             if (!this.servingName) {
@@ -395,6 +581,19 @@ export default {
                     border-top: rgba(120, 120, 120, 0.1) solid thin;
                 }
             }
+        }
+    }
+
+    .ring-animation {
+        animation: ring-rotate 1s linear infinite;
+    }
+
+    @keyframes ring-rotate {
+        0% {
+            transform: rotate(0deg);
+        }
+        100% {
+            transform: rotate(360deg);
         }
     }
 }

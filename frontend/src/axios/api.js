@@ -2120,6 +2120,57 @@ export class serving {
   }
  
   /**
+  * @summary 删除 Serving 实例
+  * @param {String} [pathid] 
+  * @param {CancelTokenSource} [cancelSource] Axios Cancel Source 对象，可以取消该请求
+  * @param {Function} [uploadProgress] 上传回调函数
+  * @param {Function} [downloadProgress] 下载回调函数
+  */
+  static async delete_serving_instance(pathid,cancelSource,uploadProgress,downloadProgress){
+    return await new Promise((resolve,reject)=>{
+      let responseType = "json";
+      let options = {
+        method:'delete',
+        url:'/api/v1/serving/'+pathid+'',
+        data:{},
+        params:{},
+        headers:{
+          "Content-Type":""
+        },
+        onUploadProgress:uploadProgress,
+        onDownloadProgress:downloadProgress
+      }
+      // support wechat mini program
+      if (cancelSource!=undefined){
+        options.cancelToken = cancelSource.token
+      }
+      if (responseType != "json"){
+        options.responseType = responseType;
+      }
+      axios(options)
+      .then(res=>{
+        if (res.config.responseType=="blob"){
+          resolve(new Blob([res.data],{
+            type: res.headers["content-type"].split(";")[0]
+          }))
+        }else{
+          resolve(res.data);
+          return res.data
+        }
+      }).catch(err=>{
+        if (err.response){
+          if (err.response.data)
+            reject(err.response.data)
+          else
+            reject(err.response);
+        }else{
+          reject(err)
+        }
+      })
+    })
+  }
+ 
+  /**
   * @summary 测试指定 Serving 实例的响应
   * @param {String} [pathid] 
   * @param {UserModel.ServingTestSchema} [servingtestschema] 
@@ -2213,6 +2264,14 @@ serving.update_serving_instance.fullPath=`${axios.defaults.baseURL}/api/v1/servi
 * @description update_serving_instance url链接，不包含baseURL
 */
 serving.update_serving_instance.path=`/api/v1/serving/{id}`
+/**
+* @description delete_serving_instance url链接，包含baseURL
+*/
+serving.delete_serving_instance.fullPath=`${axios.defaults.baseURL}/api/v1/serving/{id}`
+/**
+* @description delete_serving_instance url链接，不包含baseURL
+*/
+serving.delete_serving_instance.path=`/api/v1/serving/{id}`
 /**
 * @description test_serving_instance url链接，包含baseURL
 */

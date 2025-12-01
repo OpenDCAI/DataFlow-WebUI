@@ -43,6 +43,22 @@
                     <template v-slot:right-space>
                         <div class="command-bar-right-space">
                             <fv-button
+                                :theme="currentServing ? 'dark' : 'light'"
+                                :background="
+                                    currentServing
+                                        ? 'linear-gradient(130deg, rgba(229, 123, 67, 1), rgba(225, 107, 56, 1))'
+                                        : ''
+                                "
+                                border-radius="30"
+                                style="width: 30px; height: 30px"
+                                @click="showServing"
+                            >
+                                <i
+                                    class="ms-Icon"
+                                    :class="[`ms-Icon--${currentServing ? 'DialShape4' : 'More'}`]"
+                                ></i>
+                            </fv-button>
+                            <fv-button
                                 theme="dark"
                                 icon="Play"
                                 background="linear-gradient(90deg, rgba(69, 98, 213, 1), rgba(161, 145, 206, 1))"
@@ -78,6 +94,49 @@
             @confirm="confirmDataset"
         ></datasetPanel>
         <operatorPanel v-model="show.operator" :title="local('Operator')"></operatorPanel>
+        <fv-right-menu
+            v-model="show.serving"
+            class="serving-menu"
+            ref="servingMenu"
+            :rightMenuWidth="250"
+            background="rgba(255, 255, 255, 0.3)"
+            :fullExpandAnimation="true"
+            style="z-index: 6"
+        >
+            <p
+                style="
+                    width: calc(100% - 20px);
+                    margin: 10px;
+                    font-size: 12px;
+                    font-weight: bold;
+                    user-select: none;
+                    cursor: default;
+                "
+            >
+                {{ local('Select Serving') }}
+            </p>
+            <hr />
+            <span
+                class="serving-item"
+                :class="{ choosen: currentServing && currentServing.id === servingItem.id }"
+                v-for="servingItem in servingList"
+                :key="servingItem.id"
+                @click="chooseServing(servingItem)"
+            >
+                <p class="main-title">{{ servingItem.name }}</p>
+                <p class="sec-title">{{ servingItem.cls_name }}</p>
+            </span>
+            <hr />
+            <fv-button
+                :icon="servingList.length > 0 ? '' : 'Add'"
+                border-radius="8"
+                style="width: calc(100% - 20px); margin-left: 10px; margin-top: 5px"
+                @click="$Go('/m/serving'), (show.serving = false)"
+                >{{
+                    servingList.length > 0 ? local('Serving Manage') : local('Add Serving')
+                }}</fv-button
+            >
+        </fv-right-menu>
     </div>
 </template>
 
@@ -180,9 +239,15 @@ export default {
                 // }
             ],
             sourceDatabase: null,
+            servingList: [],
+            currentServing: null,
             show: {
                 dataset: false,
-                operator: false
+                operator: false,
+                serving: false
+            },
+            lock: {
+                serving: true
             }
         }
     },
@@ -201,6 +266,7 @@ export default {
     },
     mounted() {
         this.setViewport()
+        this.getServingList()
     },
     methods: {
         setViewport() {
@@ -237,6 +303,28 @@ export default {
         confirmDataset(dataset) {
             this.sourceDatabase = dataset
             this.show.dataset = false
+        },
+        getServingList() {
+            if (!this.lock.serving) return
+            this.lock.serving = false
+            this.$api.serving.list_serving_instances_api_v1_serving__get().then((res) => {
+                if (res.code === 200) {
+                    this.servingList = res.data
+                    this.lock.serving = true
+                } else {
+                    this.$barWarning(res.message, {
+                        status: 'warning'
+                    })
+                }
+            })
+        },
+        showServing($event) {
+            $event.preventDefault()
+            $event.stopPropagation()
+            this.$refs.servingMenu.rightClick($event, document.body)
+        },
+        chooseServing(servingItem) {
+            this.currentServing = servingItem
         },
         syncRunValue(item) {
             const flow = useVueFlow(this.flowId)
@@ -404,6 +492,40 @@ export default {
                 padding-right: 5px;
                 gap: 3px;
             }
+        }
+    }
+}
+
+.serving-menu {
+    .serving-item {
+        position: relative;
+        flex-direction: column;
+        line-height: 1.5;
+
+        &.choosen {
+            &::before {
+                content: '';
+                position: absolute;
+                left: 0px;
+                top: 10px;
+                width: 3px;
+                height: calc(100% - 20px);
+                background: linear-gradient(90deg, rgba(69, 98, 213, 1), rgba(161, 145, 206, 1));
+                border-radius: 8px;
+            }
+
+            .main-title {
+                color: rgba(69, 98, 213, 1);
+            }
+        }
+
+        .main-title {
+            font-size: 16px;
+        }
+
+        .sec-title {
+            font-size: 10px;
+            color: rgba(120, 120, 120, 1);
         }
     }
 }
