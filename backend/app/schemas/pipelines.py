@@ -2,6 +2,7 @@ from enum import Enum
 from typing import List, Dict, Any, Optional, Union
 from pydantic import BaseModel, Field, field_validator
 from app.schemas.operator import OperatorDetailSchema
+from dataflow.utils.storage import FileStorage
 
 class Pipeline(str, Enum):
     """Pipeline类型枚举"""
@@ -45,19 +46,19 @@ class PipelineOperator(OperatorDetailSchema): # 画布上的pipeline类
     #         # 后续可以补充从可用算子集中验证算子名称是否存在
     #     return v
 
-
 class PipelineConfig(BaseModel):
     """Pipeline配置模型"""
+    file_path: str = Field(..., description="Pipeline文件路径")
     input_dataset: str = Field(..., description="输入数据集ID")
     # 用 list 的顺序代表算子执行顺序
     operators: List[PipelineOperator] = Field(default_factory=list, description="算子执行序列")
     
-    @field_validator('operators')
-    def validate_operators(cls, v: List[PipelineOperator]) -> List[PipelineOperator]:
-        """确保至少有一个算子"""
-        if not v:
-            raise ValueError('Pipeline must have at least one operator')
-        return v
+    # @field_validator('operators')
+    # def validate_operators(cls, v: List[PipelineOperator]) -> List[PipelineOperator]:
+    #     """确保至少有一个算子"""
+    #     if not v:
+    #         raise ValueError('Pipeline must have at least one operator')
+    #     return v
 
 
 class PipelineIn(BaseModel):
@@ -86,12 +87,12 @@ class PipelineExecutionRequest(BaseModel):
     pipeline_id: Optional[str] = Field(None, description="预定义Pipeline ID")
     config: Optional[PipelineConfig] = Field(None, description="自定义Pipeline配置")
     
-    @field_validator('pipeline_id', 'config')
-    def validate_at_least_one(cls, v, info):
-        """确保至少提供pipeline_id或config之一"""
-        if info.data.get('pipeline_id') is None and info.data.get('config') is None:
-            raise ValueError('Either pipeline_id or config must be provided')
-        return v
+    # @field_validator('pipeline_id', 'config')
+    # def validate_at_least_one(cls, v, info):
+    #     """确保至少提供pipeline_id或config之一"""
+    #     if info.data.get('pipeline_id') is None and info.data.get('config') is None:
+    #         raise ValueError('Either pipeline_id or config must be provided')
+    #     return v
 
 
 class PipelineExecutionResult(BaseModel):
