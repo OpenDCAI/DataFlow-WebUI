@@ -22,6 +22,7 @@
                 :placeholder="appConfig.local('Select Prompt')"
                 :options="allowedPrompts"
                 :choosen-slider-background="thisData.borderColor"
+                :reveal-background-color="[thisData.shadowColor, 'rgba(255, 255, 255, 1)']"
                 :reveal-border-color="thisData.borderColor"
                 border-radius="8"
                 style="width: 100%"
