@@ -3,6 +3,7 @@ import uuid
 import datetime
 import os
 import yaml
+import ast
 from typing import List, Optional, Dict, Any, Tuple
 from app.core.logger_setup import get_logger
 from app.core.config import settings
@@ -11,12 +12,19 @@ logger = get_logger(__name__)
 
 class PipelineRegistry:
     def __init__(self, path: str | None = None):
-        """初始化Pipeline注册表"""
+        """
+        初始化Pipeline注册表
+        加载api_pipelines目录中的所有py文件并提取operator执行顺序
+        """
         self.path = path or settings.PIPELINE_REGISTRY
         self._ensure()
+        # 初始化后，更新所有api pipeline的operators列表
+        self._update_all_api_pipelines_operators()
     
     def _ensure(self):
-        """确保注册表文件存在，并加载api_pipelines目录中的所有py文件"""
+        """
+        确保注册表文件存在，并加载api_pipelines目录中的所有py文件
+        """
         if not os.path.exists(self.path):
             os.makedirs(os.path.dirname(self.path), exist_ok=True)
             
@@ -42,15 +50,19 @@ class PipelineRegistry:
                         if filename.endswith(".py") and not filename.startswith("__"):
                             # 生成pipeline_id
                             pipeline_id = f"api_pipeline_{filename[:-3]}"
+                            file_path = os.path.join(api_pipelines_dir, filename)
+                            
+                            # 提取operator执行顺序
+                            operators = get_pipeline_operators_from_file(file_path)
                             
                             # 创建pipeline配置
                             pipeline_data = {
                                 "id": pipeline_id,
                                 "name": filename[:-3].replace("_", " ").title(),
                                 "config": {
-                                    "file_path": os.path.join(api_pipelines_dir, filename),
+                                    "file_path": file_path,
                                     "input_dataset": "",
-                                    "operators": [],
+                                    "operators": operators,
                                 },
                                 "tags": ["api"],
                                 "created_at": current_time,
@@ -60,7 +72,7 @@ class PipelineRegistry:
                             
                             # 添加到初始数据中
                             initial_data["pipelines"][pipeline_id] = pipeline_data
-                            logger.info(f"Added API pipeline: {pipeline_data['name']} ({pipeline_id})")
+                            logger.info(f"Added API pipeline: {pipeline_data['name']} ({pipeline_id}) with {len(operators)} operators")
                     
                     logger.info(f"Successfully loaded {len(initial_data['pipelines'])} API pipelines")
                 else:
@@ -72,6 +84,40 @@ class PipelineRegistry:
             # 写入初始数据到文件
             with open(self.path, "w", encoding="utf-8") as f:
                 yaml.safe_dump(initial_data, f, allow_unicode=True)
+    
+    def _update_all_api_pipelines_operators(self):
+        """
+        更新所有api pipeline的operators列表
+        """
+        try:
+            data = self._read()
+            api_pipelines_dir = os.path.join(settings.DataFlow_CORE_DIR, "api_pipelines")
+            
+            if not os.path.exists(api_pipelines_dir):
+                logger.warning(f"API pipelines directory not found: {api_pipelines_dir}")
+                return
+            
+            updated = False
+            # 遍历所有pipeline
+            for pipeline_id, pipeline_data in data.get("pipelines", {}).items():
+                # 检查是否是api pipeline
+                if "api" in pipeline_data.get("tags", []):
+                    file_path = pipeline_data.get("config", {}).get("file_path")
+                    if file_path and os.path.exists(file_path):
+                        # 提取operator执行顺序
+                        operators = get_pipeline_operators_from_file(file_path)
+                        # 如果operators列表有变化，更新pipeline配置
+                        if pipeline_data["config"].get("operators", []) != operators:
+                            pipeline_data["config"]["operators"] = operators
+                            pipeline_data["updated_at"] = self.get_current_time()
+                            updated = True
+                            logger.info(f"Updated operators for pipeline {pipeline_id}: {[op['name'] for op in operators]}")
+            
+            # 如果有更新，保存到文件
+            if updated:
+                self._write(data)
+        except Exception as e:
+            logger.error(f"Error updating API pipeline operators: {e}", exc_info=True)
     
     def _read(self) -> Dict:
         """读取注册表文件"""
@@ -104,7 +150,13 @@ class PipelineRegistry:
         return datetime.datetime.now().isoformat()
     
     def list_pipelines(self) -> List[Dict[str, Any]]:
-        """列出所有注册的Pipeline"""
+        """
+        列出所有注册的Pipeline
+        在返回之前，确保api pipeline的operators列表是最新的
+        """
+        # 先更新所有api pipeline的operators列表
+        self._update_all_api_pipelines_operators()
+        
         data = self._read()
         # 直接返回字典列表，不需要转换为对象
         return list(data.get("pipelines", {}).values())
@@ -136,10 +188,21 @@ class PipelineRegistry:
         return pipeline
     
     def get_pipeline(self, pipeline_id: str) -> Optional[Dict[str, Any]]:
-        """根据ID获取Pipeline"""
+        """
+        根据ID获取Pipeline
+        如果是api pipeline，确保返回最新的operators列表
+        """
         data = self._read()
         pipeline_data = data.get("pipelines", {}).get(pipeline_id)
+        
         if pipeline_data:
+            # 如果是api pipeline，检查并更新operators列表
+            if "api" in pipeline_data.get("tags", []):
+                file_path = pipeline_data.get("config", {}).get("file_path")
+                if file_path and os.path.exists(file_path):
+                    operators = get_pipeline_operators_from_file(file_path)
+                    pipeline_data["config"]["operators"] = operators
+            
             return pipeline_data.copy()  # 返回副本避免修改原数据
         return None
     
@@ -294,6 +357,78 @@ class PipelineRegistry:
         # 直接返回字典列表，不需要转换为对象
         return list(data.get("executions", {}).values())
 
+def extract_operator_execution_order(file_path: str) -> List[str]:
+    """
+    使用ast模块解析Python文件，提取pipeline中operator的执行顺序
+    从forward方法中提取所有.run()调用的对象类名
+    """
+    try:
+        with open(file_path, 'r', encoding='utf-8') as f:
+            file_content = f.read()
+        
+        # 解析Python代码为AST
+        tree = ast.parse(file_content)
+        
+        # 存储找到的operator类名
+        operator_class_names = []
+        
+        # 存储变量名到类名的映射
+        var_to_class_map = {}
+        
+        # 首先，找出所有在__init__方法中创建的operator实例
+        for node in ast.walk(tree):
+            # 查找类定义
+            if isinstance(node, ast.ClassDef):
+                # 查找__init__方法
+                for method in node.body:
+                    if isinstance(method, ast.FunctionDef) and method.name == '__init__':
+                        # 分析__init__方法中的赋值语句
+                        for stmt in method.body:
+                            if isinstance(stmt, ast.Assign):
+                                for target in stmt.targets:
+                                    # 检查是否是self.var = Class()的形式
+                                    if isinstance(target, ast.Attribute) and isinstance(target.value, ast.Name) and target.value.id == 'self':
+                                        var_name = target.attr
+                                        # 检查右侧是否是调用表达式
+                                        if isinstance(stmt.value, ast.Call):
+                                            # 获取类名
+                                            if isinstance(stmt.value.func, ast.Name):
+                                                class_name = stmt.value.func.id
+                                                var_to_class_map[var_name] = class_name
+                                                logger.debug(f"Found operator: {var_name} = {class_name}")
+                                            elif isinstance(stmt.value.func, ast.Attribute):
+                                                # 处理形如module.Class()的情况
+                                                class_name = stmt.value.func.attr
+                                                var_to_class_map[var_name] = class_name
+                                                logger.debug(f"Found operator: {var_name} = {class_name}")
+            
+            # 查找forward方法
+            if isinstance(node, ast.ClassDef):
+                for method in node.body:
+                    if isinstance(method, ast.FunctionDef) and method.name == 'forward':
+                        # 分析forward方法中的.run()调用
+                        for stmt in ast.walk(method):
+                            if isinstance(stmt, ast.Expr) and isinstance(stmt.value, ast.Call):
+                                # 检查是否是self.var.run()的形式
+                                if isinstance(stmt.value.func, ast.Attribute) and stmt.value.func.attr == 'run':
+                                    if isinstance(stmt.value.func.value, ast.Attribute) and isinstance(stmt.value.func.value.value, ast.Name) and stmt.value.func.value.value.id == 'self':
+                                        var_name = stmt.value.func.value.attr
+                                        if var_name in var_to_class_map:
+                                            operator_class_names.append(var_to_class_map[var_name])
+                                            logger.debug(f"Found operator execution: {var_name}.run() -> {var_to_class_map[var_name]}")
+        
+        return operator_class_names
+    except Exception as e:
+        logger.error(f"Error parsing file {file_path}: {e}", exc_info=True)
+        return []
+
+def get_pipeline_operators_from_file(file_path: str) -> List[Dict[str, Any]]:
+    """
+    从pipeline文件中提取operator列表
+    """
+    operator_class_names = extract_operator_execution_order(file_path)
+    # 将类名转换为PipelineOperator格式
+    return [{'name': class_name, 'params': {}} for class_name in operator_class_names]
 
 # 创建全局服务实例
 _PIPELINE_REGISTRY = PipelineRegistry()
