@@ -7,7 +7,7 @@ def setup_dataflow_core():
     import os
     import shutil
 
-    core_dir = settings.DataFlow_CORE_DIR
+    core_dir = settings.DATAFLOW_CORE_DIR
     if not os.path.exists(core_dir):
         os.makedirs(core_dir, exist_ok=True)
     
