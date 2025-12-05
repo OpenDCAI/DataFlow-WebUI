@@ -103,5 +103,64 @@ class DatasetRegistry:
             self._write(data)
             return True
         return False
+    
+    def preview(self, ds_id: str, num_lines: int = 5) -> Dict:
+        """获取数据集文件的前几行内容预览，支持json、jsonl和parquet格式
+        
+        Args:
+            ds_id: 数据集ID
+            num_lines: 要预览的行数
+            
+        Returns:
+            包含预览内容的字典，格式为{"preview": str, "file_type": str, "is_supported": bool}
+        """
+        ds = self.get(ds_id)
+        if not ds:
+            raise FileNotFoundError(f"Dataset with id {ds_id} not found")
+        
+        file_path = ds["root"]
+        file_type = ds.get("type", "").lower()
+        
+        # 检查是否支持预览的文件类型
+        supported_types = ["json", "jsonl", "parquet"]
+        is_supported = file_type in supported_types
+        
+        preview_content = ""
+        if is_supported:
+            try:
+                if file_type == "jsonl":
+                    # 对于jsonl文件，读取前num_lines行
+                    with open(file_path, "r", encoding="utf-8") as f:
+                        for i, line in enumerate(f):
+                            if i >= num_lines:
+                                break
+                            preview_content += line
+                elif file_type == "json":
+                    # 对于json文件，读取整个文件并尝试格式化
+                    with open(file_path, "r", encoding="utf-8") as f:
+                        import json
+                        data = json.load(f)
+                        if isinstance(data, list):
+                            # 如果是列表，只取前num_lines个元素
+                            preview_data = data[:num_lines]
+                        else:
+                            # 如果是字典，直接使用
+                            preview_data = data
+                        # 使用indent=2格式化JSON
+                        preview_content = json.dumps(preview_data, indent=2, ensure_ascii=False)
+                elif file_type == "parquet":
+                    # 对于parquet文件，使用pandas读取前num_lines行
+                    import pandas as pd
+                    df = pd.read_parquet(file_path, nrows=num_lines)
+                    preview_content = df.to_json(orient="records", indent=2, ensure_ascii=False)
+            except Exception as e:
+                preview_content = f"Error reading file: {str(e)}"
+                is_supported = False
+        
+        return {
+            "preview": preview_content,
+            "file_type": file_type,
+            "is_supported": is_supported
+        }
 
 _DATASET_REGISTRY = DatasetRegistry()

@@ -69,3 +69,22 @@ def get_file_type_data(ds_id: str):
         filename=os.path.basename(file_path),
         media_type=media_type
     )
+
+@router.get("/preview/{ds_id}", response_model=ApiResponse[dict], operation_id="get_dataset_preview", summary="获取指定数据集的文件预览内容，支持json、jsonl和parquet格式")
+def get_dataset_preview(ds_id: str, num_lines: int = 5):
+    """获取指定数据集的文件预览内容，只支持json、jsonl和parquet格式
+    
+    Args:
+        ds_id: 数据集ID
+        num_lines: 要预览的行数，默认为5
+        
+    Returns:
+        包含预览内容的字典，格式为{"preview": str, "file_type": str, "is_supported": bool}
+    """
+    try:
+        preview_data = _registry.preview(ds_id, num_lines)
+        return ok(preview_data)
+    except FileNotFoundError:
+        raise HTTPException(404, "Dataset not found")
+    except Exception as e:
+        raise HTTPException(500, f"Failed to get dataset preview: {e}")
