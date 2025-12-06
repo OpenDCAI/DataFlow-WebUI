@@ -7,6 +7,7 @@ import ast
 from typing import List, Optional, Dict, Any, Tuple
 from app.core.logger_setup import get_logger
 from app.core.config import settings
+from app.services.operator_registry import _op_registry
 
 logger = get_logger(__name__)
 
@@ -158,8 +159,10 @@ class PipelineRegistry:
         self._update_all_api_pipelines_operators()
         
         data = self._read()
-        # 直接返回字典列表，不需要转换为对象
-        return list(data.get("pipelines", {}).values())
+        pipelines = list(data.get("pipelines", {}).values())
+        
+        # Enrich pipelines with operator details
+        return [self._enrich_pipeline_operators(p) for p in pipelines]
     
     def create_pipeline(self, pipeline_data: Dict[str, Any]) -> Dict[str, Any]:
         """创建一个新的Pipeline"""
@@ -185,7 +188,7 @@ class PipelineRegistry:
         self._write(data)
         
         logger.info(f"Successfully created pipeline: {pipeline_id} with name: {pipeline_data.get('name', '')}")
-        return pipeline
+        return self._enrich_pipeline_operators(pipeline)
     
     def get_pipeline(self, pipeline_id: str) -> Optional[Dict[str, Any]]:
         """
@@ -203,7 +206,8 @@ class PipelineRegistry:
                     operators = get_pipeline_operators_from_file(file_path)
                     pipeline_data["config"]["operators"] = operators
             
-            return pipeline_data.copy()  # 返回副本避免修改原数据
+            # Enrich with operator details
+            return self._enrich_pipeline_operators(pipeline_data)
         return None
     
     def update_pipeline(self, pipeline_id: str, pipeline_data: Dict[str, Any]) -> Dict[str, Any]:
@@ -230,7 +234,7 @@ class PipelineRegistry:
         self._write(data)
         
         logger.info(f"Updated pipeline: {pipeline_id}")
-        return updated_pipeline
+        return self._enrich_pipeline_operators(updated_pipeline)
     
     def delete_pipeline(self, pipeline_id: str) -> bool:
         """删除指定的Pipeline"""
@@ -356,6 +360,75 @@ class PipelineRegistry:
         data = self._read()
         # 直接返回字典列表，不需要转换为对象
         return list(data.get("executions", {}).values())
+
+    def _enrich_pipeline_operators(self, pipeline_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Enrich pipeline operators with detailed parameter info from registry.
+        """
+        # Deep copy to avoid modifying original data
+        pipeline = json.loads(json.dumps(pipeline_data))
+        config = pipeline.get("config", {})
+        operators = config.get("operators", [])
+        
+        enriched_operators = []
+        for op in operators:
+            op_copy = op.copy()
+            op_name = op.get("name")
+            stored_params = op.get("params", {})
+            if not isinstance(stored_params, dict):
+                stored_params = {} 
+            
+            op_details = _op_registry.get_op_details(op_name)
+            
+            enriched_params = []
+            
+            if op_details:
+                # Process defined parameters
+                # Combine init and run params
+                defined_params = op_details.get("parameter", {}).get("init", []) + \
+                                 op_details.get("parameter", {}).get("run", [])
+                
+                processed_param_names = set()
+                
+                for param_def in defined_params:
+                    p_name = param_def.get("name")
+                    if not p_name or p_name in processed_param_names:
+                        continue
+                    processed_param_names.add(p_name)
+                    
+                    # Get value from stored params, or use default
+                    p_val = stored_params.get(p_name)
+                    if p_val is None:
+                        p_val = param_def.get("default_value")
+                        
+                    # Create enriched param object
+                    enriched_param = param_def.copy()
+                    enriched_param["value"] = p_val
+                    enriched_params.append(enriched_param)
+                
+                # Add any stored params that were not in definition (dynamic params)
+                for k, v in stored_params.items():
+                    if k not in processed_param_names:
+                        enriched_params.append({
+                            "name": k,
+                            "value": v,
+                            "default_value": None,
+                            "kind": "DYNAMIC",
+                            "description": "Dynamic parameter"
+                        })
+            else:
+                # Operator not found in registry, just return stored params as list
+                for k, v in stored_params.items():
+                    enriched_params.append({
+                        "name": k,
+                        "value": v
+                    })
+            
+            op_copy["params"] = enriched_params
+            enriched_operators.append(op_copy)
+            
+        pipeline["config"]["operators"] = enriched_operators
+        return pipeline
 
 def extract_operator_execution_order(file_path: str) -> List[str]:
     """
