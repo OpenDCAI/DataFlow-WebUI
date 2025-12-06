@@ -163,10 +163,18 @@
                                     border-radius="8"
                                     style="width: 30px; height: 30px"
                                     :disabled="!lock.test"
+                                    :reveal-border-gradient-list="[
+                                        '#40e0d0',
+                                        '#40e0d0',
+                                        '#ff8c00',
+                                        '#ff8c00',
+                                        '#ff0080',
+                                        'rgba(255, 255, 255, 0)'
+                                    ]"
                                     @click="testServing(item)"
                                 >
                                     <i
-                                        class="ms-Icon ms-Icon--ProgressRingDots"
+                                        class="ms-Icon ms-Icon--ProgressRingDots rainbow"
                                         :class="[{ 'ring-animation': !lock.test }]"
                                     ></i>
                                 </fv-button>
@@ -582,6 +590,12 @@ export default {
                 }
             }
         }
+    }
+
+    .rainbow {
+        @include color-rainbow;
+
+        color: black;
     }
 
     .ring-animation {

@@ -1,5 +1,6 @@
 <template>
-    <div class="df-default-container">
+    <div class="df-default-container" :class="[{ 'show-pipeline': show.pipeline }]">
+        <pipeline v-show="show.pipeline" class="df-pipeline-container"></pipeline>
         <div class="df-flow-container">
             <mainFlow
                 :id="flowId"
@@ -9,7 +10,7 @@
                 @connect="onConnect"
                 @connect-start="onConnectStart"
                 @connect-end="onConnectEnd"
-                @update-run-value="syncRunValue"
+                @update-run-value="useEdgeSync.syncRunValue($event, flowId)"
             ></mainFlow>
             <div class="control-menu-block">
                 <fv-command-bar
@@ -42,18 +43,44 @@
                     </template>
                     <template v-slot:right-space>
                         <div class="command-bar-right-space">
+                            <fv-toggle-switch
+                                v-model="isAutoConnectionModel"
+                                :width="75"
+                                :on="local('Auto')"
+                                :off="local('Manual')"
+                                :insideContent="true"
+                                :height="30"
+                                :switch-on-background="gradient"
+                                :title="local('Whether Auto Connect Run Edges')"
+                            >
+                            </fv-toggle-switch>
                             <fv-button
                                 :theme="currentServing ? 'dark' : 'light'"
                                 :background="
                                     currentServing
-                                        ? 'linear-gradient(130deg, rgba(229, 123, 67, 1), rgba(225, 107, 56, 1))'
+                                        ? 'linear-gradient(135deg, rgba(69, 98, 213, 1), #ff0080, #ff8c00)'
                                         : ''
                                 "
                                 border-radius="30"
                                 style="width: 30px; height: 30px"
                                 @click="showServing"
                             >
+                                <transition-group tag="span" name="df-scale-up-to-up">
+                                    <i
+                                        v-show="currentServing"
+                                        key="0"
+                                        class="ms-Icon"
+                                        :class="[`ms-Icon--DialShape4`]"
+                                    ></i>
+                                    <i
+                                        v-show="!currentServing"
+                                        key="1"
+                                        class="ms-Icon"
+                                        :class="[`ms-Icon--More`]"
+                                    ></i>
+                                </transition-group>
                                 <i
+                                    v-show="false"
                                     class="ms-Icon"
                                     :class="[`ms-Icon--${currentServing ? 'DialShape4' : 'More'}`]"
                                 ></i>
@@ -141,11 +168,15 @@
 </template>
 
 <script>
-import { mapState } from 'pinia'
+import { mapState, mapActions } from 'pinia'
 import { useAppConfig } from '@/stores/appConfig'
+import { useTheme } from '@/stores/theme'
+import { useDataflow } from '@/stores/dataflow'
 import { useVueFlow } from '@vue-flow/core'
+import { useEdgeSync } from '@/hooks/dataflow/useEdgeSync'
 
 import mainFlow from '@/components/manage/mainFlow/index.vue'
+import pipeline from '@/components/manage/pipeline/index.vue'
 import datasetPanel from '@/components/manage/mainFlow/panels/datasetPanel/index.vue'
 import operatorPanel from '@/components/manage/mainFlow/panels/operatorPanel.vue'
 
@@ -157,6 +188,7 @@ import saveIcon from '@/assets/flow/save.svg'
 export default {
     components: {
         mainFlow,
+        pipeline,
         datasetPanel,
         operatorPanel
     },
@@ -175,7 +207,10 @@ export default {
                 },
                 {
                     name: () => this.local('Pipeline'),
-                    img: pipelineIcon
+                    img: pipelineIcon,
+                    func: () => {
+                        this.show.pipeline ^= true
+                    }
                 },
                 {
                     name: () => this.local('Operator'),
@@ -241,8 +276,10 @@ export default {
             sourceDatabase: null,
             servingList: [],
             currentServing: null,
+            useEdgeSync: new useEdgeSync(),
             show: {
                 dataset: false,
+                pipeline: false,
                 operator: false,
                 serving: false
             },
@@ -259,16 +296,32 @@ export default {
                 }
             },
             deep: true
+        },
+        isAutoConnection(val) {
+            if (val) {
+                this.useEdgeSync.autoConnectAllRunEdges(this.flowId, this.$Guid)
+            }
         }
     },
     computed: {
-        ...mapState(useAppConfig, ['local'])
+        ...mapState(useAppConfig, ['local']),
+        ...mapState(useTheme, ['color', 'gradient']),
+        ...mapState(useDataflow, ['isAutoConnection']),
+        isAutoConnectionModel: {
+            get() {
+                return this.isAutoConnection
+            },
+            set(val) {
+                this.switchAutoConnection(val)
+            }
+        }
     },
     mounted() {
         this.setViewport()
         this.getServingList()
     },
     methods: {
+        ...mapActions(useDataflow, ['switchAutoConnection']),
         setViewport() {
             const flow = useVueFlow(this.flowId)
             flow.setViewport({
@@ -346,12 +399,14 @@ export default {
         },
         onConnect(connection) {
             const { source, sourceHandle, target, targetHandle } = connection
-            let sourceType = sourceHandle ? sourceHandle.split('::')[1] : 'null_source'
-            let targetType = targetHandle ? targetHandle.split('::')[1] : 'null_target'
-            let sourceKeyName = sourceHandle ? sourceHandle.split('::')[0] : null
-            let targetKeyName = targetHandle ? targetHandle.split('::')[0] : null
-            let sourceKeyType = sourceHandle ? sourceHandle.split('::')[2] : 'node'
-            let targetKeyType = targetHandle ? targetHandle.split('::')[2] : 'node'
+            let sourceHandleObj = this.useEdgeSync.decHandle(sourceHandle)
+            let targetHandleObj = this.useEdgeSync.decHandle(targetHandle)
+            let sourceType = sourceHandleObj.direction
+            let targetType = targetHandleObj.direction
+            let sourceKeyName = sourceHandleObj.name
+            let targetKeyName = targetHandleObj.name
+            let sourceKeyType = sourceHandleObj.edgeType
+            let targetKeyType = targetHandleObj.edgeType
             if (sourceType === targetType) return
             if (sourceKeyType !== targetKeyType) {
                 this.$barWarning(this.local('Illegal connection'), {
@@ -368,6 +423,9 @@ export default {
                     edge.targetHandle === targetHandle
             )
             if (existsEdge) {
+                if (existsEdge.data.edgeType === 'node' && this.isAutoConnection) {
+                    this.useEdgeSync.removeRunEdges(source, target, this.flowId)
+                }
                 flow.removeEdges(existsEdge.id)
             } else {
                 flow.addEdges({
@@ -379,7 +437,8 @@ export default {
                     targetHandle: targetHandle,
                     animated: sourceKeyType !== 'node',
                     data: {
-                        label: sourceKeyType === 'node' ? 'Node' : 'Key'
+                        label: sourceKeyType === 'node' ? 'Node' : 'Key',
+                        edgeType: sourceKeyType
                     }
                 })
                 if (sourceKeyType === 'run_key') {
@@ -397,6 +456,14 @@ export default {
                                 sourceNode.data.operatorParams.run[sourceIndex].value
                         }
                     }
+                } else {
+                    if (this.isAutoConnection)
+                        this.useEdgeSync.autoConnectRunEdges(
+                            source,
+                            target,
+                            this.flowId,
+                            this.$Guid
+                        )
                 }
             }
         },
@@ -417,14 +484,27 @@ export default {
     background-color: rgba(241, 241, 241, 1);
     display: flex;
 
+    .df-pipeline-container {
+        position: absolute;
+        left: 0px;
+        top: 15px;
+        width: 300px;
+        height: calc(100% - 30px);
+        border-top-left-radius: 15px;
+        border-bottom-left-radius: 15px;
+        box-shadow: 1px 0px 2px rgba(120, 120, 120, 0.1);
+        z-index: 2;
+    }
+
     .df-flow-container {
         position: relative;
         width: 100%;
         height: 100%;
+        flex: 1;
         background: rgba(250, 250, 250, 1);
         border: rgba(120, 120, 120, 0.1) solid thin;
         border-radius: 15px;
-        box-shadow: inset 0px 0px 10px rgba(0, 0, 0, 0.1);
+        box-shadow: inset 0px 0px 6px rgba(0, 0, 0, 0.1);
         overflow: hidden;
     }
 
@@ -510,11 +590,13 @@ export default {
                 top: 10px;
                 width: 3px;
                 height: calc(100% - 20px);
-                background: linear-gradient(90deg, rgba(69, 98, 213, 1), rgba(161, 145, 206, 1));
+                background: linear-gradient(135deg, rgba(69, 98, 213, 1), #ff0080);
                 border-radius: 8px;
             }
 
             .main-title {
+                @include color-rainbow;
+
                 color: rgba(69, 98, 213, 1);
             }
         }
@@ -527,6 +609,33 @@ export default {
             font-size: 10px;
             color: rgba(120, 120, 120, 1);
         }
+    }
+}
+
+.df-scale-up-to-up-enter-active {
+    animation: scaleUp 0.7s ease both;
+    animation-delay: 0.3s;
+}
+.df-scale-up-to-up-leave-active {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    animation: scaleDownUp 0.7s ease both;
+    z-index: 8;
+}
+@keyframes scaleUp {
+    from {
+        opacity: 0;
+        transform: scale(0.3);
+    }
+}
+@keyframes scaleDownUp {
+    to {
+        opacity: 0;
+        transform: scale(1.2);
     }
 }
 </style>

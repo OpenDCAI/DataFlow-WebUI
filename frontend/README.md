@@ -130,3 +130,19 @@ $api.datasets.list_datasets().then((res) => {
 - `$Jump`: 路由跳转方法, 可以直接调用路由跳转, 类似于`window.open`.
 
 要配置更多方法, 可以在`useGlobal.js`中添加.
+
+## 设计规范
+
+### Flow
+
+1. Handle
+
+<属性名>::<出边|入边>::<边类型>
+
+如节点边:
+
+node::source::node
+
+参数边:
+
+<key_name>::source::run_key

@@ -24,7 +24,7 @@
                 <p class="sub-status" :title="thisData.status">{{ thisData.status }}</p>
                 <p class="main-title" :title="thisData.label">{{ thisData.label }}</p>
             </div>
-            <div class="control-block">
+            <div class="control-block" @mousedown.stop @click.stop>
                 <fv-button
                     v-if="thisData.enableDelete"
                     theme="dark"
