@@ -162,5 +162,64 @@ class DatasetRegistry:
             "file_type": file_type,
             "is_supported": is_supported
         }
+    
+    def get_columns(self, ds_id: str) -> Dict:
+        """获取数据集的列名，支持json、jsonl和parquet格式
+        
+        Args:
+            ds_id: 数据集ID
+            
+        Returns:
+            包含列名信息的字典，格式为{"columns": list, "file_type": str, "is_supported": bool}
+        """
+        ds = self.get(ds_id)
+        if not ds:
+            raise FileNotFoundError(f"Dataset with id {ds_id} not found")
+        
+        file_path = ds["root"]
+        file_type = ds.get("type", "").lower()
+        
+        # 检查是否支持获取列名的文件类型
+        supported_types = ["json", "jsonl", "parquet"]
+        is_supported = file_type in supported_types
+        
+        columns = []
+        if is_supported:
+            try:
+                if file_type == "jsonl":
+                    # 对于jsonl文件，读取第一行并解析为JSON，然后提取键名
+                    with open(file_path, "r", encoding="utf-8") as f:
+                        first_line = f.readline()
+                        if first_line:
+                            import json
+                            first_record = json.loads(first_line)
+                            if isinstance(first_record, dict):
+                                columns = list(first_record.keys())
+                elif file_type == "json":
+                    # 对于json文件，读取整个文件并提取键名
+                    with open(file_path, "r", encoding="utf-8") as f:
+                        import json
+                        data = json.load(f)
+                        if isinstance(data, list) and len(data) > 0:
+                            # 如果是列表，取第一个元素的键名
+                            if isinstance(data[0], dict):
+                                columns = list(data[0].keys())
+                        elif isinstance(data, dict):
+                            # 如果是字典，直接取键名
+                            columns = list(data.keys())
+                elif file_type == "parquet":
+                    # 对于parquet文件，使用pandas读取文件并获取列名
+                    import pandas as pd
+                    df = pd.read_parquet(file_path, nrows=1)
+                    columns = list(df.columns)
+            except Exception as e:
+                columns = []
+                is_supported = False
+        
+        return {
+            "columns": columns,
+            "file_type": file_type,
+            "is_supported": is_supported
+        }
 
 _DATASET_REGISTRY = DatasetRegistry()

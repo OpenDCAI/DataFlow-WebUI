@@ -88,3 +88,21 @@ def get_dataset_preview(ds_id: str, num_lines: int = 5):
         raise HTTPException(404, "Dataset not found")
     except Exception as e:
         raise HTTPException(500, f"Failed to get dataset preview: {e}")
+
+@router.get("/columns/{ds_id}", response_model=ApiResponse[dict], operation_id="get_dataset_columns", summary="获取指定数据集的列名，支持json、jsonl和parquet格式")
+def get_dataset_columns(ds_id: str):
+    """获取指定数据集的列名，只支持json、jsonl和parquet格式
+    
+    Args:
+        ds_id: 数据集ID
+        
+    Returns:
+        包含列名信息的字典，格式为{"columns": list, "file_type": str, "is_supported": bool}
+    """
+    try:
+        columns_data = _registry.get_columns(ds_id)
+        return ok(columns_data)
+    except FileNotFoundError:
+        raise HTTPException(404, "Dataset not found")
+    except Exception as e:
+        raise HTTPException(500, f"Failed to get dataset columns: {e}")
