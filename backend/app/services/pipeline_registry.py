@@ -380,21 +380,21 @@ class PipelineRegistry:
             
             op_details = _op_registry.get_op_details(op_name)
             
-            enriched_params = []
+            enriched_params = {
+                "init": [],
+                "run": []
+            }
             
             if op_details:
-                # Process defined parameters
-                # Combine init and run params
-                defined_params = op_details.get("parameter", {}).get("init", []) + \
-                                 op_details.get("parameter", {}).get("run", [])
+                # Process init parameters
+                init_defs = op_details.get("parameter", {}).get("init", [])
+                processed_init_names = set()
                 
-                processed_param_names = set()
-                
-                for param_def in defined_params:
+                for param_def in init_defs:
                     p_name = param_def.get("name")
-                    if not p_name or p_name in processed_param_names:
+                    if not p_name:
                         continue
-                    processed_param_names.add(p_name)
+                    processed_init_names.add(p_name)
                     
                     # Get value from stored params, or use default
                     p_val = stored_params.get(p_name)
@@ -404,12 +404,33 @@ class PipelineRegistry:
                     # Create enriched param object
                     enriched_param = param_def.copy()
                     enriched_param["value"] = p_val
-                    enriched_params.append(enriched_param)
+                    enriched_params["init"].append(enriched_param)
+
+                # Process run parameters
+                run_defs = op_details.get("parameter", {}).get("run", [])
+                processed_run_names = set()
+                
+                for param_def in run_defs:
+                    p_name = param_def.get("name")
+                    if not p_name:
+                        continue
+                    processed_run_names.add(p_name)
+                    
+                    # Get value from stored params, or use default
+                    p_val = stored_params.get(p_name)
+                    if p_val is None:
+                        p_val = param_def.get("default_value")
+                        
+                    # Create enriched param object
+                    enriched_param = param_def.copy()
+                    enriched_param["value"] = p_val
+                    enriched_params["run"].append(enriched_param)
                 
                 # Add any stored params that were not in definition (dynamic params)
+                # We put them in 'run' by default as they are likely runtime params
                 for k, v in stored_params.items():
-                    if k not in processed_param_names:
-                        enriched_params.append({
+                    if k not in processed_init_names and k not in processed_run_names:
+                        enriched_params["run"].append({
                             "name": k,
                             "value": v,
                             "default_value": None,
@@ -417,9 +438,9 @@ class PipelineRegistry:
                             "description": "Dynamic parameter"
                         })
             else:
-                # Operator not found in registry, just return stored params as list
+                # Operator not found in registry, just return stored params in 'run'
                 for k, v in stored_params.items():
-                    enriched_params.append({
+                    enriched_params["run"].append({
                         "name": k,
                         "value": v
                     })
