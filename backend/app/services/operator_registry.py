@@ -237,6 +237,17 @@ class OperatorRegistry:
 
         return all_ops
 
+    def get_op_details(self, op_name: str) -> Optional[Dict[str, Any]]:
+        """获取单个算子的详细信息 (包含参数默认值)"""
+        cls = self.op_obj_map.get(op_name)
+        if not cls:
+            return None
+        
+        # 使用模块内的 _gather_single_operator 函数
+        # 注意：_gather_single_operator 需要 node_index，这里可以传 0 或 -1
+        category, info = _gather_single_operator(op_name, cls, -1)
+        return info
+
 # --- 4. 公共服务实例 ---
 # API 层将导入这个单例
 _op_registry = OperatorRegistry()
