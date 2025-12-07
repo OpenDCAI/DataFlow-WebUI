@@ -69,3 +69,40 @@ def get_file_type_data(ds_id: str):
         filename=os.path.basename(file_path),
         media_type=media_type
     )
+
+@router.get("/preview/{ds_id}", response_model=ApiResponse[list[dict]], operation_id="get_dataset_preview", summary="获取指定数据集的文件预览内容，支持json、jsonl和parquet格式")
+def get_dataset_preview(ds_id: str, num_lines: int = 5):
+    """获取指定数据集的文件预览内容，只支持json、jsonl和parquet格式
+    
+    Args:
+        ds_id: 数据集ID
+        num_lines: 要预览的行数，默认为5
+        
+    Returns:
+        预览内容的列表，每个元素是一个字典
+    """
+    try:
+        preview_data = _registry.preview(ds_id, num_lines)
+        return ok(preview_data)
+    except FileNotFoundError:
+        raise HTTPException(404, "Dataset not found")
+    except Exception as e:
+        raise HTTPException(500, f"Failed to get dataset preview: {e}")
+
+@router.get("/columns/{ds_id}", response_model=ApiResponse[list[str]], operation_id="get_dataset_columns", summary="获取指定数据集的列名，支持json、jsonl和parquet格式")
+def get_dataset_columns(ds_id: str):
+    """获取指定数据集的列名，只支持json、jsonl和parquet格式
+    
+    Args:
+        ds_id: 数据集ID
+        
+    Returns:
+        列名列表，如果不支持则返回空列表
+    """
+    try:
+        columns_data = _registry.get_columns(ds_id)
+        return ok(columns_data)
+    except FileNotFoundError:
+        raise HTTPException(404, "Dataset not found")
+    except Exception as e:
+        raise HTTPException(500, f"Failed to get dataset columns: {e}")
