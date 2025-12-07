@@ -104,7 +104,7 @@ class DatasetRegistry:
             return True
         return False
     
-    def preview(self, ds_id: str, num_lines: int = 5) -> Dict:
+    def preview(self, ds_id: str, num_lines: int = 5) -> List[Dict]:
         """获取数据集文件的前几行内容预览，支持json、jsonl和parquet格式
         
         Args:
@@ -112,7 +112,7 @@ class DatasetRegistry:
             num_lines: 要预览的行数
             
         Returns:
-            包含预览内容的字典，格式为{"preview": str, "file_type": str, "is_supported": bool}
+            包含预览内容的列表，每个元素是一个字典
         """
         ds = self.get(ds_id)
         if not ds:
@@ -125,52 +125,45 @@ class DatasetRegistry:
         supported_types = ["json", "jsonl", "parquet"]
         is_supported = file_type in supported_types
         
-        preview_content = ""
+        preview_list = []
         if is_supported:
             try:
                 if file_type == "jsonl":
-                    # 对于jsonl文件，读取前num_lines行
+                    # 对于jsonl文件，读取前num_lines行并解析为dict
                     with open(file_path, "r", encoding="utf-8") as f:
                         for i, line in enumerate(f):
                             if i >= num_lines:
                                 break
-                            preview_content += line
+                            preview_list.append(json.loads(line.strip()))
                 elif file_type == "json":
-                    # 对于json文件，读取整个文件并尝试格式化
+                    # 对于json文件，读取整个文件并尝试解析
                     with open(file_path, "r", encoding="utf-8") as f:
-                        import json
                         data = json.load(f)
                         if isinstance(data, list):
                             # 如果是列表，只取前num_lines个元素
-                            preview_data = data[:num_lines]
+                            preview_list = data[:num_lines]
                         else:
-                            # 如果是字典，直接使用
-                            preview_data = data
-                        # 使用indent=2格式化JSON
-                        preview_content = json.dumps(preview_data, indent=2, ensure_ascii=False)
+                            # 如果是字典，将其作为单个元素添加到列表中
+                            preview_list = [data]
                 elif file_type == "parquet":
-                    # 对于parquet文件，使用pandas读取前num_lines行
+                    # 对于parquet文件，使用pandas读取前num_lines行并转换为list of dict
                     import pandas as pd
                     df = pd.read_parquet(file_path, nrows=num_lines)
-                    preview_content = df.to_json(orient="records", indent=2, ensure_ascii=False)
+                    preview_list = df.to_dict(orient="records")
             except Exception as e:
-                preview_content = f"Error reading file: {str(e)}"
-                is_supported = False
+                # 出错时返回空列表
+                preview_list = []
         
-        return {
-            "preview": preview_content,
-            "file_type": file_type,
-            "is_supported": is_supported
-        }
+        return preview_list
     
-    def get_columns(self, ds_id: str) -> Dict:
+    def get_columns(self, ds_id: str) -> List[str]:
         """获取数据集的列名，支持json、jsonl和parquet格式
         
         Args:
             ds_id: 数据集ID
             
         Returns:
-            包含列名信息的字典，格式为{"columns": list, "file_type": str, "is_supported": bool}
+            列名列表，如果不支持则返回空列表
         """
         ds = self.get(ds_id)
         if not ds:
@@ -212,14 +205,10 @@ class DatasetRegistry:
                     import pandas as pd
                     df = pd.read_parquet(file_path, nrows=1)
                     columns = list(df.columns)
-            except Exception as e:
+            except Exception:
+                # 出错时返回空列表
                 columns = []
-                is_supported = False
         
-        return {
-            "columns": columns,
-            "file_type": file_type,
-            "is_supported": is_supported
-        }
+        return columns
 
 _DATASET_REGISTRY = DatasetRegistry()
