@@ -4,6 +4,8 @@ import datetime
 import os
 import yaml
 import ast
+import re
+import hashlib
 from typing import List, Optional, Dict, Any, Tuple
 from app.core.logger_setup import get_logger
 from app.core.config import settings
@@ -56,13 +58,16 @@ class PipelineRegistry:
                             # 提取operator执行顺序
                             operators = get_pipeline_operators_from_file(file_path)
                             
+                            # 查找关联的数据集
+                            input_dataset = self._find_dataset_id(file_path)
+
                             # 创建pipeline配置
                             pipeline_data = {
                                 "id": pipeline_id,
                                 "name": filename[:-3].replace("_", " ").title(),
                                 "config": {
                                     "file_path": file_path,
-                                    "input_dataset": "",
+                                    "input_dataset": input_dataset,
                                     "operators": operators,
                                 },
                                 "tags": ["api"],
@@ -86,9 +91,52 @@ class PipelineRegistry:
             with open(self.path, "w", encoding="utf-8") as f:
                 yaml.safe_dump(initial_data, f, allow_unicode=True)
     
+    def _find_dataset_id(self, pipeline_file_path: str) -> str:
+        """
+        从pipeline文件中查找first_entry_file_name，并找到对应的数据集ID
+        """
+        try:
+            if not os.path.exists(pipeline_file_path):
+                return ""
+                
+            with open(pipeline_file_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+            
+            # 查找 first_entry_file_name="..."
+            match = re.search(r'first_entry_file_name\s*=\s*["\']([^"\']+)["\']', content)
+            if match:
+                relative_path = match.group(1)
+                # 解析绝对路径
+                pipeline_dir = os.path.dirname(pipeline_file_path)
+                abs_path = os.path.normpath(os.path.join(pipeline_dir, relative_path))
+                
+                # 转换为相对于CWD (backend/) 的路径
+                cwd = os.getcwd()
+                rel_path_from_cwd = os.path.relpath(abs_path, cwd)
+                
+                # 尝试从DatasetRegistry中查找
+                from app.services.dataset_registry import DatasetRegistry
+                ds_registry = DatasetRegistry()
+                
+                # 1. 尝试通过路径匹配
+                all_datasets = ds_registry.list()
+                for ds in all_datasets:
+                    if ds.get("root") == rel_path_from_cwd:
+                        return ds.get("id")
+                
+                # 2. 如果没找到，尝试计算ID查找 (作为备选)
+                ds_id = hashlib.md5(rel_path_from_cwd.encode("utf-8")).hexdigest()[:10]
+                if ds_registry.get(ds_id):
+                    return ds_id
+                    
+        except Exception as e:
+            logger.warning(f"Failed to find dataset for pipeline {pipeline_file_path}: {e}")
+        
+        return ""
+
     def _update_all_api_pipelines_operators(self):
         """
-        更新所有api pipeline的operators列表
+        更新所有api pipeline的operators列表和input_dataset
         """
         try:
             data = self._read()
@@ -107,12 +155,25 @@ class PipelineRegistry:
                     if file_path and os.path.exists(file_path):
                         # 提取operator执行顺序
                         operators = get_pipeline_operators_from_file(file_path)
-                        # 如果operators列表有变化，更新pipeline配置
+                        
+                        # 查找关联的数据集
+                        input_dataset = self._find_dataset_id(file_path)
+                        
+                        # 检查是否有变化
+                        config_changed = False
+                        
                         if pipeline_data["config"].get("operators", []) != operators:
                             pipeline_data["config"]["operators"] = operators
+                            config_changed = True
+                            
+                        if input_dataset and pipeline_data["config"].get("input_dataset") != input_dataset:
+                            pipeline_data["config"]["input_dataset"] = input_dataset
+                            config_changed = True
+                            
+                        if config_changed:
                             pipeline_data["updated_at"] = self.get_current_time()
                             updated = True
-                            logger.info(f"Updated operators for pipeline {pipeline_id}: {[op['name'] for op in operators]}")
+                            logger.info(f"Updated pipeline {pipeline_id}")
             
             # 如果有更新，保存到文件
             if updated:
