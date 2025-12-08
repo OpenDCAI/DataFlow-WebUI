@@ -1,6 +1,13 @@
 <template>
     <div class="df-default-container" :class="[{ 'show-pipeline': show.pipeline }]">
-        <pipeline v-show="show.pipeline" class="df-pipeline-container"></pipeline>
+        <pipeline
+            v-model="show.pipeline"
+            v-model:loading="lock.loading"
+            v-model:pipeline="currentPipeline"
+            :flow-id="flowId"
+            class="df-pipeline-container"
+            @confirm-dataset="confirmDataset"
+        ></pipeline>
         <div class="df-flow-container">
             <mainFlow
                 :id="flowId"
@@ -107,17 +114,20 @@
                                 border-radius="30"
                                 :title="local('Delete')"
                                 style="width: 30px; height: 30px"
+                                @click="resetFlow"
                             >
                                 <i class="ms-Icon ms-Icon--Delete"></i>
                             </fv-button>
                         </div>
                     </template>
                 </fv-command-bar>
+                <current-pipeline-block v-model="currentPipeline"></current-pipeline-block>
             </div>
         </div>
+        <page-loading :model-value="!lock.loading" title="Loading..."></page-loading>
         <datasetPanel
             v-model="show.dataset"
-            :title="local('Database')"
+            :title="local('Dataset')"
             @confirm="confirmDataset"
         ></datasetPanel>
         <operatorPanel v-model="show.operator" :title="local('Operator')"></operatorPanel>
@@ -176,9 +186,11 @@ import { useVueFlow } from '@vue-flow/core'
 import { useEdgeSync } from '@/hooks/dataflow/useEdgeSync'
 
 import mainFlow from '@/components/manage/mainFlow/index.vue'
-import pipeline from '@/components/manage/pipeline/index.vue'
+import pipeline from '@/components/manage/mainFlow/pipeline/index.vue'
 import datasetPanel from '@/components/manage/mainFlow/panels/datasetPanel/index.vue'
 import operatorPanel from '@/components/manage/mainFlow/panels/operatorPanel.vue'
+import pageLoading from '@/components/general/pageLoading.vue'
+import currentPipelineBlock from '@/components/manage/mainFlow/tools/currentPipelineBlock.vue'
 
 import databaseIcon from '@/assets/flow/database.svg'
 import pipelineIcon from '@/assets/flow/pipeline.svg'
@@ -190,7 +202,9 @@ export default {
         mainFlow,
         pipeline,
         datasetPanel,
-        operatorPanel
+        operatorPanel,
+        pageLoading,
+        currentPipelineBlock
     },
     data() {
         return {
@@ -198,7 +212,7 @@ export default {
             value: null,
             options: [
                 {
-                    name: () => this.local('Database'),
+                    name: () => this.local('Dataset'),
                     icon: 'Play',
                     img: databaseIcon,
                     func: () => {
@@ -221,7 +235,10 @@ export default {
                 },
                 {
                     name: () => this.local('Save'),
-                    img: saveIcon
+                    img: saveIcon,
+                    func: () => {
+                        this.sortPipeline()
+                    }
                 }
             ],
             nodes: [
@@ -275,6 +292,7 @@ export default {
             ],
             sourceDatabase: null,
             servingList: [],
+            currentPipeline: null,
             currentServing: null,
             useEdgeSync: new useEdgeSync(),
             show: {
@@ -284,7 +302,8 @@ export default {
                 serving: false
             },
             lock: {
-                serving: true
+                serving: true,
+                loading: true
             }
         }
     },
@@ -397,6 +416,74 @@ export default {
                 }
             }
         },
+        sortPipeline() {
+            let flow = useVueFlow(this.flowId)
+            let nodeMap = {}
+            flow.nodes.value.forEach((node) => {
+                nodeMap[node.id] = {
+                    id: node.id,
+                    target: [],
+                    source: []
+                }
+            })
+            let N_nodes = flow.nodes.value.length
+            let edges = flow.edges.value
+            edges.forEach((edge) => {
+                const { source, target } = edge
+                nodeMap[source].target.push(target)
+                nodeMap[target].source.push(source)
+            })
+            let results = []
+            let outNodes = Object.values(nodeMap).filter((node) => node.source.length === 0)
+            while (outNodes.length > 0) {
+                let allTargetNodes = []
+                let exists = {}
+                for (let node of outNodes) {
+                    results.push(node)
+                    let targetIds = node.target
+                    for (let targetId of targetIds) {
+                        let targetNode = nodeMap[targetId]
+                        targetNode.source = targetNode.source.filter((item) => item !== node.id)
+                        if (!exists[targetNode.id]) {
+                            allTargetNodes.push(targetNode)
+                            exists[targetNode.id] = 1
+                        }
+                    }
+                }
+                outNodes = allTargetNodes.filter((node) => node.source.length === 0)
+            }
+            console.log(results, N_nodes)
+            if (results.length !== N_nodes) {
+                this.$barWarning(this.local('Pipeline is not a legal DAG'), {
+                    status: 'warning'
+                })
+                return
+            }
+            let nodeOperators = []
+            results.forEach((node) => {
+                if (node.id === 'db-node') return
+                let oriNode = flow.findNode(node.id)
+                nodeOperators.push({
+                    name: oriNode.data.name,
+                    params: oriNode.data.operatorParams,
+                    location: [0, 0]
+                })
+            })
+            this.$api.pipelines
+                .update_pipeline(this.currentPipeline.id, {
+                    name: this.currentPipeline.name,
+                    config: {
+                        file_path: this.currentPipeline.config.file_path,
+                        input_dataset: this.sourceDatabase.id,
+                        operators: nodeOperators
+                    }
+                })
+                .then((res) => {
+                    if (res.code === 200) {
+                        console.log(1)
+                    }
+                })
+        },
         onConnect(connection) {
             const { source, sourceHandle, target, targetHandle } = connection
             let sourceHandleObj = this.useEdgeSync.decHandle(sourceHandle)
@@ -470,6 +557,15 @@ export default {
         onConnectStart(params) {},
         onConnectEnd(event) {
             console.log(event)
+        },
+        resetFlow() {
+            this.$infoBox(this.local('Are you sure to reset the flow?'), {
+                status: 'error',
+                confirm: () => {
+                    const flow = useVueFlow(this.flowId)
+                    flow.$reset()
+                }
+            })
         }
     }
 }

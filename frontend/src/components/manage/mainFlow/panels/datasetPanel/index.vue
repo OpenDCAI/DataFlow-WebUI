@@ -61,8 +61,9 @@
 </template>
 
 <script>
-import { mapState } from 'pinia'
+import { mapState, mapActions } from 'pinia'
 import { useAppConfig } from '@/stores/appConfig'
+import { useDataflow } from '@/stores/dataflow'
 import { useTheme } from '@/stores/theme'
 
 import basePanel from '@/components/general/basePanel.vue'
@@ -82,13 +83,12 @@ export default {
             default: false
         },
         title: {
-            default: 'Database'
+            default: 'Dataset'
         }
     },
     data() {
         return {
             thisValue: this.modelValue,
-            datasets: [],
             img: {
                 database: databaseIcon
             }
@@ -107,6 +107,7 @@ export default {
     },
     computed: {
         ...mapState(useAppConfig, ['local']),
+        ...mapState(useDataflow, ['datasets']),
         ...mapState(useTheme, ['color', 'gradient']),
         numSamples() {
             return (item) => {
@@ -117,22 +118,7 @@ export default {
     },
     mounted() {},
     methods: {
-        async getDatasets() {
-            this.$api.datasets.list_datasets().then((res) => {
-                if (res.success) {
-                    let datasets = res.data
-                    datasets.forEach((item) => {
-                        item.showPreview = false
-                        item.expanded = false
-                    })
-                    this.datasets = datasets
-                } else {
-                    this.$barWarning(res.message, {
-                        status: 'warning'
-                    })
-                }
-            })
-        },
+        ...mapActions(useDataflow, ['getDatasets']),
         selectDataset(event, item) {
             event.stopPropagation()
             this.$emit('confirm', item)

@@ -2,8 +2,8 @@
     <div></div>
 </template>
 
-<style lang="scss"></style>
-
 <script>
 export default {}
 </script>
+
+<style lang="scss"></style>

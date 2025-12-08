@@ -15,7 +15,7 @@
             '--default-handle-shadow-color': thisData.defaultHandleShadowColor
         }"
     >
-        <div class="node-banner">
+        <div class="node-banner" :title="id">
             <div class="icon-block" :style="{ background: thisData.iconBackground }">
                 <i v-if="!thisData.img" class="ms-Icon" :class="[`ms-Icon--${thisData.icon}`]"></i>
                 <fv-img v-else class="icon-img" :src="thisData.img"></fv-img>

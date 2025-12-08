@@ -30,6 +30,7 @@
                     v-bind="nodeProps"
                     @delete-node="deleteNode"
                     @switch-database="switchDatabase"
+                    @update-node-data="updateNodeData"
                 />
             </template>
             <template #node-operator-node="nodeProps">

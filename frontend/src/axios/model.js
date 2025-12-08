@@ -724,6 +724,72 @@ export class ApiResponse_list_DatasetOut__ {
     message=undefined
     
 }
+export class ApiResponse_list_dict__ {
+  
+    /**
+     *
+     * @param {undefined} success 
+     * @param {Number} code 业务错误码，0 表示成功
+     * @param {String} message 
+     */ 
+    constructor(success = undefined,code = undefined,message = undefined,data = undefined,meta = undefined){
+        this.success = success
+        this.code = code
+        this.message = message
+        this.data = data
+        this.meta = meta
+    }
+       
+    /**
+     * 
+     * @type {undefined}
+     */
+    success=undefined   
+    /**
+     * 业务错误码，0 表示成功
+     * @type {Number}
+     */
+    code=undefined   
+    /**
+     * 
+     * @type {String}
+     */
+    message=undefined
+    
+}
+export class ApiResponse_list_str__ {
+  
+    /**
+     *
+     * @param {undefined} success 
+     * @param {Number} code 业务错误码，0 表示成功
+     * @param {String} message 
+     */ 
+    constructor(success = undefined,code = undefined,message = undefined,data = undefined,meta = undefined){
+        this.success = success
+        this.code = code
+        this.message = message
+        this.data = data
+        this.meta = meta
+    }
+       
+    /**
+     * 
+     * @type {undefined}
+     */
+    success=undefined   
+    /**
+     * 业务错误码，0 表示成功
+     * @type {Number}
+     */
+    code=undefined   
+    /**
+     * 
+     * @type {String}
+     */
+    message=undefined
+    
+}
 export class ApiResponse_str_ {
   
     /**
