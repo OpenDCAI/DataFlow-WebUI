@@ -37,7 +37,7 @@ class PipelineOperator(BaseModel): # 画布上的pipeline类
     """Pipeline算子模型"""
     name: str = Field(..., description="算子名称")
     params: Any = Field(default_factory=dict, description="算子参数配置")
-    location: tuple[int, int] = Field(default=(0, 0), description="算子在画布上的位置, 包含x和y两个坐标值")
+    location: tuple[float, float] = Field(default=(0, 0), description="算子在画布上的位置, 包含x和y两个坐标值")
     # @field_validator('name')
     # def validate_operator_name(cls, v: str) -> str:
     #     """验证算子名称格式"""
