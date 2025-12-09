@@ -280,6 +280,7 @@ export default {
             this.$emit('confirm-dataset', dataset)
             let formatOperators = []
             let promiseList = []
+            // 在这里的设计是为了保险起见还是重新获取所有operator的预定义参数, 然后结合当前pipeline获取的参数进行合并, 然而当前事实上其实还是直接用了当前pipeline获取的参数, 后续若有需求再考虑是否需要修改
             operators.forEach((item, idx) => {
                 promiseList.push(
                     this.$api.operators.get_operator_detail_by_name(item.name).then((res) => {
@@ -289,8 +290,12 @@ export default {
                             )
                             operator = Object.assign(operator, res.data)
                             operator.location = item.location
-                            operator.parameter.init = item.params.init
-                            operator.parameter.run = item.params.run
+                            operator._cache_parameter = {
+                                init: [],
+                                run: []
+                            }
+                            operator._cache_parameter.init = item.params.init
+                            operator._cache_parameter.run = item.params.run
                             operator.pipeline_idx = idx + 1
                             formatOperators.push(operator)
                         }

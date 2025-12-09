@@ -17,8 +17,9 @@
         </div>
         <hr />
         <div v-if="allowedPrompts.length > 0" class="node-row-item col" @mousedown.stop @click.stop>
-            <span class="info-title">{{ appConfig.local('Allowed Prompts') }}</span>
+            <span class="info-title">{{ appConfig.local('Prompt Template') }}</span>
             <fv-combobox
+                v-model="promptTemplateModel"
                 :placeholder="appConfig.local('Select Prompt')"
                 :options="allowedPrompts"
                 :choosen-slider-background="thisData.borderColor"
@@ -30,6 +31,7 @@
         </div>
         <div
             v-if="thisData.operatorParams"
+            v-show="item.show"
             v-for="(item, index) in thisData.operatorParams.init"
             :key="`init_${index}`"
             class="node-row-item col"
@@ -148,39 +150,84 @@ const allowedPrompts = computed(() => {
     })
     return results
 })
+const promptTemplateModel = computed({
+    get() {
+        try {
+            let prompt_template = thisData.value.operatorParams.init.find(
+                (item) => item.name === 'prompt_template'
+            )
+            if (!prompt_template.value) return {}
+            return {
+                key: prompt_template.value,
+                text: prompt_template.value
+            }
+        } catch (error) {
+            return {}
+        }
+    },
+    set(val) {
+        if (!val.key) return
+        if (thisData.value.operatorParams.init) {
+            let prompt_template = thisData.value.operatorParams.init.find(
+                (item) => item.name === 'prompt_template'
+            )
+            prompt_template.value = val.key
+        }
+    }
+})
 
 const appConfig = useAppConfig()
 
 const loading = ref(false)
 const paramsWrapper = (objs) => {
     for (let item of objs) {
-        item.value = item.default_value || ''
+        if (!item.value) item.value = item.default_value || ''
+        item.show = true
+        if (item.name === 'prompt_template') {
+            let val = item.value
+            if (val.indexOf("'") > -1) {
+                val = val.match(/'(.*)'/)
+                if (val) {
+                    val = val[1]
+                    val = val.split('.')
+                    val = val[val.length - 1]
+                } else val = ''
+            }
+            item.value = val
+            item.show = false
+        }
     }
     return objs
 }
 const getNodeDetail = async () => {
     if (!props.data || !props.data.name || !props.data.flowId) return
-    loading.value = true
-    const res = await $api.operators.get_operator_detail_by_name(props.data.name).catch(() => {
-        loading.value = false
-    })
-    loading.value = false
-    if (res.code === 200) {
-        let parameter = res.data.parameter
-        let operatorParams = {
-            init: [],
-            run: []
-        }
-        operatorParams.init = paramsWrapper(parameter.init)
-        operatorParams.run = paramsWrapper(parameter.run)
-        emits('update-node-data', {
-            id: props.id,
-            data: {
-                ...props.data,
-                operatorParams
-            }
+    if (!thisData.value._cache_parameter) {
+        loading.value = true
+        const res = await $api.operators.get_operator_detail_by_name(props.data.name).catch(() => {
+            loading.value = false
         })
+        loading.value = false
+        if (res.code === 200) {
+            thisData.value._cache_parameter = res.data.parameter
+        } else {
+            loading.value = false
+            return
+        }
     }
+    let parameter = thisData.value._cache_parameter
+    let operatorParams = {
+        init: [],
+        run: []
+    }
+    operatorParams.init = paramsWrapper(parameter.init)
+    operatorParams.run = paramsWrapper(parameter.run)
+    emits('update-node-data', {
+        id: props.id,
+        data: {
+            ...props.data,
+            operatorParams
+        }
+    })
 }
 
 watch(

@@ -75,6 +75,7 @@ export default {
         max-width 0.8s ease-out;
     backdrop-filter: blur(10px);
     box-shadow: 0px 0px 1px rgba(0, 0, 0, 0.1);
+    z-index: 30;
 
     &:hover {
         max-width: 50%;

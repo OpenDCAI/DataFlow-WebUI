@@ -466,7 +466,7 @@ export default {
                 nodeOperators.push({
                     name: oriNode.data.name,
                     params: oriNode.data.operatorParams,
-                    location: [0, 0]
+                    location: [oriNode.position.x, oriNode.position.y]
                 })
             })
             this.$api.pipelines
@@ -480,7 +480,9 @@ export default {
                 })
                 .then((res) => {
                     if (res.code === 200) {
-                        console.log(1)
+                        this.$barWarning(this.local('Pipeline has been updated'), {
+                            status: 'correct'
+                        })
                     }
                 })
         },
