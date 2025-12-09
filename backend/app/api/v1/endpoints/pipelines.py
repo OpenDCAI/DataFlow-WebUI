@@ -60,9 +60,9 @@ def update_pipeline(pipeline_id: str, payload: PipelineIn):
     try:
         pipeline_in_data = payload.model_dump()
 
-        operators = pipeline_in_data.get("config", {}).get("operators", [])
-        for op in operators:
-            op["params"] = _PIPELINE_REGISTRY.parse_frontend_params(op.get("params", []))
+        # operators = pipeline_in_data.get("config", {}).get("operators", [])
+        # for op in operators:
+        #     op["params"] = _PIPELINE_REGISTRY.parse_frontend_params(op.get("params", []))
 
         updated_pipeline = _PIPELINE_REGISTRY.update_pipeline(pipeline_id, pipeline_in_data)
         return ok(updated_pipeline)
