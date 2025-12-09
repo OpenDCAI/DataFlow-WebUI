@@ -17,8 +17,10 @@ Registry Yaml Format:
 """
 SERVING_MODULE = importlib.import_module("dataflow.serving")
 
-SERVING_CLS_REGISTRY = dict(zip(SERVING_MODULE.__all__,
-                               [getattr(SERVING_MODULE, cls_name) for cls_name in SERVING_MODULE.__all__]))
+SERVING_MODULE_ALL = ["APILLMServing_request"]
+
+SERVING_CLS_REGISTRY = dict(zip(SERVING_MODULE_ALL,
+                               [getattr(SERVING_MODULE, cls_name) for cls_name in SERVING_MODULE_ALL]))
     
 
 class ServingRegistry:
