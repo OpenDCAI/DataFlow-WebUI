@@ -11,6 +11,7 @@ from app.core.logger_setup import get_logger
 from app.core.config import settings
 from app.services.operator_registry import _op_registry
 from app.schemas.pipelines import PipelineOperator
+from app.services.dataflow_engine import dataflow_engine
 logger = get_logger(__name__)
 
 class PipelineRegistry:
@@ -414,71 +415,7 @@ class PipelineRegistry:
         
         logger.info(f"Deleted pipeline: {pipeline_id}")
         return True
-    
-    async def execute_pipeline_task(self, execution_id: str, pipeline_config: Dict[str, Any]):
-        """异步执行Pipeline的任务"""
-        logs = []
-        output = {}
-        status = "running"
-        logger.info(f"Starting background execution task for execution_id: {execution_id}")
         
-        try:
-            # 记录开始执行
-            logs.append(f"[{self.get_current_time()}] Starting pipeline execution")
-            logs.append(f"[{self.get_current_time()}] Input dataset: {pipeline_config.get('input_dataset', '')}")
-            logs.append(f"[{self.get_current_time()}] Run config: {json.dumps(pipeline_config.get('run_config', {}))}")
-            
-            # 模拟数据加载
-            logs.append(f"[{self.get_current_time()}] Loading dataset: {pipeline_config.get('input_dataset', '')}")
-            
-            # 按顺序执行算子
-            current_data = {"dataset_id": pipeline_config.get('input_dataset', ''), "data": {}}
-            operators = pipeline_config.get('operators', [])
-            for i, operator in enumerate(operators):
-                op_name = operator.get('name', 'Unknown')
-                op_params = operator.get('params', {})
-                logs.append(f"[{self.get_current_time()}] Executing operator {i+1}/{len(operators)}: {op_name}")
-                logs.append(f"[{self.get_current_time()}] Operator params: {json.dumps(op_params)}")
-                
-                try:
-                    # 模拟算子执行
-                    current_data["data"] = {
-                        "operator": op_name,
-                        "params": op_params,
-                        "output": f"Processed by {op_name}"
-                    }
-                    logs.append(f"[{self.get_current_time()}] Operator {op_name} executed successfully")
-                except Exception as op_error:
-                    error_msg = f"Operator {op_name} failed: {op_error}"
-                    logs.append(f"[{self.get_current_time()}] ERROR: {error_msg}")
-                    status = "failed"
-                    output["error"] = error_msg
-                    break
-            
-            # 更新执行结果
-            if status != "failed":
-                status = "completed"
-                output["result"] = current_data
-                logs.append(f"[{self.get_current_time()}] Pipeline execution completed successfully")
-            
-        except Exception as e:
-            status = "failed"
-            error_msg = f"Pipeline execution failed: {e}"
-            logs.append(f"[{self.get_current_time()}] ERROR: {error_msg}")
-            output["error"] = error_msg
-        
-        # 直接保存执行结果到文件
-        execution_result = {
-            "execution_id": execution_id,
-            "status": status,
-            "output": output,
-            "logs": logs
-        }
-        
-        data = self._read()
-        data["executions"][execution_id] = execution_result
-        self._write(data)
-    
     def start_execution(self, pipeline_id: Optional[str] = None, config: Optional[Dict[str, Any]] = None) -> Tuple[str, Dict[str, Any], Dict[str, Any]]:
         """开始执行Pipeline"""
         # 获取Pipeline配置
@@ -504,7 +441,7 @@ class PipelineRegistry:
             "output": {},
             "logs": [f"[{self.get_current_time()}] Pipeline execution queued"]
         }
-        
+                
         # 直接保存到文件
         data = self._read()
         data["executions"][execution_id] = initial_result
@@ -537,12 +474,14 @@ class PipelineRegistry:
         config = pipeline.get("config", {})
         operators = config.get("operators", [])
         
-        # 从 pipeline 文件中提取实际参数值
+        # 从 pipeline 文件中提取实际参数值（init 和 run）
         file_path = config.get("file_path")
-        pipeline_params = {}
+        pipeline_init_params = {}
+        pipeline_run_params = {}
         if file_path and os.path.exists(file_path):
-            pipeline_params = extract_operator_params_from_pipeline(file_path)
-            logger.info(f"Extracted {len(pipeline_params)} operator params from pipeline file")
+            pipeline_init_params = extract_operator_params_from_pipeline(file_path)
+            pipeline_run_params = extract_operator_run_params_from_pipeline(file_path)
+            logger.info(f"Extracted init params for {len(pipeline_init_params)} operators, run params for {len(pipeline_run_params)} operators")
         
         enriched_operators = []
         for op in operators:
@@ -561,7 +500,8 @@ class PipelineRegistry:
             op_details = _op_registry.get_op_details(op_name)
             
             # 获取该 operator 在 pipeline 代码中的实际参数值
-            actual_params = pipeline_params.get(op_name, {})
+            actual_init_params = pipeline_init_params.get(op_name, {})
+            actual_run_params = pipeline_run_params.get(op_name, {})
             
             enriched_params = {
                 "init": [],
@@ -580,10 +520,10 @@ class PipelineRegistry:
                     processed_init_names.add(p_name)
                     
                     # Priority: 
-                    # 1. actual value from pipeline code
+                    # 1. actual value from pipeline code (__init__)
                     # 2. stored params (user customized)
                     # 3. default value from operator definition
-                    p_val = actual_params.get(p_name)
+                    p_val = actual_init_params.get(p_name)
                     if p_val is None:
                         p_val = stored_params.get(p_name)
                     if p_val is None:
@@ -594,7 +534,7 @@ class PipelineRegistry:
                     enriched_param["value"] = p_val
                     enriched_params["init"].append(enriched_param)
 
-                # Process run parameters (run parameters are usually set at runtime, not in __init__)
+                # Process run parameters
                 run_defs = op_details.get("parameter", {}).get("run", [])
                 processed_run_names = set()
                 
@@ -604,9 +544,13 @@ class PipelineRegistry:
                         continue
                     processed_run_names.add(p_name)
                     
-                    # Priority: stored params > default value
-                    # (run parameters are not typically in pipeline __init__)
-                    p_val = stored_params.get(p_name)
+                    # Priority:
+                    # 1. actual value from pipeline code (forward method's .run() call)
+                    # 2. stored params (user customized)
+                    # 3. default value from operator definition
+                    p_val = actual_run_params.get(p_name)
+                    if p_val is None:
+                        p_val = stored_params.get(p_name)
                     if p_val is None:
                         p_val = param_def.get("default_value")
                         
@@ -738,6 +682,76 @@ def extract_operator_params_from_pipeline(file_path: str) -> Dict[str, Dict[str,
         return operator_params
     except Exception as e:
         logger.error(f"Error extracting operator params from {file_path}: {e}", exc_info=True)
+        return {}
+
+def extract_operator_run_params_from_pipeline(file_path: str) -> Dict[str, Dict[str, Any]]:
+    """
+    从 pipeline 文件的 forward 方法中提取每个 operator 的 run() 参数
+    返回: {operator_class_name: {param_name: param_value}}
+    """
+    try:
+        with open(file_path, 'r', encoding='utf-8') as f:
+            file_content = f.read()
+        
+        tree = ast.parse(file_content)
+        
+        # 首先建立变量名到类名的映射
+        var_to_class_map = {}
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ClassDef):
+                for method in node.body:
+                    if isinstance(method, ast.FunctionDef) and method.name == '__init__':
+                        for stmt in method.body:
+                            if isinstance(stmt, ast.Assign):
+                                for target in stmt.targets:
+                                    if isinstance(target, ast.Attribute) and isinstance(target.value, ast.Name) and target.value.id == 'self':
+                                        var_name = target.attr
+                                        if isinstance(stmt.value, ast.Call):
+                                            if isinstance(stmt.value.func, ast.Name):
+                                                class_name = stmt.value.func.id
+                                                var_to_class_map[var_name] = class_name
+                                            elif isinstance(stmt.value.func, ast.Attribute):
+                                                class_name = stmt.value.func.attr
+                                                var_to_class_map[var_name] = class_name
+        
+        # 然后提取 forward 方法中的 run() 调用参数
+        operator_run_params = {}
+        
+        def extract_run_params_from_node(node):
+            """递归提取 run() 调用的参数"""
+            if isinstance(node, ast.Call):
+                # 检查是否是 self.xxx.run() 的形式
+                if isinstance(node.func, ast.Attribute) and node.func.attr == 'run':
+                    if isinstance(node.func.value, ast.Attribute) and isinstance(node.func.value.value, ast.Name) and node.func.value.value.id == 'self':
+                        var_name = node.func.value.attr
+                        if var_name in var_to_class_map:
+                            class_name = var_to_class_map[var_name]
+                            
+                            # 提取 run() 的关键字参数
+                            run_params = {}
+                            for keyword in node.keywords:
+                                param_name = keyword.arg
+                                param_value = _ast_node_to_value(keyword.value)
+                                run_params[param_name] = param_value
+                            
+                            operator_run_params[class_name] = run_params
+                            logger.debug(f"Extracted run params for {class_name}: {run_params}")
+            
+            # 递归处理子节点
+            for child in ast.iter_child_nodes(node):
+                extract_run_params_from_node(child)
+        
+        # 遍历 forward 方法
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ClassDef):
+                for method in node.body:
+                    if isinstance(method, ast.FunctionDef) and method.name == 'forward':
+                        for stmt in method.body:
+                            extract_run_params_from_node(stmt)
+        
+        return operator_run_params
+    except Exception as e:
+        logger.error(f"Error extracting operator run params from {file_path}: {e}", exc_info=True)
         return {}
 
 def _extract_run_calls_from_node(node: ast.AST, var_to_class_map: Dict[str, str], operator_class_names: List[str]):

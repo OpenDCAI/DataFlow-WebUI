@@ -7,6 +7,7 @@ from app.schemas.pipelines import (
     PipelineExecutionResult
 )
 from app.services.pipeline_registry import PipelineRegistry, _PIPELINE_REGISTRY
+from app.services.dataflow_engine import dataflow_engine
 from app.api.v1.resp import ok, created
 from app.api.v1.envelope import ApiResponse
 from app.core.logger_setup import get_logger
@@ -88,36 +89,25 @@ def delete_pipeline(pipeline_id: str):
 
 # Pipeline执行API
 @router.post("/execute", response_model=ApiResponse[PipelineExecutionResult], operation_id="execute_pipeline", summary="执行Pipeline")
-async def execute_pipeline(request: Request, payload: PipelineExecutionRequest, background_tasks: BackgroundTasks):
+async def execute_pipeline(request: Request, pipeline_id):
     try:
         logger.info(f"Request: {request.method} {request.url.path}")
         
-        if payload.config:
-            for op in payload.config.operators:
-                op.params = _PIPELINE_REGISTRY.parse_frontend_params(op.params)
+        pipeline_config = _PIPELINE_REGISTRY.get_pipeline(pipeline_id)
 
         # 调用服务层开始执行
         execution_id, pipeline_config, initial_result = _PIPELINE_REGISTRY.start_execution(
-            pipeline_id=payload.pipeline_id, 
-            config=payload.config
+            pipeline_id=pipeline_id, 
+            config=pipeline_config
         )
         
-        # 在后台异步执行Pipeline
-        background_tasks.add_task(
-            _PIPELINE_REGISTRY.execute_pipeline_task, 
-            execution_id, 
-            pipeline_config
-        )
-        
-        return ok(initial_result, message="Pipeline execution started")
-    except ValueError as e:
-        logger.error(f"Invalid execution request: {str(e)}")
-        raise HTTPException(400, str(e))
-    except HTTPException:
-        raise
+        dataflow_engine.run(pipeline_config, execution_id)
     except Exception as e:
-        logger.error(f"Failed to start pipeline execution: {e}")
-        raise HTTPException(400, f"Failed to start pipeline execution: {e}")
+        logger.error(f"Failed to execute pipeline {pipeline_id}: {e}")
+        raise HTTPException(500, f"Failed to execute pipeline: {e}")
+    
+    return ok(initial_result, message="Pipeline execution started")
+
 
 @router.get("/execution/{execution_id}", response_model=ApiResponse[PipelineExecutionResult], operation_id="get_execution_result", summary="获取Pipeline执行结果")
 def get_execution_result(execution_id: str):
