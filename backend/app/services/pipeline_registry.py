@@ -125,18 +125,16 @@ class PipelineRegistry:
                 rel_path_from_cwd = os.path.relpath(abs_path, cwd)
                 
                 # 尝试从DatasetRegistry中查找
-                from app.services.dataset_registry import _DATASET_REGISTRY
-                ds_registry = _DATASET_REGISTRY
                 
                 # 1. 尝试通过路径匹配
-                all_datasets = ds_registry.list()
+                all_datasets = container.dataset_registry.list()
                 for ds in all_datasets:
                     if ds.get("root") == rel_path_from_cwd:
                         return ds.get("id")
                 
                 # 2. 如果没找到，尝试计算ID查找 (作为备选)
                 ds_id = hashlib.md5(rel_path_from_cwd.encode("utf-8")).hexdigest()[:10]
-                if ds_registry.get(ds_id):
+                if container.dataset_registry.get(ds_id):
                     return ds_id
                     
         except Exception as e:
