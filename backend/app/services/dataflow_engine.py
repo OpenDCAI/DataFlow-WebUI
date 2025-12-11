@@ -3,8 +3,8 @@ from dataflow.utils.storage import FileStorage
 from dataflow.pipeline import PipelineABC
 from dataflow.utils.registry import PROMPT_REGISTRY, OPERATOR_REGISTRY
 from dataclasses import dataclass
-from app.services.serving_registry import _SERVING_REGISTRY, SERVING_CLS_REGISTRY
-from app.services.dataset_registry import _DATASET_REGISTRY
+from app.services.serving_registry import SERVING_CLS_REGISTRY
+from app.core.container import container
 from typing import Dict, Any
 import os
 
@@ -42,7 +42,7 @@ class DataFlowEngine:
         
     def init_serving_instance(self, serving_id: str) -> APILLMServing_request:
         params_dict = {}
-        serving_info = _SERVING_REGISTRY._get(serving_id)
+        serving_info = container.serving_registry._get(serving_id)
         ## This part of code is only for APILLMServing_request
         if serving_info['cls_name'] == 'APILLMServing_request':
             api_key_val = None
@@ -70,7 +70,7 @@ class DataFlowEngine:
     
     def run(self, pipeline_config, execution_id: str) -> str:
         serving_instance_map: Dict[str, APILLMServing_request] = {}
-        dataset = _DATASET_REGISTRY.get(pipeline_config["input_dataset"])
+        dataset = container.dataset_registry.get(pipeline_config["input_dataset"])
         storage = FileStorage(
             first_entry_file_name=dataset["root"],
             cache_path="./cache_local",

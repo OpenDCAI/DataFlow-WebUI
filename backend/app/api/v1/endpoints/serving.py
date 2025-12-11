@@ -2,7 +2,7 @@ import os
 import copy
 from typing import List, Dict, Any 
 from fastapi import APIRouter, HTTPException
-from app.services.prompt_registry import _PROMPT_REGISTRY
+from app.core.container import container
 from app.api.v1.resp import ok
 from app.api.v1.envelope import ApiResponse
 
@@ -15,7 +15,7 @@ from app.schemas.serving import (
     ServingTestSchema,
     ServingUpdateSchema
 )
-from app.services.serving_registry import _SERVING_REGISTRY, SERVING_CLS_REGISTRY
+from app.services.serving_registry import SERVING_CLS_REGISTRY
 
 router = APIRouter(tags=["serving"])
 
@@ -25,7 +25,7 @@ router = APIRouter(tags=["serving"])
 )
 def list_serving_instances():
     try:
-        serving_list = _SERVING_REGISTRY._get_all()
+        serving_list = container.serving_registry._get_all()
         if not serving_list:
             result = []
         else:
@@ -52,7 +52,7 @@ def list_serving_classes():
     返回所有注册的 Serving 类及其初始化参数信息 (名称、类型、默认值)。
     """
     try:
-        classes_info = copy.deepcopy(_SERVING_REGISTRY.get_serving_classes())
+        classes_info = copy.deepcopy(container.serving_registry.get_serving_classes())
         api_llm_info = [x for x in classes_info if x['cls_name'] == 'APILLMServing_request']
         for item in api_llm_info:
             item['params'] = [p for p in item['params'] if p['name'] != 'key_name_of_api_key']
@@ -78,7 +78,7 @@ def get_serving_detail(id: str):
     根据 Serving 实例的 ID，获取其详细信息。
     """
     try:
-        serving_data = _SERVING_REGISTRY._get(id)
+        serving_data = container.serving_registry._get(id)
         print(type(serving_data))
         if not serving_data:
             raise HTTPException(status_code=404, detail=f"Serving instance with id {id} not found")
@@ -118,7 +118,7 @@ def update_serving_instance(id: str, body: ServingUpdateSchema):
                 
                 params_list.append(p_dict)
             
-        success = _SERVING_REGISTRY._update(
+        success = container.serving_registry._update(
             id, 
             name=body.name, 
             params=params_list
@@ -142,7 +142,7 @@ def delete_serving_instance(id: str):
     删除指定的 Serving 实例。
     """
     try:
-        success = _SERVING_REGISTRY._delete(id)
+        success = container.serving_registry._delete(id)
         if not success:
             raise HTTPException(status_code=404, detail=f"Serving instance with id {id} not found")
         return ok({'id': id})
@@ -166,7 +166,7 @@ def create_serving_instance(
     try:
         # Get class default params info
         cls_info = None
-        all_classes = _SERVING_REGISTRY.get_serving_classes()
+        all_classes = container.serving_registry.get_serving_classes()
         for c in all_classes:
             if c['cls_name'] == cls_name:
                 cls_info = c
@@ -197,7 +197,7 @@ def create_serving_instance(
 
         new_params = list(final_params_map.values())
 
-        new_id = _SERVING_REGISTRY._set(name, cls_name, new_params)
+        new_id = container.serving_registry._set(name, cls_name, new_params)
         return ok({
             'id': new_id
         })
@@ -217,7 +217,7 @@ def test_serving_instance(id: str, body: ServingTestSchema):
     """
     try:
         prompt: str = body.prompt or "Hello, which model are you?"
-        serving_info = _SERVING_REGISTRY._get(id)
+        serving_info = container.serving_registry._get(id)
         params_dict = {}
         
         ## This part of code is only for APILLMServing_request

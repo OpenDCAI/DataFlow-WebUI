@@ -247,7 +247,3 @@ class OperatorRegistry:
         # 注意：_gather_single_operator 需要 node_index，这里可以传 0 或 -1
         category, info = _gather_single_operator(op_name, cls, -1)
         return info
-
-# --- 4. 公共服务实例 ---
-# API 层将导入这个单例
-_op_registry = OperatorRegistry()

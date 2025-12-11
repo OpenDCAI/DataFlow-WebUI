@@ -2,12 +2,114 @@ import yaml, os, hashlib
 import json
 from typing import Dict, List
 from app.core.config import settings
-import pandas
+from loguru import logger
+import pandas as pd
+
+class VisualizeDatasetService:
+    def __init__(self):
+        self.pandas_read_func_map = {
+            "csv": pd.read_csv,
+            "excel": pd.read_excel,
+            "json": pd.read_json,
+            "parquet": pd.read_parquet,
+            "pickle": pd.read_pickle,
+            "jsonl": lambda path: pd.read_json(path, lines=True),
+        }
+        self.media_type_map = {
+            "txt": "text/plain",
+            "md": "text/markdown",
+            "jpg": "image/jpeg",
+            "jpeg": "image/jpeg",
+            "png": "image/png",
+            "gif": "image/gif",
+            "pdf": "application/pdf",
+            "doc": "application/msword",
+            "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            "ppt": "application/vnd.ms-powerpoint",
+            "pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        }
+    
+    def get_pandas_read_function(self, ds:dict, start:int=0, end:int=5):
+        file_type = ds.get("type","").lower()
+        file_path = ds.get("root","")
+        if not os.path.exists(file_path):
+            raise FileNotFoundError(f"File {file_path} does not exist. Please check the path.")
+        if file_type not in self.pandas_read_func_map:
+            raise ValueError(f"File type {file_type} is not supported for pandas visualization.")
+
+        read_func = self.pandas_read_func_map.get(file_type, None)
+        if not read_func:
+            raise ValueError(f"No read function found for type: {file_type}")
+        
+        df: pd.DataFrame = read_func(file_path)
+        return df.iloc[start:end].to_json(orient="records")
+    
+    def list_supported_file_types(self):
+        return list(self.pandas_read_func_map.keys())
+    
+    def get_other_visualization_data(self, ds:dict):
+        file_type = ds.get("type","").lower()
+        file_path = ds.get("root","")
+        if not os.path.exists(file_path):
+            raise FileNotFoundError(f"File {file_path} does not exist. Please check the path.")
+        media_type = self.media_type_map.get(file_type, "application/octet-stream")
+        return file_path, media_type
+
 
 class DatasetRegistry:
     def __init__(self, path: str | None = None):
         self.path = path or settings.DATA_REGISTRY
         self._ensure()
+        self.scan_all_datasets()
+
+    def scan_all_datasets(self) -> int:
+        """
+        扫描 DATAFLOW_CORE_DIR/example_data 下的所有 pipeline，
+        并把其中的文件全部注册/更新到当前 registry 中。
+
+        返回本次扫描注册/更新的数据集数量。
+        """
+        dataset_dir = os.path.join(settings.DATAFLOW_CORE_DIR, "example_data")
+        if not os.path.exists(dataset_dir):
+            logger.warning(f"[dataset] example_data directory not found: {dataset_dir}")
+            return 0
+
+        total_cnt = 0
+
+        for pipeline_name in os.listdir(dataset_dir):
+            pipeline_path = os.path.join(dataset_dir, pipeline_name)
+            if not os.path.isdir(pipeline_path):
+                continue
+
+            cnt = 0
+            for root, dirs, files in os.walk(pipeline_path):
+                for file in files:
+                    file_path = os.path.join(root, file)
+
+                    ds_dict = {
+                        "name": f"{pipeline_name}-{file}",
+                        "root": file_path,
+                        "pipeline": pipeline_name,
+                        "meta": {},
+                    }
+
+                    try:
+                        # 直接用 registry 的方法，避免依赖 API 层的 DatasetIn / register_dataset
+                        self.add_or_update(ds_dict)
+                        cnt += 1
+                    except FileNotFoundError as e:
+                        logger.warning(f"[dataset] Skip missing file '{file_path}': {e}")
+                    except Exception as e:
+                        logger.exception(
+                            f"[dataset] Failed to register dataset from '{file_path}': {e}"
+                        )
+
+            logger.info(f"[dataset] Registered {cnt} datasets from pipeline '{pipeline_name}'.")
+            total_cnt += cnt
+
+        logger.info(f"[dataset] Total {total_cnt} datasets registered from '{dataset_dir}'.")
+        return total_cnt
+                # logging.info(f"Registered dataset from {relative_path}.")
 
     def _ensure(self):
         if not os.path.exists(self.path):
@@ -52,6 +154,7 @@ class DatasetRegistry:
             return 0
     
     def list(self) -> List[Dict]:
+        logger.info("开始读取所有数据集信息")
         """返回所有数据集列表，每个数据集包含条目数和文件大小信息"""
         datasets = list(self._read()["datasets"].values())
         return datasets
@@ -82,7 +185,7 @@ class DatasetRegistry:
             raise FileNotFoundError(f"Cannot read file at {ds['root']}")
         
         ds['type'] = ds.get('root','').split('.')[-1].lower()
-        ds["added_at"] = pandas.Timestamp.now().isoformat()
+        ds["added_at"] = pd.Timestamp.now().isoformat()
         
         # 覆盖或新增
         datasets = data.get("datasets",{})
@@ -210,5 +313,3 @@ class DatasetRegistry:
                 columns = []
         
         return columns
-
-_DATASET_REGISTRY = DatasetRegistry()

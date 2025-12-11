@@ -9,7 +9,8 @@ import hashlib
 from typing import List, Optional, Dict, Any, Tuple
 from app.core.logger_setup import get_logger
 from app.core.config import settings
-from app.services.operator_registry import _op_registry
+# from app.services.operator_registry import _op_registry
+from app.core.container import container
 from app.schemas.pipelines import PipelineOperator
 from app.services.dataflow_engine import dataflow_engine
 logger = get_logger(__name__)
@@ -29,6 +30,7 @@ class PipelineRegistry:
         """
         确保注册表文件存在，并加载api_pipelines目录中的所有py文件
         """
+        logger.info("初始化Pipeline Registry的注册表...")
         if not os.path.exists(self.path):
             os.makedirs(os.path.dirname(self.path), exist_ok=True)
             
@@ -123,18 +125,16 @@ class PipelineRegistry:
                 rel_path_from_cwd = os.path.relpath(abs_path, cwd)
                 
                 # 尝试从DatasetRegistry中查找
-                from app.services.dataset_registry import DatasetRegistry
-                ds_registry = DatasetRegistry()
                 
                 # 1. 尝试通过路径匹配
-                all_datasets = ds_registry.list()
+                all_datasets = container.dataset_registry.list()
                 for ds in all_datasets:
                     if ds.get("root") == rel_path_from_cwd:
                         return ds.get("id")
                 
                 # 2. 如果没找到，尝试计算ID查找 (作为备选)
                 ds_id = hashlib.md5(rel_path_from_cwd.encode("utf-8")).hexdigest()[:10]
-                if ds_registry.get(ds_id):
+                if container.dataset_registry.get(ds_id):
                     return ds_id
                     
         except Exception as e:
@@ -149,7 +149,7 @@ class PipelineRegistry:
         try:
             data = self._read()
             api_pipelines_dir = os.path.join(settings.DATAFLOW_CORE_DIR, "api_pipelines")
-            
+            print(api_pipelines_dir)
             if not os.path.exists(api_pipelines_dir):
                 logger.warning(f"API pipelines directory not found: {api_pipelines_dir}")
                 return
@@ -368,7 +368,7 @@ class PipelineRegistry:
                     old_op_info = op_map.get(op.get("name"), None)
                     if old_op_info is None:  # new operator
                         # 创建新 operator 的字典格式
-                        op_details = _op_registry.get_op_details(op.get("name"))
+                        op_details = container.operator_registry.get_op_details(op.get("name"))
                         old_op_info = {
                             "name": op.get("name"),
                             "params": op_details.get("parameter", {"init": [], "run": []}) if op_details else {"init": [], "run": []},
@@ -497,7 +497,7 @@ class PipelineRegistry:
                 enriched_operators.append(op_copy)
                 continue
             
-            op_details = _op_registry.get_op_details(op_name)
+            op_details = container.operator_registry.get_op_details(op_name)
             
             # 获取该 operator 在 pipeline 代码中的实际参数值
             actual_init_params = pipeline_init_params.get(op_name, {})
@@ -835,6 +835,3 @@ def get_pipeline_operators_from_file(file_path: str) -> List[Dict[str, Any]]:
     operator_class_names = extract_operator_execution_order(file_path)
     # 将类名转换为PipelineOperator格式
     return [{'name': class_name, 'params': {}} for class_name in operator_class_names]
-
-# 创建全局服务实例
-_PIPELINE_REGISTRY = PipelineRegistry()

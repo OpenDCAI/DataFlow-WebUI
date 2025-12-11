@@ -148,4 +148,4 @@ class ServingRegistry:
             })
         return result
         
-_SERVING_REGISTRY = ServingRegistry()
+# _SERVING_REGISTRY = ServingRegistry()

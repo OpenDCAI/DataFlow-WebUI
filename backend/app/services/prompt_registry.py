@@ -124,4 +124,4 @@ class PromptRegistry:
         return PromptInfoMapOut(prompts=result)
 
 # 全局单例
-_PROMPT_REGISTRY = PromptRegistry()
+# _PROMPT_REGISTRY = PromptRegistry()
