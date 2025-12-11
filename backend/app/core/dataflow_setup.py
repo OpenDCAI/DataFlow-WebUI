@@ -23,24 +23,3 @@ def setup_dataflow_core():
     else:
         logging.info(f"DataFlow core directory at {core_dir} already set up.")
 
-    dataset_dir = os.path.join(core_dir, "example_data")
-    for pipeline_name in os.listdir(dataset_dir):
-        pipeline_path = os.path.join(dataset_dir, pipeline_name)
-        if os.path.isdir(pipeline_path):
-            # logging.info(f"Pipeline '{pipeline_name}' found in DataFlow core.")
-            # registry all files under this pipeline
-            cnt = 0
-            for root, dirs, files in os.walk(pipeline_path):
-                for file in files:
-                    file_path = os.path.join(root, file)
-                    relative_path = os.path.relpath(file_path, dataset_dir)
-                    payload = DatasetIn(
-                        name=f"{pipeline_name}-{file}",
-                        root=file_path,
-                        pipeline=f"{pipeline_name}",
-                        meta={}
-                    )
-                    register_dataset(payload)
-                    cnt += 1
-            logging.info(f"Registered {cnt} datasets from pipeline '{pipeline_name}'.")
-                    # logging.info(f"Registered dataset from {relative_path}.")

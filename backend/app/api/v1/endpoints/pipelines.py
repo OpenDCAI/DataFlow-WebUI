@@ -6,7 +6,7 @@ from app.schemas.pipelines import (
     PipelineExecutionRequest, 
     PipelineExecutionResult
 )
-from app.services.pipeline_registry import PipelineRegistry, _PIPELINE_REGISTRY
+from app.core.container import container
 from app.services.dataflow_engine import dataflow_engine
 from app.api.v1.resp import ok, created
 from app.api.v1.envelope import ApiResponse
@@ -23,7 +23,7 @@ router = APIRouter(tags=["pipelines"])
 def list_pipelines(request: Request):
     try:
         logger.info(f"Request: {request.method} {request.url.path}")
-        pipelines = _PIPELINE_REGISTRY.list_pipelines()
+        pipelines = container.pipeline_registry.list_pipelines()
         logger.info(f"Successfully listed {len(pipelines)} pipelines")
         return ok(pipelines)
     except Exception as e:
@@ -38,9 +38,9 @@ def create_pipeline(request: Request, payload: PipelineIn):
 
         operators = pipeline_in_data.get("config", {}).get("operators", [])
         for op in operators:
-            op["params"] = _PIPELINE_REGISTRY.parse_frontend_params(op.get("params", []))
+            op["params"] = container.pipeline_registry.parse_frontend_params(op.get("params", []))
 
-        pipeline = _PIPELINE_REGISTRY.create_pipeline(pipeline_in_data)
+        pipeline = container.pipeline_registry.create_pipeline(pipeline_in_data)
         return created(pipeline)
     except ValueError as e:
         logger.error(f"Invalid pipeline configuration: {str(e)}", exc_info=True)
@@ -51,7 +51,7 @@ def create_pipeline(request: Request, payload: PipelineIn):
 
 @router.get("/{pipeline_id}", response_model=ApiResponse[PipelineOut], operation_id="get_pipeline", summary="根据ID获取Pipeline详情")
 def get_pipeline(pipeline_id: str):
-    pipeline = _PIPELINE_REGISTRY.get_pipeline(pipeline_id)
+    pipeline = container.pipeline_registry.get_pipeline(pipeline_id)
     if not pipeline:
         raise HTTPException(404, f"Pipeline with id {pipeline_id} not found")
     return ok(pipeline)
@@ -63,9 +63,9 @@ def update_pipeline(pipeline_id: str, payload: PipelineIn):
 
         # operators = pipeline_in_data.get("config", {}).get("operators", [])
         # for op in operators:
-        #     op["params"] = _PIPELINE_REGISTRY.parse_frontend_params(op.get("params", []))
+        #     op["params"] = container.pipeline_registry.parse_frontend_params(op.get("params", []))
 
-        updated_pipeline = _PIPELINE_REGISTRY.update_pipeline(pipeline_id, pipeline_in_data)
+        updated_pipeline = container.pipeline_registry.update_pipeline(pipeline_id, pipeline_in_data)
         return ok(updated_pipeline)
     except ValueError as e:
         logger.error(f"Failed to update pipeline: {str(e)}")
@@ -77,7 +77,7 @@ def update_pipeline(pipeline_id: str, payload: PipelineIn):
 @router.delete("/{pipeline_id}", response_model=ApiResponse[Dict], operation_id="delete_pipeline", summary="删除指定的Pipeline") 
 def delete_pipeline(pipeline_id: str):
     try:
-        success = _PIPELINE_REGISTRY.delete_pipeline(pipeline_id)
+        success = container.pipeline_registry.delete_pipeline(pipeline_id)
         if not success:
             raise HTTPException(404, f"Pipeline with id {pipeline_id} not found")
         return ok(message=f"Pipeline {pipeline_id} deleted successfully")
@@ -93,10 +93,10 @@ async def execute_pipeline(request: Request, pipeline_id):
     try:
         logger.info(f"Request: {request.method} {request.url.path}")
         
-        pipeline_config = _PIPELINE_REGISTRY.get_pipeline(pipeline_id)
+        pipeline_config = container.pipeline_registry.get_pipeline(pipeline_id)
 
         # 调用服务层开始执行
-        execution_id, pipeline_config, initial_result = _PIPELINE_REGISTRY.start_execution(
+        execution_id, pipeline_config, initial_result = container.pipeline_registry.start_execution(
             pipeline_id=pipeline_id, 
             config=pipeline_config
         )
@@ -111,7 +111,7 @@ async def execute_pipeline(request: Request, pipeline_id):
 
 @router.get("/execution/{execution_id}", response_model=ApiResponse[PipelineExecutionResult], operation_id="get_execution_result", summary="获取Pipeline执行结果")
 def get_execution_result(execution_id: str):
-    result = _PIPELINE_REGISTRY.get_execution_result(execution_id)
+    result = container.pipeline_registry.get_execution_result(execution_id)
     if not result:
         raise HTTPException(404, f"Execution with id {execution_id} not found")
     return ok(result)
@@ -119,7 +119,7 @@ def get_execution_result(execution_id: str):
 @router.get("/executions", response_model=ApiResponse[List[PipelineExecutionResult]], operation_id="list_executions", summary="列出所有Pipeline执行记录")
 def list_executions():
     try:
-        executions = _PIPELINE_REGISTRY.list_executions()
+        executions = container.pipeline_registry.list_executions()
         return ok(executions)
     except Exception as e:
         logger.error(f"Failed to list executions: {e}")

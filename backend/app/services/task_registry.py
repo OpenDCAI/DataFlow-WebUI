@@ -183,5 +183,5 @@ class TaskRegistry:
 
 
 # 全局单例
-_TASK_REGISTRY = TaskRegistry()
+# _TASK_REGISTRY = TaskRegistry()
 
