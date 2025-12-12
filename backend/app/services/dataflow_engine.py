@@ -70,7 +70,14 @@ class DataFlowEngine:
     
     def run(self, pipeline_config, execution_id: str) -> str:
         serving_instance_map: Dict[str, APILLMServing_request] = {}
-        dataset = container.dataset_registry.get(pipeline_config["input_dataset"])
+        
+        input_dataset = pipeline_config["input_dataset"]
+        if isinstance(input_dataset, dict):
+            dataset_id = input_dataset.get("id")
+        else:
+            dataset_id = input_dataset
+            
+        dataset = container.dataset_registry.get(dataset_id)
         storage = FileStorage(
             first_entry_file_name=dataset["root"],
             cache_path="./cache_local",
