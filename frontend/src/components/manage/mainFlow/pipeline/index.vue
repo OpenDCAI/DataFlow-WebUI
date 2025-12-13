@@ -44,41 +44,18 @@
                     border-radius="8"
                     :is-box-shadow="true"
                     style="width: calc(100% - 20px); height: 40px; margin-left: 10px"
-                    @click="show.add ^= true"
-                    >{{ local('Create Pipeline') }}</fv-button
+                    @click="(show.add = true), (addPanelMode = 'add')"
+                    >{{ local('New Pipeline') }}</fv-button
                 >
-                <transition name="add-fold-down">
-                    <div v-show="show.add" class="pipeline-new-item">
-                        <div class="pipeline-item-main">
-                            <div class="main-icon">
-                                <i class="ms-Icon ms-Icon--DialShape3"></i>
-                            </div>
-
-                            <div class="content-block">
-                                <fv-text-box
-                                    v-model="addName"
-                                    :placeholder="local('Input the new pipeline name')"
-                                    border-radius="6"
-                                    underline
-                                    border-width="2"
-                                    :focus-border-color="color"
-                                    :is-box-shadow="true"
-                                    style="width: 100%; height: 40px"
-                                ></fv-text-box>
-                            </div>
-                        </div>
-                        <fv-button
-                            theme="dark"
-                            :background="'linear-gradient(130deg, rgba(229, 123, 67, 1), rgba(252, 98, 32, 1))'"
-                            border-radius="12"
-                            :disabled="!addName"
-                            :is-box-shadow="true"
-                            style="width: calc(100% - 20px); height: 40px; margin-left: 10px"
-                            @click="addPipeline"
-                            >{{ local('Confirm') }}</fv-button
-                        >
-                    </div>
-                </transition>
+                <div v-show="!lock.pipeline" class="pipeline-list-loading">
+                    <fv-progress-ring
+                        loading="true"
+                        :r="20"
+                        :border-width="3"
+                        :color="color"
+                        :background="'rgba(245, 245, 245, 1)'"
+                    ></fv-progress-ring>
+                </div>
                 <div class="pipeline-list-block">
                     <div
                         v-show="item.show"
@@ -87,6 +64,7 @@
                         class="pipeline-item"
                         :class="[{ choosen: thisPipeline === item }]"
                         @click="selectPipeline(item)"
+                        @contextmenu="showRightMenu($event, item)"
                     >
                         <div class="pipeline-item-main">
                             <div class="main-icon">
@@ -112,6 +90,26 @@
                     </div>
                 </div>
             </div>
+            <pipeline-panel
+                v-model="show.add"
+                :obj="currentContextItem"
+                :addPanelMode="addPanelMode"
+            ></pipeline-panel>
+            <fv-right-menu v-model="show.rightMenu" ref="rightMenu">
+                <span @click="(show.add = true), (addPanelMode = 'add')">
+                    <i class="ms-Icon ms-Icon--Add" :style="{ color: color }"></i>
+                    <p>{{ local('New Pipeline') }}</p>
+                </span>
+                <span @click="(show.add = true), (addPanelMode = 'rename')">
+                    <i class="ms-Icon ms-Icon--Rename" :style="{ color: color }"></i>
+                    <p>{{ local('Rename Pipeline') }}</p>
+                </span>
+                <hr />
+                <span @click="delPipeline(currentContextItem)">
+                    <i class="ms-Icon ms-Icon--Delete" :style="{ color: '#c8323b' }"></i>
+                    <p>{{ local('Delete Pipeline') }}</p>
+                </span>
+            </fv-right-menu>
         </div>
     </transition>
 </template>
@@ -124,13 +122,15 @@ import { useVueFlow } from '@vue-flow/core'
 import { useTheme } from '@/stores/theme'
 
 import timeRounder from '@/components/general/timeRounder.vue'
+import pipelinePanel from '@/components/manage/mainFlow/panels/piplinePanel.vue'
 
 import pipelineIcon from '@/assets/flow/pipeline.svg'
 
 export default {
     name: 'pipeline',
     components: {
-        timeRounder
+        timeRounder,
+        pipelinePanel
     },
     props: {
         modelValue: {
@@ -151,14 +151,18 @@ export default {
             thisValue: this.modelValue,
             thisLoading: this.loading,
             searchText: '',
-            addName: '',
             thisPipeline: null,
-            pipelines: [],
+            currentContextItem: null,
+            addPanelMode: 'add',
             show: {
-                add: false
+                add: false,
+                rightMenu: false
             },
             img: {
                 pipeline: pipelineIcon
+            },
+            lock: {
+                pipeline: true
             }
         }
     },
@@ -191,7 +195,7 @@ export default {
     },
     computed: {
         ...mapState(useAppConfig, ['local']),
-        ...mapState(useDataflow, ['datasets', 'groupOperators']),
+        ...mapState(useDataflow, ['datasets', 'groupOperators', 'pipelines']),
         ...mapState(useTheme, ['color', 'gradient']),
         flatFormatedOperators() {
             let operators = []
@@ -205,23 +209,15 @@ export default {
         }
     },
     mounted() {
-        this.getPipelines()
+        this.getPipelineList()
     },
     methods: {
-        ...mapActions(useDataflow, ['getDatasets', 'getOperators']),
-        getPipelines() {
-            this.$api.pipelines.list_pipelines().then((res) => {
-                if (res.code === 200) {
-                    let pipelines = res.data
-                    pipelines.forEach((item) => {
-                        item.show = true
-                    })
-                    pipelines.sort((a, b) => {
-                        return new Date(b.updated_at) - new Date(a.updated_at)
-                    })
-                    this.pipelines = pipelines
-                }
-            })
+        ...mapActions(useDataflow, ['getDatasets', 'getOperators', 'getPipelines']),
+        async getPipelineList() {
+            if (!this.lock.pipeline) return
+            this.lock.pipeline = false
+            await this.getPipelines()
+            this.lock.pipeline = true
         },
         filterValues() {
             this.pipelines.forEach((item) => {
@@ -237,8 +233,8 @@ export default {
             const flow = useVueFlow(this.flowId)
             const { screenToFlowCoordinate } = useVueFlow(this.flowId)
             const position = screenToFlowCoordinate({
-                x: data.location.x,
-                y: data.location.y + parseInt(5 * Math.random())
+                x: data.location[0],
+                y: data.location[1] + parseInt(5 * Math.random())
             })
             const newNode = {
                 id: data.nodeId,
@@ -262,6 +258,7 @@ export default {
                 y: 0,
                 zoom: 1
             })
+            await this.$nextTick()
             if (!item.config) return
             this.thisLoading = false
             const { input_dataset, operators } = item.config
@@ -275,9 +272,7 @@ export default {
                 this.$barWarning(this.local('Input dataset not found'), {
                     status: 'warning'
                 })
-                return
-            }
-            this.$emit('confirm-dataset', dataset)
+            } else this.$emit('confirm-dataset', dataset)
             let formatOperators = []
             let promiseList = []
             // 在这里的设计是为了保险起见还是重新获取所有operator的预定义参数, 然后结合当前pipeline获取的参数进行合并, 然而当前事实上其实还是直接用了当前pipeline获取的参数, 后续若有需求再考虑是否需要修改
@@ -288,6 +283,7 @@ export default {
                             let operator = this.flatFormatedOperators.find(
                                 (it) => it.name === item.name
                             )
+                            operator = Object.assign({}, operator)
                             operator = Object.assign(operator, res.data)
                             operator.location = item.location
                             operator._cache_parameter = {
@@ -333,23 +329,27 @@ export default {
             })
             this.thisLoading = true
         },
-        addPipeline() {
-            this.$api.pipelines
-                .create_pipeline({
-                    name: this.addName,
-                    config: {
-                        file_path: '',
-                        input_dataset: ''
-                    }
-                })
-                .then((res) => {
-                    if (res.code === 200) {
-                        this.$barWarning(this.local('Add pipeline success'))
-                        this.show.add = false
-                        this.addName = ''
-                        this.getPipelines()
-                    }
-                })
+        delPipeline(item) {
+            if (!item) return
+            this.$infoBox(this.local('Are you sure to delete this pipeline?'), {
+                status: 'error',
+                confirm: () => {
+                    this.$api.pipelines.delete_pipeline(item.id).then((res) => {
+                        if (res.code === 200) {
+                            this.getPipelineList()
+                        } else
+                            this.$barWarning(res.msg || this.local('Delete pipeline failed'), {
+                                status: 'warning'
+                            })
+                    })
+                }
+            })
+        },
+        showRightMenu($event, item) {
+            this.currentContextItem = item
+            $event.preventDefault()
+            $event.stopPropagation()
+            this.$refs.rightMenu.rightClick($event, document.body)
         }
     }
 }
@@ -443,58 +443,11 @@ export default {
             }
         }
 
-        .pipeline-new-item {
-            position: relative;
-            width: calc(100% - 20px);
-            height: 120px;
-            flex-shrink: 0;
-            margin-left: 10px;
-            margin-top: 5px;
-            padding: 10px;
-            background: rgba(255, 255, 255, 0.6);
-            border: rgba(120, 120, 120, 0.1) solid thin;
-            border-radius: 8px;
-            display: flex;
-            flex-direction: column;
-            transition: background 0.3s;
-
-            .pipeline-item-main {
-                position: relative;
-                width: 100%;
-                flex: 1;
-                display: flex;
-                align-items: center;
-
-                .main-icon {
-                    @include HcenterVcenter;
-
-                    position: relative;
-                    width: 40px;
-                    height: 40px;
-                    flex-shrink: 0;
-                    background: linear-gradient(
-                        90deg,
-                        rgba(73, 131, 251, 1) 0%,
-                        rgba(100, 161, 252, 1) 100%
-                    );
-                    border: 1px solid rgba(120, 120, 120, 0.1);
-                    border-radius: 8px;
-                    color: whitesmoke;
-                    box-shadow: 0px 1px 2px rgba(0, 0, 0, 0.1);
-                }
-
-                .content-block {
-                    @include HstartC;
-
-                    position: relative;
-                    width: 50px;
-                    flex: 1;
-                    height: 100%;
-                    padding: 10px;
-                    line-height: 2;
-                    user-select: none;
-                }
-            }
+        .pipeline-list-loading {
+            position: absolute;
+            top: 150px;
+            left: 50%;
+            transform: translate(-50%, -50%);
         }
 
         .pipeline-list-block {
@@ -618,23 +571,5 @@ export default {
 .pipeline-slide-leave-from {
     width: 100%;
     max-width: 100%;
-}
-
-.add-fold-down-enter-active,
-.add-fold-down-leave-active {
-    transition: all 0.3s ease;
-    overflow: hidden;
-}
-
-.add-fold-down-enter-from,
-.add-fold-down-leave-to {
-    height: 0px;
-    max-height: 0px;
-}
-
-.add-fold-down-enter-to,
-.add-fold-down-leave-from {
-    height: 120px;
-    max-height: 120px;
 }
 </style>

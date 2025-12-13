@@ -6,7 +6,7 @@
             v-model:pipeline="currentPipeline"
             :flow-id="flowId"
             class="df-pipeline-container"
-            @confirm-dataset="confirmDataset"
+            @confirm-dataset="confirmDataset($event, true)"
         ></pipeline>
         <div class="df-flow-container">
             <mainFlow
@@ -57,6 +57,8 @@
                                 :off="local('Manual')"
                                 :insideContent="true"
                                 :height="30"
+                                borderColor="rgba(235, 235, 235, 1)"
+                                ring-background="rgba(180, 180, 180, 1)"
                                 :switch-on-background="gradient"
                                 :title="local('Whether Auto Connect Run Edges')"
                             >
@@ -69,6 +71,7 @@
                                         : ''
                                 "
                                 border-radius="30"
+                                :disabled="!lock.serving"
                                 style="width: 30px; height: 30px"
                                 @click="showServing"
                             >
@@ -237,7 +240,7 @@ export default {
                     name: () => this.local('Save'),
                     img: saveIcon,
                     func: () => {
-                        this.sortPipeline()
+                        this.sortAndSavePipeline()
                     }
                 }
             ],
@@ -291,9 +294,7 @@ export default {
                 // }
             ],
             sourceDatabase: null,
-            servingList: [],
             currentPipeline: null,
-            currentServing: null,
             useEdgeSync: new useEdgeSync(),
             show: {
                 dataset: false,
@@ -325,7 +326,7 @@ export default {
     computed: {
         ...mapState(useAppConfig, ['local']),
         ...mapState(useTheme, ['color', 'gradient']),
-        ...mapState(useDataflow, ['isAutoConnection']),
+        ...mapState(useDataflow, ['isAutoConnection', 'servingList', 'currentServing']),
         isAutoConnectionModel: {
             get() {
                 return this.isAutoConnection
@@ -337,10 +338,15 @@ export default {
     },
     mounted() {
         this.setViewport()
-        this.getServingList()
+        this.getServing()
     },
     methods: {
-        ...mapActions(useDataflow, ['switchAutoConnection']),
+        ...mapActions(useDataflow, [
+            'switchAutoConnection',
+            'getServingList',
+            'chooseServing',
+            'getPipelines'
+        ]),
         setViewport() {
             const flow = useVueFlow(this.flowId)
             flow.setViewport({
@@ -372,31 +378,21 @@ export default {
                 })
             }
         },
-        confirmDataset(dataset) {
+        confirmDataset(dataset, refresh = false) {
             this.sourceDatabase = dataset
             this.show.dataset = false
+            if (refresh) this.updateDatabaseNode()
         },
-        getServingList() {
+        async getServing() {
             if (!this.lock.serving) return
             this.lock.serving = false
-            this.$api.serving.list_serving_instances_api_v1_serving__get().then((res) => {
-                if (res.code === 200) {
-                    this.servingList = res.data
-                    this.lock.serving = true
-                } else {
-                    this.$barWarning(res.message, {
-                        status: 'warning'
-                    })
-                }
-            })
+            await this.getServingList()
+            this.lock.serving = true
         },
         showServing($event) {
             $event.preventDefault()
             $event.stopPropagation()
             this.$refs.servingMenu.rightClick($event, document.body)
-        },
-        chooseServing(servingItem) {
-            this.currentServing = servingItem
         },
         syncRunValue(item) {
             const flow = useVueFlow(this.flowId)
@@ -416,7 +412,7 @@ export default {
                 }
             }
         },
-        sortPipeline() {
+        sortAndSavePipeline() {
             let flow = useVueFlow(this.flowId)
             let nodeMap = {}
             flow.nodes.value.forEach((node) => {
@@ -480,6 +476,7 @@ export default {
                 })
                 .then((res) => {
                     if (res.code === 200) {
+                        this.getPipelines()
                         this.$barWarning(this.local('Pipeline has been updated'), {
                             status: 'correct'
                         })

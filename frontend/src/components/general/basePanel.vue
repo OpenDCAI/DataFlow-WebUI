@@ -10,6 +10,7 @@
         :isAcrylic="true"
         :is-central-side="true"
         :is-footer="isFooter"
+        :teleport="teleport"
     >
         <template v-slot:container>
             <div class="base-panel-container" @keyup.enter="$emit('confirm')">
@@ -43,6 +44,9 @@ export default {
         },
         isFooter: {
             default: true
+        },
+        teleport: {
+            default: false
         },
         theme: {
             default: 'light'

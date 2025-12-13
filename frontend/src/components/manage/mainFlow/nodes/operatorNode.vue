@@ -38,6 +38,7 @@
         >
             <span class="info-title">{{ item.name }}</span>
             <fv-text-box
+                v-if="item.name.indexOf('_serving') === -1"
                 v-model="item.value"
                 :placeholder="appConfig.local('Please input') + ` ${item.name}`"
                 font-size="12"
@@ -47,6 +48,20 @@
                 @mousedown.stop
                 @click.stop
             ></fv-text-box>
+            <fv-combobox
+                v-if="item.name.indexOf('_serving') !== -1"
+                :model-value="computedServingItem(item)"
+                @update:modelValue="setServingItem(item, $event)"
+                :placeholder="appConfig.local('Select Serving')"
+                :options="servingList"
+                :choosen-slider-background="thisData.borderColor"
+                :reveal-background-color="[thisData.shadowColor, 'rgba(255, 255, 255, 1)']"
+                :reveal-border-color="thisData.borderColor"
+                border-radius="8"
+                style="width: 100%"
+                @mousedown.stop
+                @click.stop
+            ></fv-combobox>
         </div>
         <div class="node-row-item">
             <span class="info-title" style="font-size: 13px; color: rgba(0, 122, 255, 1)">{{
@@ -92,6 +107,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useGlobal } from '@/hooks/general/useGlobal'
 import { useAppConfig } from '@/stores/appConfig'
+import { useDataflow } from '@/stores/dataflow'
 import { Position, Handle } from '@vue-flow/core'
 
 import baseNode from '@/components/manage/mainFlow/nodes/baseNode.vue'
@@ -118,6 +134,9 @@ const props = defineProps({
         default: () => ({})
     }
 })
+
+const appConfig = useAppConfig()
+const dataflow = useDataflow()
 
 const defaultData = {
     label: 'Operator',
@@ -176,7 +195,17 @@ const promptTemplateModel = computed({
     }
 })
 
-const appConfig = useAppConfig()
+const servingList = computed(() => {
+    return dataflow.servingList
+})
+const computedServingItem = (item) => {
+    let selectedItem = servingList.value.find((it) => it.key === item.value)
+    return selectedItem || dataflow.currentServing || {}
+}
+const setServingItem = (item, val) => {
+    if (!val.key) return
+    item.value = val.key
+}
 
 const loading = ref(false)
 const paramsWrapper = (objs) => {

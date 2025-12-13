@@ -69,8 +69,8 @@ export const useDataflow = defineStore('useDataflow', () => {
     })
     const operators = ref([])
     const groupOperators = ref({})
-    const getOperators = () => {
-        proxy.$api.operators.list_operators().then((res) => {
+    const getOperators = async () => {
+        await proxy.$api.operators.list_operators().then((res) => {
             if (res.code === 200) {
                 operators.value = res.data
                 groupOperators.value = {}
@@ -134,6 +134,43 @@ export const useDataflow = defineStore('useDataflow', () => {
         }
     }
 
+    const servingList = ref([])
+    const currentServing = ref(null)
+    const getServingList = async () => {
+        await proxy.$api.serving.list_serving_instances_api_v1_serving__get().then((res) => {
+            if (res.code === 200) {
+                res.data.forEach((item) => {
+                    item.key = item.id
+                    item.text = item.name
+                })
+                servingList.value = res.data
+            } else {
+                proxy.$barWarning(res.message, {
+                    status: 'warning'
+                })
+            }
+        })
+    }
+    const chooseServing = (item) => {
+        currentServing.value = item
+    }
+
+    const pipelines = ref([])
+    const getPipelines = async () => {
+        await proxy.$api.pipelines.list_pipelines().then((res) => {
+            if (res.code === 200) {
+                let _pipelines = res.data
+                _pipelines.forEach((item) => {
+                    item.show = true
+                })
+                _pipelines.sort((a, b) => {
+                    return new Date(b.updated_at) - new Date(a.updated_at)
+                })
+                pipelines.value = _pipelines
+            }
+        })
+    }
+
     const isAutoConnection = ref(false)
 
     const switchAutoConnection = (val) => {
@@ -146,6 +183,12 @@ export const useDataflow = defineStore('useDataflow', () => {
         getOperators,
         datasets,
         getDatasets,
+        servingList,
+        currentServing,
+        getServingList,
+        chooseServing,
+        pipelines,
+        getPipelines,
         isAutoConnection,
         switchAutoConnection,
     }
