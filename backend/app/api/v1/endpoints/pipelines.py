@@ -1,4 +1,5 @@
 from typing import List, Dict
+from datetime import datetime
 from fastapi import APIRouter, HTTPException, BackgroundTasks, Request
 from app.schemas.pipelines import (
     PipelineIn,
@@ -90,23 +91,78 @@ def delete_pipeline(pipeline_id: str):
 # Pipeline执行API
 @router.post("/execute", response_model=ApiResponse[PipelineExecutionResult], operation_id="execute_pipeline", summary="执行Pipeline")
 async def execute_pipeline(request: Request, pipeline_id):
+    execution_id = None
     try:
         logger.info(f"Request: {request.method} {request.url.path}")
         
         pipeline_config = container.pipeline_registry.get_pipeline(pipeline_id)
+        if not pipeline_config:
+            raise HTTPException(404, f"Pipeline {pipeline_id} not found")
 
         # 调用服务层开始执行
-        execution_id, pipeline_config, initial_result = container.pipeline_registry.start_execution(
+        execution_id, _, initial_result = container.pipeline_registry.start_execution(
             pipeline_id=pipeline_id, 
             config=pipeline_config
         )
+        logger.info(f"Execution ID: {execution_id}")
         
-        dataflow_engine.run(pipeline_config, execution_id)
+        # 执行 pipeline (run 方法内部已经处理所有异常，总是返回结果)
+        result = dataflow_engine.run(pipeline_config["config"], execution_id)
+        
+        # 更新执行记录到 registry
+        data = container.pipeline_registry._read()
+        if execution_id in data.get("executions", {}):
+            data["executions"][execution_id].update(result)
+            container.pipeline_registry._write(data)
+        
+        return ok(result, message=f"Pipeline execution {result['status']}")
+        
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error(f"Failed to execute pipeline {pipeline_id}: {e}")
-        raise HTTPException(500, f"Failed to execute pipeline: {e}")
-    
-    return ok(initial_result, message="Pipeline execution started")
+        # 导入 DataFlowEngineError 来检查异常类型
+        from app.services.dataflow_engine import DataFlowEngineError
+        
+        if isinstance(e, DataFlowEngineError):
+            # 详细的错误信息
+            error_detail = e.to_dict()
+            logger.error(f"Pipeline execution failed: {e.message}")
+            logger.error(f"Context: {e.context}")
+            if e.traceback_str:
+                logger.error(f"Traceback: {e.traceback_str}")
+            
+            # 如果有 execution_id，更新执行状态为 failed
+            if execution_id:
+                try:
+                    data = container.pipeline_registry._read()
+                    if execution_id in data.get("executions", {}):
+                        data["executions"][execution_id].update({
+                            "status": "failed",
+                            "output": {
+                                "error": e.message,
+                                "context": e.context,
+                                "original_error": str(e.original_error) if e.original_error else None
+                            },
+                            "completed_at": datetime.now().isoformat()
+                        })
+                        container.pipeline_registry._write(data)
+                except Exception as update_error:
+                    logger.error(f"Failed to update execution status: {update_error}")
+            
+            # 返回详细的错误信息给客户端
+            raise HTTPException(
+                status_code=500,
+                detail={
+                    "message": f"Pipeline执行失败: {e.message}",
+                    "error_details": error_detail
+                }
+            )
+        else:
+            # 普通异常
+            logger.error(f"Failed to execute pipeline {pipeline_id}: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
+            raise HTTPException(500, f"Failed to execute pipeline: {str(e)}")
 
 
 @router.get("/execution/{execution_id}", response_model=ApiResponse[PipelineExecutionResult], operation_id="get_execution_result", summary="获取Pipeline执行结果")
