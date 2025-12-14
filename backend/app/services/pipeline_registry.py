@@ -5,7 +5,7 @@ import os
 import ast
 import re
 import hashlib
-from typing import List, Optional, Dict, Any, Tuple
+from typing import List, Optional, Dict, Any, Tuple, Union
 from app.core.logger_setup import get_logger
 from app.core.config import settings
 # from app.services.operator_registry import _op_registry
@@ -124,9 +124,10 @@ class PipelineRegistry:
             self._write(initial_data)
             self._write_execution(initial_data_execution)
     
-    def _find_dataset_id(self, pipeline_file_path: str) -> str:
+    def _find_dataset_id(self, pipeline_file_path: str) -> Union[str, Dict[str, Any]]:
         """
         从pipeline文件中查找first_entry_file_name，并找到对应的数据集ID
+        返回 {"id": "...", "location": [0, 0]} 或 ""
         """
         try:
             if not os.path.exists(pipeline_file_path):
@@ -153,12 +154,12 @@ class PipelineRegistry:
                 all_datasets = container.dataset_registry.list()
                 for ds in all_datasets:
                     if ds.get("root") == rel_path_from_cwd:
-                        return ds.get("id")
+                        return {"id": ds.get("id"), "location": [0, 0]}
                 
                 # 2. 如果没找到，尝试计算ID查找 (作为备选)
                 ds_id = hashlib.md5(rel_path_from_cwd.encode("utf-8")).hexdigest()[:10]
                 if container.dataset_registry.get(ds_id):
-                    return ds_id
+                    return {"id": ds_id, "location": [0, 0]}
                     
         except Exception as e:
             logger.warning(f"Failed to find dataset for pipeline {pipeline_file_path}: {e}")
@@ -245,6 +246,9 @@ class PipelineRegistry:
         
         data = self._read()
         pipelines = list(data.get("pipelines", {}).values())
+        
+        # 按更新时间倒序排序
+        pipelines.sort(key=lambda x: x.get("updated_at", ""), reverse=True)
         
         # 直接返回，因为 pipelines 已经在初始化/更新时 enriched
         return pipelines

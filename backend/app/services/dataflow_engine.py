@@ -140,7 +140,12 @@ class DataFlowEngine:
             logs.append(f"[{datetime.now().isoformat()}] Step 1: Initializing storage...")
             
             try:
-                input_dataset_id = pipeline_config.get("input_dataset")
+                input_dataset = pipeline_config["input_dataset"]
+                if isinstance(input_dataset, dict):
+                    input_dataset_id = input_dataset.get("id")
+                else:
+                    input_dataset_id = input_dataset
+                    
                 if not input_dataset_id:
                     raise DataFlowEngineError(
                         "Pipeline配置缺少input_dataset",
