@@ -20,6 +20,24 @@ logger = get_logger(__name__)
 router = APIRouter(tags=["pipelines"])
 
 # CRUD操作API
+@router.get("/executions", response_model=ApiResponse[List[PipelineExecutionResult]], operation_id="list_executions", summary="列出所有Pipeline执行记录")
+def list_executions():
+    try:
+        print("Where am I?")
+        executions = container.pipeline_registry.list_executions()
+        return ok(executions)
+    except Exception as e:
+        logger.error(f"Failed to list executions: {e}")
+        raise HTTPException(500, f"Failed to list executions: {e}")
+
+@router.get("/execution/{execution_id}", response_model=ApiResponse[PipelineExecutionResult], operation_id="get_execution_result", summary="获取Pipeline执行结果")
+def get_execution_result(execution_id: str):
+    result = container.pipeline_registry.get_execution_result(execution_id)
+    if not result:
+        raise HTTPException(404, f"Execution with id {execution_id} not found")
+    return ok(result)
+
+
 @router.get("/", response_model=ApiResponse[List[PipelineOut]], operation_id="list_pipelines", summary="返回所有注册的Pipeline列表")
 def list_pipelines(request: Request):
     try:
@@ -163,20 +181,3 @@ async def execute_pipeline(request: Request, pipeline_id):
             import traceback
             logger.error(traceback.format_exc())
             raise HTTPException(500, f"Failed to execute pipeline: {str(e)}")
-
-
-@router.get("/execution/{execution_id}", response_model=ApiResponse[PipelineExecutionResult], operation_id="get_execution_result", summary="获取Pipeline执行结果")
-def get_execution_result(execution_id: str):
-    result = container.pipeline_registry.get_execution_result(execution_id)
-    if not result:
-        raise HTTPException(404, f"Execution with id {execution_id} not found")
-    return ok(result)
-
-@router.get("/executions", response_model=ApiResponse[List[PipelineExecutionResult]], operation_id="list_executions", summary="列出所有Pipeline执行记录")
-def list_executions():
-    try:
-        executions = container.pipeline_registry.list_executions()
-        return ok(executions)
-    except Exception as e:
-        logger.error(f"Failed to list executions: {e}")
-        raise HTTPException(500, f"Failed to list executions: {e}")
