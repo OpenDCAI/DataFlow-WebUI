@@ -241,7 +241,7 @@ class PipelineRegistry:
         在返回之前，确保api pipeline的operators列表是最新的
         """
         # 先更新所有api pipeline的operators列表（会自动 enrich）
-        self._update_all_api_pipelines_operators()
+        # self._update_all_api_pipelines_operators()
         
         data = self._read()
         pipelines = list(data.get("pipelines", {}).values())
