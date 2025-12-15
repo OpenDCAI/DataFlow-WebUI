@@ -122,8 +122,10 @@ export default {
         handleConfirm() {
             if (this.addPanelMode === 'add') {
                 this.addPipeline()
-            } else {
+            } else if (this.addPanelMode === 'rename') {
                 this.renamePipeline()
+            } else if (this.addPanelMode === 'custom') {
+                this.$emit('confirm', this.addName)
             }
         },
         addPipeline() {

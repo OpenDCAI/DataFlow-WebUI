@@ -99,6 +99,9 @@ export default {
         }
     },
     watch: {},
+    mounted() {
+        this.$Go('/m')
+    },
     computed: {
         ...mapState(useAppConfig, {
             screenWidth: 'screenWidth'

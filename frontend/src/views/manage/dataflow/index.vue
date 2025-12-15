@@ -106,6 +106,7 @@
                                     'rgba(255, 255, 255, 0.5)',
                                     'rgba(103, 105, 251, 0.6)'
                                 ]"
+                                @click="executePipeline"
                             >
                                 {{ this.local('Run') }}
                             </fv-button>
@@ -177,6 +178,12 @@
                 }}</fv-button
             >
         </fv-right-menu>
+        <pipelinePanel
+            v-model="show.pipelinePanel"
+            :add-panel-mode="'custom'"
+            :title="local('Pipeline')"
+            @confirm="addPipeline"
+        ></pipelinePanel>
     </div>
 </template>
 
@@ -190,6 +197,7 @@ import { useEdgeSync } from '@/hooks/dataflow/useEdgeSync'
 
 import mainFlow from '@/components/manage/mainFlow/index.vue'
 import pipeline from '@/components/manage/mainFlow/pipeline/index.vue'
+import pipelinePanel from '@/components/manage/mainFlow/panels/piplinePanel.vue'
 import datasetPanel from '@/components/manage/mainFlow/panels/datasetPanel/index.vue'
 import operatorPanel from '@/components/manage/mainFlow/panels/operatorPanel.vue'
 import pageLoading from '@/components/general/pageLoading.vue'
@@ -204,6 +212,7 @@ export default {
     components: {
         mainFlow,
         pipeline,
+        pipelinePanel,
         datasetPanel,
         operatorPanel,
         pageLoading,
@@ -240,7 +249,7 @@ export default {
                     name: () => this.local('Save'),
                     img: saveIcon,
                     func: () => {
-                        this.sortAndSavePipeline()
+                        this.handleSaveClick()
                     }
                 }
             ],
@@ -299,6 +308,7 @@ export default {
             show: {
                 dataset: false,
                 pipeline: false,
+                pipelinePanel: false,
                 operator: false,
                 serving: false
             },
@@ -412,7 +422,7 @@ export default {
                 }
             }
         },
-        sortAndSavePipeline() {
+        sortPipeline() {
             let flow = useVueFlow(this.flowId)
             let nodeMap = {}
             flow.nodes.value.forEach((node) => {
@@ -465,6 +475,22 @@ export default {
                     location: [oriNode.position.x, oriNode.position.y]
                 })
             })
+            return nodeOperators
+        },
+        handleSaveClick() {
+            if (this.currentPipeline && this.currentPipeline.id) this.savePipeline()
+            else {
+                this.show.pipelinePanel = true
+            }
+        },
+        savePipeline() {
+            if (!this.sourceDatabase) {
+                this.$barWarning(this.local('Please select a dataset'), {
+                    status: 'warning'
+                })
+                return
+            }
+            let nodeOperators = this.sortPipeline()
             this.$api.pipelines
                 .update_pipeline(this.currentPipeline.id, {
                     name: this.currentPipeline.name,
@@ -482,6 +508,47 @@ export default {
                         })
                     }
                 })
+        },
+        addPipeline(name) {
+            if (!this.sourceDatabase) {
+                this.$barWarning(this.local('Please select a dataset'), {
+                    status: 'warning'
+                })
+                return
+            }
+            let nodeOperators = this.sortPipeline()
+            this.$api.pipelines
+                .create_pipeline({
+                    name: name,
+                    config: {
+                        file_path: '',
+                        input_dataset: this.sourceDatabase.id,
+                        operators: nodeOperators
+                    }
+                })
+                .then((res) => {
+                    if (res.code === 200) {
+                        this.getPipelines()
+                        this.$barWarning(this.local('Pipeline has been created'), {
+                            status: 'correct'
+                        })
+                    }
+                })
+        },
+        executePipeline() {
+            if (!this.currentPipeline || !this.currentPipeline.id) {
+                this.$barWarning(this.local('Please select a pipeline'), {
+                    status: 'warning'
+                })
+                return
+            }
+            this.$api.pipelines.execute_pipeline(this.currentPipeline.id).then((res) => {
+                if (res.code === 200) {
+                    this.$barWarning(this.local('Pipeline has been executed'), {
+                        status: 'correct'
+                    })
+                }
+            })
         },
         onConnect(connection) {
             const { source, sourceHandle, target, targetHandle } = connection
