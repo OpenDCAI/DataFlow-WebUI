@@ -233,8 +233,8 @@ export default {
             const flow = useVueFlow(this.flowId)
             const { screenToFlowCoordinate } = useVueFlow(this.flowId)
             const position = screenToFlowCoordinate({
-                x: data.location[0],
-                y: data.location[1] + parseInt(5 * Math.random())
+                x: data.location.x,
+                y: data.location.y + parseInt(5 * Math.random())
             })
             const newNode = {
                 id: data.nodeId,
@@ -266,13 +266,17 @@ export default {
                 x: 1300,
                 y: 160
             }
-            let dataset = this.datasets.find((item) => item.id === input_dataset)
+            let dataset = this.datasets.find((item) => item.id === input_dataset.id)
             if (!dataset) {
                 this.thisLoading = true
                 this.$barWarning(this.local('Input dataset not found'), {
                     status: 'warning'
                 })
-            } else this.$emit('confirm-dataset', dataset)
+            } else {
+                dataset = Object.assign({}, dataset)
+                dataset.location = input_dataset.location
+                this.$emit('confirm-dataset', dataset)
+            }
             let formatOperators = []
             let promiseList = []
             // 在这里的设计是为了保险起见还是重新获取所有operator的预定义参数, 然后结合当前pipeline获取的参数进行合并, 然而当前事实上其实还是直接用了当前pipeline获取的参数, 后续若有需求再考虑是否需要修改
@@ -301,7 +305,13 @@ export default {
             await Promise.all(promiseList)
             formatOperators.sort((a, b) => a.pipeline_idx - b.pipeline_idx)
             formatOperators.forEach((item, idx) => {
-                if (item.location[0] === 0 || item.location[1] === 0)
+                if (Array.isArray(item.location)) {
+                    item.location = {
+                        x: item.location[0],
+                        y: item.location[1]
+                    }
+                }
+                if (item.location.x === 0 || item.location.y === 0)
                     item.location = {
                         x: idx === 0 ? basicPos.x : formatOperators[idx - 1].location.x + 350,
                         y: basicPos.y

@@ -4,7 +4,7 @@ let ax = axios.create();
 
 // config here
 if (process.env.NODE_ENV == 'production') {
-    ax.defaults.baseURL = '/api';
+    ax.defaults.baseURL = 'http://127.0.0.1:8000';
 } else {
     ax.defaults.baseURL = '/api';
 }

@@ -376,10 +376,15 @@ export default {
                     ...this.sourceDatabase
                 })
             } else {
+                let position = { x: 500, y: 160 }
+                if (this.sourceDatabase.location) {
+                    position.x = this.sourceDatabase.location[0]
+                    position.y = this.sourceDatabase.location[1]
+                }
                 flow.addNodes({
                     id: 'db-node',
                     type: 'database-node',
-                    position: { x: 500, y: 160 },
+                    position,
                     data: {
                         flowId: this.flowId,
                         label: this.sourceDatabase.name,
@@ -491,12 +496,17 @@ export default {
                 return
             }
             let nodeOperators = this.sortPipeline()
+            const flow = useVueFlow(this.flowId)
+            let dbNode = flow.findNode('db-node')
             this.$api.pipelines
                 .update_pipeline(this.currentPipeline.id, {
                     name: this.currentPipeline.name,
                     config: {
                         file_path: this.currentPipeline.config.file_path,
-                        input_dataset: this.sourceDatabase.id,
+                        input_dataset: {
+                            id: this.sourceDatabase.id,
+                            location: [dbNode.position.x, dbNode.position.y]
+                        },
                         operators: nodeOperators
                     }
                 })
@@ -517,12 +527,17 @@ export default {
                 return
             }
             let nodeOperators = this.sortPipeline()
+            const flow = useVueFlow(this.flowId)
+            let dbNode = flow.findNode('db-node')
             this.$api.pipelines
                 .create_pipeline({
                     name: name,
                     config: {
                         file_path: '',
-                        input_dataset: this.sourceDatabase.id,
+                        input_dataset: {
+                            id: this.sourceDatabase.id,
+                            location: [dbNode.position.x, dbNode.position.y]
+                        },
                         operators: nodeOperators
                     }
                 })
