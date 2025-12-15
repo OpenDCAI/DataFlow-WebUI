@@ -4,6 +4,7 @@ from fastapi import APIRouter, HTTPException, BackgroundTasks, Request
 from app.schemas.pipelines import (
     PipelineIn,
     PipelineOut,
+    PipelineUpdateIn,
     PipelineExecutionRequest, 
     PipelineExecutionResult
 )
@@ -76,9 +77,9 @@ def get_pipeline(pipeline_id: str):
     return ok(pipeline)
 
 @router.put("/{pipeline_id}", response_model=ApiResponse[PipelineOut], operation_id="update_pipeline", summary="更新指定的Pipeline")
-def update_pipeline(pipeline_id: str, payload: PipelineIn):
+def update_pipeline(pipeline_id: str, payload: PipelineUpdateIn):
     try:
-        pipeline_in_data = payload.model_dump()
+        pipeline_in_data = payload.model_dump(exclude_unset=True)
 
         # operators = pipeline_in_data.get("config", {}).get("operators", [])
         # for op in operators:
