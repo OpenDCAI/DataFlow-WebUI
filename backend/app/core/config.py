@@ -4,10 +4,13 @@ class Settings(BaseSettings):
     # 基本
     ENV: str = "dev"
     CORS_ORIGINS:list[str] = [
-        "http://127.0.0.1:60081",
-        "http://localhost:60081",
-        "http://localhost",
-        "http://127.0.0.1"
+        # "http://127.0.0.1:60081",
+        # "http://localhost:60081",
+        # "http://127.0.0.1:60082",
+        # "http://localhost:60082",
+        # "http://localhost",
+        # "http://127.0.0.1",
+        # # "*"
     ]
     DATA_REGISTRY: str = "data/data_registry.yaml" #
     TASK_REGISTRY: str = "data/task_registry.yaml"

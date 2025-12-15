@@ -13,8 +13,9 @@ def create_app() -> FastAPI:
     app = FastAPI(title="DataFlow Backend", version="1.0.0")
     app.include_router(api_v1, prefix="/api/v1")
     app.add_middleware(
-    CORSMiddleware,
-        allow_origins=settings.CORS_ORIGINS,
+        CORSMiddleware,
+        # allow_origins=settings.CORS_ORIGINS,
+        allow_origin_regex=r"https?://(localhost|127\.0\.0\.1)(:\d+)?$",
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
