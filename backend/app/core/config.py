@@ -7,7 +7,9 @@ class Settings(BaseSettings):
     TASK_REGISTRY: str = "data/task_registry.yaml"
     PIPELINE_REGISTRY: str = "data/pipeline_registry.yaml"
     SERVING_REGISTRY: str = "data/serving_registry.yaml"
+    TEXT2SQL_DATABASE_REGISTRY: str = "data/text2sql_database_registry.yaml"
     DATAFLOW_CORE_DIR: str = "data/dataflow_core"
     OPS_JSON_PATH: str = "data/ops.json"  # op information cache
+    SQLITE_DB_DIR: str = "data/text2sql_dbs"
 
 settings = Settings()

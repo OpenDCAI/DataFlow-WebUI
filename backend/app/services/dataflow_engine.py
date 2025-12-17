@@ -89,6 +89,11 @@ class DataFlowEngine:
                         serving_instance_map[serving_id] = self.init_serving_instance(serving_id)
                     serving_instance = serving_instance_map[serving_id]
                     param["value"] = serving_instance
+
+                if param["name"] == "database_manager":
+                    selected_db_ids = param["value"]
+                    param["value"] = container.text2sql_database_registry.get_manager(selected_db_ids)
+
                 if param["name"] == "prompt_template":
                     # prompt_template is a string ( <class 'dataflow.prompts.GeneralQuestionFilterPrompt'> ), we need to convert it to a instance 
                     prompt_cls_name = extract_class_name(param["value"])

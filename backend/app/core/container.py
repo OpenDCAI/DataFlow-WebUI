@@ -11,6 +11,7 @@ class AppContainer:
         self.serving_registry = None
         self.task_registry = None
         self.pipeline_registry = None
+        self.text2sql_database_registry = None
         self.dataset_visualize_service = None
 
     def init(self):
@@ -20,6 +21,7 @@ class AppContainer:
         from app.services.prompt_registry import PromptRegistry
         from app.services.serving_registry import ServingRegistry
         from app.services.task_registry import TaskRegistry
+        from app.services.text2sql_database_register import Text2SQLDatabaseRegistry
 
 
         # 初始化顺序在这里完全由你控制
@@ -30,6 +32,7 @@ class AppContainer:
         self.serving_registry = ServingRegistry()
         self.task_registry = TaskRegistry()
         self.pipeline_registry = PipelineRegistry()
+        self.text2sql_database_registry = Text2SQLDatabaseRegistry()
 
 
 
