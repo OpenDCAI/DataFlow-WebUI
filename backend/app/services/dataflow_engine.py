@@ -1,4 +1,5 @@
 from dataflow.serving import APILLMServing_request
+from dataflow.utils.text2sql.database_manager import DatabaseManager
 from dataflow.utils.storage import FileStorage
 from dataflow.pipeline import PipelineABC
 from dataflow.utils.registry import PROMPT_REGISTRY, OPERATOR_REGISTRY
@@ -67,9 +68,16 @@ class DataFlowEngine:
             os.environ[key_name_var] = api_key_val
             serving_instance = SERVING_CLS_REGISTRY[serving_info['cls_name']](**params_dict)
         return serving_instance
+
+    def init_database_manager(self, db_manager_id: str) -> DatabaseManager:
+        db_manager_info = container.text2sql_database_manager_registry._get(db_manager_id)
+        db_manager_instance = DatabaseManager(db_type=db_manager_info['db_type'], config=db_manager_info['config'])
+        db_manager_instance.databases = {db_id: info for db_id, info in db_manager_instance.databases.items() if db_id in db_manager_info['selected_db_ids']}
+        return db_manager_instance
     
     def run(self, pipeline_config, execution_id: str) -> str:
         serving_instance_map: Dict[str, APILLMServing_request] = {}
+        db_manager_instance_map: Dict[str, DatabaseManager] = {}
         dataset = container.dataset_registry.get(pipeline_config["input_dataset"])
         storage = FileStorage(
             first_entry_file_name=dataset["root"],
@@ -91,8 +99,11 @@ class DataFlowEngine:
                     param["value"] = serving_instance
 
                 if param["name"] == "database_manager":
-                    selected_db_ids = param["value"]
-                    param["value"] = container.text2sql_database_registry.get_manager(selected_db_ids)
+                    db_manager_id = param.get("value")
+                    if db_manager_id not in db_manager_instance_map:
+                        db_manager_instance_map[db_manager_id] = self.init_database_manager(db_manager_id)
+                    database_manager_instance = db_manager_instance_map[db_manager_id]
+                    param["value"] = database_manager_instance
 
                 if param["name"] == "prompt_template":
                     # prompt_template is a string ( <class 'dataflow.prompts.GeneralQuestionFilterPrompt'> ), we need to convert it to a instance 
