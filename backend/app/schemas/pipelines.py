@@ -46,10 +46,15 @@ class PipelineOperator(BaseModel): # 画布上的pipeline类
     #         # 后续可以补充从可用算子集中验证算子名称是否存在
     #     return v
 
+class PipelineInputDataset(BaseModel):
+    """Pipeline输入数据集模型"""
+    id: str = Field(..., description="数据集ID")
+    location: tuple[float, float] = Field(default=(0, 0), description="数据集在画布上的位置")
+
 class PipelineConfig(BaseModel):
     """Pipeline配置模型"""
     file_path: str = Field(..., description="Pipeline文件路径")
-    input_dataset: str = Field(..., description="输入数据集ID")
+    input_dataset: Union[str, PipelineInputDataset] = Field(..., description="输入数据集ID或配置")
     # 用 list 的顺序代表算子执行顺序
     operators: List[PipelineOperator] = Field(default_factory=list, description="算子执行序列")
     
@@ -66,7 +71,12 @@ class PipelineIn(BaseModel):
     name: str = Field(..., description="Pipeline名称")
     config: PipelineConfig = Field(..., description="Pipeline详细配置")
     tags: List[str] = Field(default_factory=list, description="标签列表，用于分类和搜索")
-
+    
+class PipelineUpdateIn(BaseModel):
+    """更新Pipeline的请求模型"""
+    name: Optional[str] = Field(None, description="Pipeline名称")
+    config: Optional[PipelineConfig] = Field(None, description="Pipeline详细配置")
+    tags: Optional[List[str]] = Field(None, description="标签列表，用于分类和搜索")
 
 class PipelineOut(BaseModel):
     """Pipeline响应模型, 包含完整信息"""

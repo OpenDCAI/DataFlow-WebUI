@@ -2,11 +2,10 @@ import json
 import uuid
 import datetime
 import os
-import yaml
 import ast
 import re
 import hashlib
-from typing import List, Optional, Dict, Any, Tuple
+from typing import List, Optional, Dict, Any, Tuple, Union
 from app.core.logger_setup import get_logger
 from app.core.config import settings
 # from app.services.operator_registry import _op_registry
@@ -22,20 +21,44 @@ class PipelineRegistry:
         加载api_pipelines目录中的所有py文件并提取operator执行顺序
         """
         self.path = path or settings.PIPELINE_REGISTRY
+        self.execution_path = settings.PIPELINE_EXECUTION_PATH
+
         self._ensure()
         # 初始化后，更新所有api pipeline的operators列表
         self._update_all_api_pipelines_operators()
     
+    def _read(self) -> Dict:
+        """读取注册表文件"""
+        with open(self.path, "r", encoding="utf-8") as f:
+            return json.load(f) or {"pipelines": {}}
+    
+    def _read_execution(self) -> Dict:
+        """读取执行记录文件"""
+        with open(self.execution_path, "r", encoding="utf-8") as f:
+            return json.load(f) or {"executions": {}}
+
+    def _write(self, data: Dict):
+        """写入注册表文件"""
+        with open(self.path, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2)    
+
+    def _write_execution(self, data: Dict):
+        """写入执行记录文件"""
+        with open(self.execution_path, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2)  
+
     def _ensure(self):
         """
         确保注册表文件存在，并加载api_pipelines目录中的所有py文件
         """
-        logger.info("初始化Pipeline Registry的注册表...")
-        if not os.path.exists(self.path):
+        logger.info("初始化Pipeline Registry的注册表和执行结果表...")
+        if not os.path.exists(self.path) or not os.path.exists(self.execution_path):
             os.makedirs(os.path.dirname(self.path), exist_ok=True)
-            
+            os.makedirs(os.path.dirname(self.execution_path), exist_ok=True)
+
             # 创建初始数据结构
-            initial_data = {"pipelines": {}, "executions": {}}
+            initial_data = {"pipelines": {}}
+            initial_data_execution = {"executions": {}}
             
             # 尝试加载api_pipelines目录中的py文件
             try:
@@ -98,12 +121,13 @@ class PipelineRegistry:
                 # 即使出错，仍然创建基本的注册表文件
             
             # 写入初始数据到文件
-            with open(self.path, "w", encoding="utf-8") as f:
-                yaml.safe_dump(initial_data, f, allow_unicode=True)
+            self._write(initial_data)
+            self._write_execution(initial_data_execution)
     
-    def _find_dataset_id(self, pipeline_file_path: str) -> str:
+    def _find_dataset_id(self, pipeline_file_path: str) -> Union[str, Dict[str, Any]]:
         """
         从pipeline文件中查找first_entry_file_name，并找到对应的数据集ID
+        返回 {"id": "...", "location": [0, 0]} 或 ""
         """
         try:
             if not os.path.exists(pipeline_file_path):
@@ -130,12 +154,12 @@ class PipelineRegistry:
                 all_datasets = container.dataset_registry.list()
                 for ds in all_datasets:
                     if ds.get("root") == rel_path_from_cwd:
-                        return ds.get("id")
+                        return {"id": ds.get("id"), "location": [0, 0]}
                 
                 # 2. 如果没找到，尝试计算ID查找 (作为备选)
                 ds_id = hashlib.md5(rel_path_from_cwd.encode("utf-8")).hexdigest()[:10]
                 if container.dataset_registry.get(ds_id):
-                    return ds_id
+                    return {"id": ds_id, "location": [0, 0]}
                     
         except Exception as e:
             logger.warning(f"Failed to find dataset for pipeline {pipeline_file_path}: {e}")
@@ -190,17 +214,7 @@ class PipelineRegistry:
             if updated:
                 self._write(data)
         except Exception as e:
-            logger.error(f"Error updating API pipeline operators: {e}", exc_info=True)
-    
-    def _read(self) -> Dict:
-        """读取注册表文件"""
-        with open(self.path, "r", encoding="utf-8") as f:
-            return yaml.safe_load(f) or {"pipelines": {}, "executions": {}}
-    
-    def _write(self, data: Dict):
-        """写入注册表文件"""
-        with open(self.path, "w", encoding="utf-8") as f:
-            yaml.safe_dump(data, f, allow_unicode=True, sort_keys=False)
+            logger.error(f"Error updating API pipeline operators: {e}", exc_info=True)  
     
     def _parse_frontend_params(self, params_list):
         """
@@ -228,10 +242,13 @@ class PipelineRegistry:
         在返回之前，确保api pipeline的operators列表是最新的
         """
         # 先更新所有api pipeline的operators列表（会自动 enrich）
-        self._update_all_api_pipelines_operators()
+        # self._update_all_api_pipelines_operators()
         
         data = self._read()
         pipelines = list(data.get("pipelines", {}).values())
+        
+        # 按更新时间倒序排序
+        pipelines.sort(key=lambda x: x.get("updated_at", ""), reverse=True)
         
         # 直接返回，因为 pipelines 已经在初始化/更新时 enriched
         return pipelines
@@ -443,15 +460,15 @@ class PipelineRegistry:
         }
                 
         # 直接保存到文件
-        data = self._read()
+        data = self._read_execution()
         data["executions"][execution_id] = initial_result
-        self._write(data)
+        self._write_execution(data)
         
         return execution_id, pipeline_config, initial_result
     
     def get_execution_result(self, execution_id: str) -> Optional[Dict[str, Any]]:
         """获取Pipeline执行结果"""
-        data = self._read()
+        data = self._read_execution()
         execution_data = data.get("executions", {}).get(execution_id)
         if execution_data:
             return execution_data.copy()  # 返回副本避免修改原数据
@@ -459,7 +476,7 @@ class PipelineRegistry:
     
     def list_executions(self) -> List[Dict[str, Any]]:
         """列出所有Pipeline执行记录"""
-        data = self._read()
+        data = self._read_execution()
         # 直接返回字典列表，不需要转换为对象
         return list(data.get("executions", {}).values())
 

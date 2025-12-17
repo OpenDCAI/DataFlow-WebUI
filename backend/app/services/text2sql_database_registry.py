@@ -164,6 +164,16 @@ class Text2SQLDatabaseRegistry:
         self._write_all(data)
         return True
 
+    def get_manager(self, selected_db_ids: Optional[List[str]] = None):
+        if DatabaseManager is None:
+            raise RuntimeError("dataflow.utils.text2sql.DatabaseManager is not available in this environment")
+
+        mgr = DatabaseManager(db_type="sqlite", config={"root_path": self.sqlite_root})
+        if selected_db_ids is not None:
+            allow = set(selected_db_ids)
+            mgr.databases = {db_id: info for db_id, info in mgr.databases.items() if db_id in allow}
+        return mgr
+
 
 class Text2SQLDatabaseManagerRegistry:
     """
