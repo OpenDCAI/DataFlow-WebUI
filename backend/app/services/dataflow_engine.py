@@ -252,7 +252,7 @@ class DataFlowEngine:
                                     serving_instance_map[serving_id] = self.init_serving_instance(serving_id)
                                 param_value = serving_instance_map[serving_id]
 
-                            if param_name == "database_manager":
+                            elif param_name == "database_manager":
                                 dm_val = param_value
                                 if isinstance(dm_val, list) or dm_val is None:
                                     cache_key = tuple(dm_val) if isinstance(dm_val, list) else None

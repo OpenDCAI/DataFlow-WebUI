@@ -1,4 +1,6 @@
+import os
 import sqlite3
+from datetime import datetime
 from pathlib import Path
 
 import pytest
@@ -96,6 +98,14 @@ def test_sqlite_upload_list_get_delete(client: TestClient, tmp_path: Path):
     assert r.status_code == 404
 
 
+def test_sqlite_upload_rejects_empty_file(client: TestClient):
+    r = client.post(
+        "/api/v1/text2sql_database/upload",
+        files={"file": ("empty.sqlite", b"", "application/octet-stream")},
+    )
+    assert r.status_code == 400
+
+
 def test_sqlite_upload_rejects_non_sqlite_content(client: TestClient):
     r = client.post(
         "/api/v1/text2sql_database/upload",
@@ -118,6 +128,24 @@ def test_sqlite_get_and_delete_nonexistent(client: TestClient):
     assert r.status_code == 404
     r = client.delete("/api/v1/text2sql_database/does_not_exist")
     assert r.status_code == 404
+
+
+def test_sqlite_filename_is_sanitized_and_delete_removes_files(client: TestClient, tmp_path: Path):
+    b = _make_sqlite_bytes(tmp_path / "san")
+    # include path traversal-like name; backend should sanitize to basename
+    db_id = _upload_db(client, "../../evil.sqlite", b, name="evil")
+
+    item = container.text2sql_database_registry._get(db_id)
+    assert item is not None
+    assert item["file_name"] == "evil.sqlite"
+
+    file_path = item["path"]
+    assert os.path.exists(file_path)
+
+    # delete via API
+    r = client.delete(f"/api/v1/text2sql_database/{db_id}")
+    assert r.status_code == 200
+    assert not os.path.exists(file_path)
 
 
 def test_database_manager_crud(client: TestClient, tmp_path: Path):
@@ -160,6 +188,9 @@ def test_database_manager_crud(client: TestClient, tmp_path: Path):
     mgr = r.json()["data"]
     assert mgr["id"] == mgr_id
     assert mgr["selected_db_ids"] == [db1, db2]
+    assert mgr.get("created_at") is not None
+    # basic sanity: isoformat parseable
+    datetime.fromisoformat(mgr["created_at"])
 
     r = client.put(
         f"/api/v1/text2sql_database_manager/{mgr_id}",
@@ -272,6 +303,27 @@ def test_database_manager_empty_selection_results_in_empty_runtime_manager(clien
     cfg = container.text2sql_database_manager_registry._get(mgr_id)
     mgr = container.text2sql_database_registry.get_manager(cfg["selected_db_ids"])
     assert set(mgr.databases.keys()) == set()
+
+
+def test_deleting_db_makes_runtime_subset_drop_missing_db(client: TestClient, tmp_path: Path):
+    """
+    Realistic behavior: a manager config might still reference a db_id that has been deleted.
+    Runtime DatabaseManager is discovered from sqlite_root, so deleted db_id won't exist in `.databases`.
+    """
+    db1 = _upload_db(client, "a.sqlite", _make_sqlite_bytes(tmp_path / "a"))
+    db2 = _upload_db(client, "b.sqlite", _make_sqlite_bytes(tmp_path / "b"))
+    mgr_id = client.post(
+        "/api/v1/text2sql_database_manager/",
+        json={"name": "mgr", "cls_name": "DatabaseManager", "db_type": "sqlite", "selected_db_ids": [db1, db2]},
+    ).json()["data"]["id"]
+
+    # delete one db
+    r = client.delete(f"/api/v1/text2sql_database/{db2}")
+    assert r.status_code == 200
+
+    # runtime manager should only contain existing dbs
+    mgr = DataFlowEngine().init_database_manager(mgr_id)
+    assert set(mgr.databases.keys()) == {db1}
 
 
 def test_engine_database_manager_injection_supports_manager_id_and_list(client: TestClient, tmp_path: Path, monkeypatch):
@@ -489,5 +541,67 @@ def test_engine_database_manager_none_uses_all(client: TestClient, tmp_path: Pat
     )
 
     assert {db1, db2}.issubset(observed[0])
+
+
+def test_engine_database_manager_caches_instances_for_repeated_values(client: TestClient, tmp_path: Path, monkeypatch):
+    """
+    Ensure engine caching works: for the same list/None value across multiple operators,
+    registry.get_manager should be called once and the same object reused.
+    """
+    import app.services.dataflow_engine as df_engine_mod
+
+    # Upload 2 dbs so sqlite_root discovery isn't empty (though we mock get_manager anyway)
+    _upload_db(client, "a.sqlite", _make_sqlite_bytes(tmp_path / "a"))
+    _upload_db(client, "b.sqlite", _make_sqlite_bytes(tmp_path / "b"))
+
+    class _DummyDatasetRegistry:
+        def get(self, dataset_id: str):
+            return {"root": "dummy_input_root"}
+
+    container.dataset_registry = _DummyDatasetRegistry()
+
+    class _DummyStorage:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def step(self):
+            return object()
+
+    monkeypatch.setattr(df_engine_mod, "FileStorage", _DummyStorage)
+
+    call_count = {"n": 0}
+
+    def fake_get_manager(selected_db_ids):
+        call_count["n"] += 1
+        return object()
+
+    monkeypatch.setattr(container.text2sql_database_registry, "get_manager", fake_get_manager)
+
+    seen_ids: list[int] = []
+
+    class DummyOp:
+        def __init__(self, database_manager=None):
+            seen_ids.append(id(database_manager))
+
+        def run(self, storage=None, **kwargs):
+            return None
+
+    monkeypatch.setattr(df_engine_mod.OPERATOR_REGISTRY, "get", lambda name: DummyOp)
+
+    engine = DataFlowEngine()
+    engine.run(
+        {
+            "input_dataset": "ds1",
+            "operators": [
+                {"name": "DummyOp", "params": {"init": [{"name": "database_manager", "value": ["x", "y"]}], "run": []}},
+                {"name": "DummyOp", "params": {"init": [{"name": "database_manager", "value": ["x", "y"]}], "run": []}},
+            ],
+        },
+        execution_id="exec_cache",
+    )
+
+    assert call_count["n"] == 1
+    assert len(seen_ids) == 2
+    assert seen_ids[0] == seen_ids[1]
 
 
