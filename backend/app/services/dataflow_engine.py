@@ -71,13 +71,28 @@ class DataFlowEngine:
 
     def init_database_manager(self, db_manager_id: str) -> DatabaseManager:
         db_manager_info = container.text2sql_database_manager_registry._get(db_manager_id)
-        db_manager_instance = DatabaseManager(db_type=db_manager_info['db_type'], config=db_manager_info['config'])
-        db_manager_instance.databases = {db_id: info for db_id, info in db_manager_instance.databases.items() if db_id in db_manager_info['selected_db_ids']}
+        if not db_manager_info:
+            raise ValueError(f"database_manager config not found: {db_manager_id}")
+
+        db_type = db_manager_info.get("db_type") or "sqlite"
+        config = db_manager_info.get("config")
+
+        if config is None:
+            if db_type == "sqlite":
+                config = {"root_path": container.text2sql_database_registry.sqlite_root}
+            else:
+                raise KeyError("config")
+
+        db_manager_instance = DatabaseManager(db_type=db_type, config=config)
+        selected = db_manager_info.get("selected_db_ids") or []
+        db_manager_instance.databases = {
+            db_id: info for db_id, info in db_manager_instance.databases.items() if db_id in selected
+        }
         return db_manager_instance
     
     def run(self, pipeline_config, execution_id: str) -> str:
         serving_instance_map: Dict[str, APILLMServing_request] = {}
-        db_manager_instance_map: Dict[str, DatabaseManager] = {}
+        db_manager_instance_map: Dict[Any, DatabaseManager] = {}
         dataset = container.dataset_registry.get(pipeline_config["input_dataset"])
         storage = FileStorage(
             first_entry_file_name=dataset["root"],
@@ -99,11 +114,17 @@ class DataFlowEngine:
                     param["value"] = serving_instance
 
                 if param["name"] == "database_manager":
-                    db_manager_id = param.get("value")
-                    if db_manager_id not in db_manager_instance_map:
-                        db_manager_instance_map[db_manager_id] = self.init_database_manager(db_manager_id)
-                    database_manager_instance = db_manager_instance_map[db_manager_id]
-                    param["value"] = database_manager_instance
+                    dm_val = param.get("value")
+                    if isinstance(dm_val, list) or dm_val is None:
+                        cache_key = tuple(dm_val) if isinstance(dm_val, list) else None
+                        if cache_key not in db_manager_instance_map:
+                            db_manager_instance_map[cache_key] = container.text2sql_database_registry.get_manager(dm_val)
+                        param["value"] = db_manager_instance_map[cache_key]
+                    else:
+                        db_manager_id = dm_val
+                        if db_manager_id not in db_manager_instance_map:
+                            db_manager_instance_map[db_manager_id] = self.init_database_manager(db_manager_id)
+                        param["value"] = db_manager_instance_map[db_manager_id]
 
                 if param["name"] == "prompt_template":
                     # prompt_template is a string ( <class 'dataflow.prompts.GeneralQuestionFilterPrompt'> ), we need to convert it to a instance 
