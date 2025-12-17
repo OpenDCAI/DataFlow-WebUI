@@ -19,5 +19,6 @@ class Settings(BaseSettings):
     DATAFLOW_CORE_DIR: str = "data/dataflow_core"
     OPS_JSON_PATH: str = "data/ops.json"  # op information cache
     PIPELINE_EXECUTION_PATH: str = "data/pipeline_execution.json"
+    DEFAULT_SERVING_FILLING: bool = True
 
 settings = Settings()

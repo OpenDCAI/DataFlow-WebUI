@@ -4,9 +4,10 @@ from dataflow.pipeline import PipelineABC
 from dataflow.utils.registry import PROMPT_REGISTRY, OPERATOR_REGISTRY
 from dataclasses import dataclass
 from app.services.serving_registry import SERVING_CLS_REGISTRY
+from app.core.config import settings
 from app.core.container import container
 from app.core.logger_setup import get_logger
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 import os
 import traceback
 from datetime import datetime
@@ -63,22 +64,37 @@ class DataFlowEngine:
     def __init__(self):
         self.execution_map : Dict[str, ExecutionStatus] = {}
         
-    def init_serving_instance(self, serving_id: str) -> APILLMServing_request:
+    def init_serving_instance(self, serving_id: Any) -> APILLMServing_request:
         """初始化 Serving 实例"""
         try:
             params_dict = {}
-            serving_info = container.serving_registry._get(serving_id)
-            
-            if not serving_info:
-                raise DataFlowEngineError(
-                    f"Serving配置未找到",
-                    context={"serving_id": serving_id}
-                )
+            if serving_id is None:
+                if settings.DEFAULT_SERVING_FILLING:
+                    # Get The first serving in SERVING_REGISTRY
+                    all_servings = container.serving_registry._get_all()
+                    if not all_servings:
+                        raise DataFlowEngineError(
+                            f"没有可用的Serving配置",
+                            context={"serving_id": serving_id}
+                        )
+                    # Get the first serving ID from the dictionary
+                    first_serving_id = next(iter(all_servings))
+                    serving_info = container.serving_registry._get(first_serving_id)
+                    logger.info(f"Using default serving: {first_serving_id}", serving_info)
+                else:
+                    raise DataFlowEngineError(
+                        f"Serving配置未找到",
+                        context={"serving_id": serving_id}
+                    )
+            else:
+                serving_info = container.serving_registry._get(serving_id)
             
             ## This part of code is only for APILLMServing_request
             if serving_info['cls_name'] == 'APILLMServing_request':
                 api_key_val = None
-                key_name_var = f"DF_API_KEY_{serving_id}"
+                # Use the serving_id from serving_info (set by _get method)
+                actual_serving_id = serving_info.get('id', serving_id)
+                key_name_var = f"DF_API_KEY_{actual_serving_id}"
                 
                 # First pass: find values
                 for params in serving_info['params']:
