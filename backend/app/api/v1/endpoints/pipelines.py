@@ -50,6 +50,18 @@ def list_pipelines(request: Request):
         logger.error(f"Failed to list pipelines: {str(e)}", exc_info=True)
         raise HTTPException(500, f"Failed to list pipelines: {str(e)}")
 
+
+@router.get("/templates", response_model=ApiResponse[List[PipelineOut]], operation_id="list_template_pipelines", summary="返回所有预置(template) Pipeline列表")
+def list_template_pipelines(request: Request):
+    try:
+        logger.info(f"Request: {request.method} {request.url.path}")
+        pipelines = container.pipeline_registry.list_templates()
+        logger.info(f"Successfully listed {len(pipelines)} template pipelines")
+        return ok(pipelines)
+    except Exception as e:
+        logger.error(f"Failed to list template pipelines: {str(e)}", exc_info=True)
+        raise HTTPException(500, f"Failed to list template pipelines: {str(e)}")
+
 @router.post("/", response_model=ApiResponse[PipelineOut], operation_id="create_pipeline", summary="创建一个新的Pipeline")
 def create_pipeline(request: Request, payload: PipelineIn):
     try:
