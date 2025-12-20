@@ -1,4 +1,5 @@
 from dataflow.serving import APILLMServing_request
+from dataflow.utils.text2sql.database_manager import DatabaseManager
 from dataflow.utils.storage import FileStorage
 from dataflow.pipeline import PipelineABC
 from dataflow.utils.registry import PROMPT_REGISTRY, OPERATOR_REGISTRY
@@ -130,6 +131,28 @@ class DataFlowEngine:
                 },
                 original_error=e
             )
+
+    def init_database_manager(self, db_manager_id: str) -> DatabaseManager:
+        db_manager_info = container.text2sql_database_manager_registry._get(db_manager_id)
+        if not db_manager_info:
+            raise ValueError(f"database_manager config not found: {db_manager_id}")
+
+        db_type = db_manager_info.get("db_type") or "sqlite"
+        config = db_manager_info.get("config")
+
+        if config is None:
+            if db_type == "sqlite":
+                config = {"root_path": container.text2sql_database_registry.sqlite_root}
+            else:
+                raise KeyError("config")
+
+        db_manager_instance = DatabaseManager(db_type=db_type, config=config)
+        selected = db_manager_info.get("selected_db_ids") or []
+        db_manager_instance.databases = {
+            db_id: info for db_id, info in db_manager_instance.databases.items() if db_id in selected
+        }
+        return db_manager_instance
+
     
     def run(self, pipeline_config: Dict[str, Any], execution_id: str) -> Dict[str, Any]:
         """
@@ -200,6 +223,7 @@ class DataFlowEngine:
             logs.append(f"[{datetime.now().isoformat()}] Step 2: Initializing operators...")
             
             serving_instance_map: Dict[str, APILLMServing_request] = {}
+            db_manager_instance_map: Dict[Any, DatabaseManager] = {}
             run_op = []
             operators = pipeline_config.get("operators", [])
             
@@ -227,6 +251,19 @@ class DataFlowEngine:
                                 if serving_id not in serving_instance_map:
                                     serving_instance_map[serving_id] = self.init_serving_instance(serving_id)
                                 param_value = serving_instance_map[serving_id]
+
+                            elif param_name == "database_manager":
+                                dm_val = param_value
+                                if isinstance(dm_val, list) or dm_val is None:
+                                    cache_key = tuple(dm_val) if isinstance(dm_val, list) else None
+                                    if cache_key not in db_manager_instance_map:
+                                        db_manager_instance_map[cache_key] = container.text2sql_database_registry.get_manager(dm_val)
+                                    param_value = db_manager_instance_map[cache_key]
+                                else:
+                                    db_manager_id = dm_val
+                                    if db_manager_id not in db_manager_instance_map:
+                                        db_manager_instance_map[db_manager_id] = self.init_database_manager(db_manager_id)
+                                    param_value = db_manager_instance_map[db_manager_id]
                             
                             elif param_name == "prompt_template":
                                 prompt_cls_name = extract_class_name(param_value)
