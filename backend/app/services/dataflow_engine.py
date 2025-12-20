@@ -65,7 +65,7 @@ class DataFlowEngine:
     def __init__(self):
         self.execution_map : Dict[str, ExecutionStatus] = {}
         
-    def init_serving_instance(self, serving_id: Any) -> APILLMServing_request:
+    def init_serving_instance(self, serving_id: Any, is_embedding: bool = False) -> APILLMServing_request:
         """初始化 Serving 实例"""
         try:
             params_dict = {}
@@ -79,7 +79,10 @@ class DataFlowEngine:
                             context={"serving_id": serving_id}
                         )
                     # Get the first serving ID from the dictionary
-                    first_serving_id = next(iter(all_servings))
+                    if is_embedding:
+                        first_serving_id = list(all_servings.keys())[1]
+                    else:
+                        first_serving_id = next(iter(all_servings))
                     serving_info = container.serving_registry._get(first_serving_id)
                     logger.info(f"Using default serving: {first_serving_id}", serving_info)
                 else:
@@ -115,6 +118,7 @@ class DataFlowEngine:
                 
                 logger.info(f"Initializing serving with params: {params_dict}")
                 os.environ[key_name_var] = api_key_val
+                logger.info(f"Environment variable {key_name_var} set to {api_key_val}")
                 serving_instance = SERVING_CLS_REGISTRY[serving_info['cls_name']](**params_dict)
                 
             return serving_instance
@@ -223,6 +227,7 @@ class DataFlowEngine:
             logs.append(f"[{datetime.now().isoformat()}] Step 2: Initializing operators...")
             
             serving_instance_map: Dict[str, APILLMServing_request] = {}
+            embedding_serving_instance_map: Dict[str, APILLMServing_request] = {}
             db_manager_instance_map: Dict[Any, DatabaseManager] = {}
             run_op = []
             operators = pipeline_config.get("operators", [])
@@ -251,6 +256,14 @@ class DataFlowEngine:
                                 if serving_id not in serving_instance_map:
                                     serving_instance_map[serving_id] = self.init_serving_instance(serving_id)
                                 param_value = serving_instance_map[serving_id]
+
+                            elif param_name == "embedding_serving":
+                                serving_id = param_value
+                                logger.info(f"Operator {op_name}: initializing embedding serving {serving_id}")
+                                logs.append(f"[{datetime.now().isoformat()}]   - Initializing embedding serving: {serving_id}")
+                                if serving_id not in embedding_serving_instance_map:
+                                    embedding_serving_instance_map[serving_id] = self.init_serving_instance(serving_id, is_embedding=True)
+                                param_value = embedding_serving_instance_map[serving_id]
 
                             elif param_name == "database_manager":
                                 dm_val = param_value
@@ -426,6 +439,3 @@ class DataFlowEngine:
             }
             
 dataflow_engine = DataFlowEngine()
-            
-        
-        
