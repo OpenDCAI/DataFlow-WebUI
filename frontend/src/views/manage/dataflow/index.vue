@@ -97,18 +97,32 @@
                             </fv-button>
                             <fv-button
                                 theme="dark"
-                                icon="Play"
                                 background="linear-gradient(90deg, rgba(69, 98, 213, 1), rgba(161, 145, 206, 1))"
                                 foreground="rgba(255, 255, 255, 1)"
                                 border-color="rgba(255, 255, 255, 0.3)"
                                 border-radius="30"
+                                :disabled="!currentPipeline"
                                 :reveal-background-color="[
                                     'rgba(255, 255, 255, 0.5)',
                                     'rgba(103, 105, 251, 0.6)'
                                 ]"
                                 @click="executePipeline"
                             >
-                                {{ this.local('Run') }}
+                                <i
+                                    v-show="lock.running"
+                                    class="ms-Icon ms-Icon--Play"
+                                    style="margin-right: 5px"
+                                ></i>
+                                <fv-progress-ring
+                                    v-show="!lock.running"
+                                    loading="true"
+                                    :r="10"
+                                    :border-width="2"
+                                    background="rgba(200, 200, 200, 1)"
+                                    :color="'white'"
+                                    style="margin-right: 5px"
+                                ></fv-progress-ring>
+                                <p>{{ this.local('Run') }}</p>
                             </fv-button>
                             <fv-button
                                 theme="dark"
@@ -184,6 +198,12 @@
             :title="local('Pipeline')"
             @confirm="addPipeline"
         ></pipelinePanel>
+        <execResultPanel
+            v-model="show.execResult"
+            :title="local('Execute Result')"
+            :current-pipeline="currentPipeline"
+            :running-result="runningResult"
+        ></execResultPanel>
     </div>
 </template>
 
@@ -202,6 +222,7 @@ import datasetPanel from '@/components/manage/mainFlow/panels/datasetPanel/index
 import operatorPanel from '@/components/manage/mainFlow/panels/operatorPanel.vue'
 import pageLoading from '@/components/general/pageLoading.vue'
 import currentPipelineBlock from '@/components/manage/mainFlow/tools/currentPipelineBlock.vue'
+import execResultPanel from '@/components/manage/mainFlow/panels/execResultPanel.vue'
 
 import databaseIcon from '@/assets/flow/database.svg'
 import pipelineIcon from '@/assets/flow/pipeline.svg'
@@ -216,7 +237,8 @@ export default {
         datasetPanel,
         operatorPanel,
         pageLoading,
-        currentPipelineBlock
+        currentPipelineBlock,
+        execResultPanel
     },
     data() {
         return {
@@ -304,16 +326,19 @@ export default {
             ],
             sourceDatabase: null,
             currentPipeline: null,
+            runningResult: null,
             useEdgeSync: new useEdgeSync(),
             show: {
                 dataset: false,
                 pipeline: false,
                 pipelinePanel: false,
                 operator: false,
-                serving: false
+                serving: false,
+                execResult: false
             },
             lock: {
                 serving: true,
+                running: true,
                 loading: true
             }
         }
@@ -557,13 +582,31 @@ export default {
                 })
                 return
             }
-            this.$api.pipelines.execute_pipeline(this.currentPipeline.id).then((res) => {
-                if (res.code === 200) {
-                    this.$barWarning(this.local('Pipeline has been executed'), {
-                        status: 'correct'
+            if (!this.lock.running) {
+                this.$barWarning(this.local('Please wait for the previous pipeline to finish'), {
+                    status: 'warning'
+                })
+                return
+            }
+            this.lock.running = false
+            this.$api.pipelines
+                .execute_pipeline(this.currentPipeline.id)
+                .then((res) => {
+                    if (res.code === 200) {
+                        this.runningResult = res.data
+                        this.show.execResult = true
+                        this.$barWarning(this.local('Pipeline has been executed'), {
+                            status: 'correct'
+                        })
+                    }
+                    this.lock.running = true
+                })
+                .catch((err) => {
+                    this.$barWarning(this.local('Pipeline execution failed'), {
+                        status: 'error'
                     })
-                }
-            })
+                    this.lock.running = true
+                })
         },
         onConnect(connection) {
             const { source, sourceHandle, target, targetHandle } = connection

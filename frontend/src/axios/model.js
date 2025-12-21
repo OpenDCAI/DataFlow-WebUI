@@ -1125,44 +1125,25 @@ export class PipelineConfig {
   
     /**
      *
-     * @param {String} input_dataset 输入数据集ID
+     * @param {String} file_path Pipeline文件路径
      * @param {Array} operators 算子执行序列
-     * @param {undefined} run_config 运行时配置参数
      */ 
-    constructor(input_dataset = undefined,operators = undefined,run_config = undefined){
+    constructor(file_path = undefined,input_dataset = undefined,operators = undefined){
+        this.file_path = file_path
         this.input_dataset = input_dataset
         this.operators = operators
-        this.run_config = run_config
     }
        
     /**
-     * 输入数据集ID
+     * Pipeline文件路径
      * @type {String}
      */
-    input_dataset=undefined   
+    file_path=undefined   
     /**
      * 算子执行序列
      * @type {Array}
      */
-    operators=undefined   
-    /**
-     * 运行时配置参数
-     * @type {undefined}
-     */
-    run_config=undefined
-    
-}
-export class PipelineExecutionRequest {
-  
-    /**
-     *
-
-     */ 
-    constructor(pipeline_id = undefined,config = undefined){
-        this.pipeline_id = pipeline_id
-        this.config = config
-    }
-    
+    operators=undefined
     
 }
 export class PipelineExecutionResult {
@@ -1236,16 +1217,41 @@ export class PipelineIn {
     tags=undefined
     
 }
+export class PipelineInputDataset {
+  
+    /**
+     *
+     * @param {String} id 数据集ID
+     * @param {Array} location 数据集在画布上的位置
+     */ 
+    constructor(id = undefined,location = undefined){
+        this.id = id
+        this.location = location
+    }
+       
+    /**
+     * 数据集ID
+     * @type {String}
+     */
+    id=undefined   
+    /**
+     * 数据集在画布上的位置
+     * @type {Array}
+     */
+    location=undefined
+    
+}
 export class PipelineOperator {
   
     /**
      *
      * @param {String} name 算子名称
-     * @param {undefined} params 算子参数配置
+     * @param {Array} location 算子在画布上的位置, 包含x和y两个坐标值
      */ 
-    constructor(name = undefined,params = undefined){
+    constructor(name = undefined,params = undefined,location = undefined){
         this.name = name
         this.params = params
+        this.location = location
     }
        
     /**
@@ -1254,10 +1260,10 @@ export class PipelineOperator {
      */
     name=undefined   
     /**
-     * 算子参数配置
-     * @type {undefined}
+     * 算子在画布上的位置, 包含x和y两个坐标值
+     * @type {Array}
      */
-    params=undefined
+    location=undefined
     
 }
 export class PipelineOut {
@@ -1317,6 +1323,20 @@ export class PipelineOut {
      * @type {ExecutionStatus}
      */
     status=undefined
+    
+}
+export class PipelineUpdateIn {
+  
+    /**
+     *
+
+     */ 
+    constructor(name = undefined,config = undefined,tags = undefined){
+        this.name = name
+        this.config = config
+        this.tags = tags
+    }
+    
     
 }
 export class PromptInfoMapOut {

@@ -87,6 +87,9 @@ export default {
     watch: {
         modelValue(val) {
             this.thisValue = val
+            if (val) {
+                this.refreshName()
+            }
         },
         thisValue(val) {
             this.$emit('update:modelValue', val)
@@ -155,7 +158,9 @@ export default {
                 })
                 .then((res) => {
                     if (res.code === 200) {
-                        this.$barWarning(this.local('Rename pipeline success'))
+                        this.$barWarning(this.local('Rename pipeline success'), {
+                            status: 'correct'
+                        })
                         this.thisValue = false
                         this.addName = ''
                         this.getPipelines()
