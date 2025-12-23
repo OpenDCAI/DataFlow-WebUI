@@ -409,12 +409,12 @@ class PipelineRegistry:
             updated_pipeline["config"]["input_dataset"] = new_pipeline_config.get("input_dataset", "")
             if "operators" in new_pipeline_config:
                 op_map = {}
-                for op in updated_pipeline["config"]["operators"]:
-                    op_map[op.get("name")] = op
+                for idx, op in enumerate(updated_pipeline["config"]["operators"]):
+                    op_map[f"{op.get('name')}_{idx}"] = op
                 
                 updated_operators = []
-                for op in new_pipeline_config["operators"]:
-                    old_op_info = op_map.get(op.get("name"), None)
+                for idx, op in enumerate(new_pipeline_config["operators"]):
+                    old_op_info = op_map.get(f"{op.get('name')}_{idx}", None)
                     if old_op_info is None:  # new operator
                         # 创建新 operator 的字典格式
                         op_details = container.operator_registry.get_op_details(op.get("name"))

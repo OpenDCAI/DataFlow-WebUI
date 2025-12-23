@@ -174,14 +174,30 @@ class DataFlowEngine:
         started_at = datetime.now().isoformat()
         logs: List[str] = []
         output: Dict[str, Any] = {}
+        # ✅ 新增：按算子分组的日志
+        # ✅ 新增：stage -> operator -> logs
+        stage_operator_logs: Dict[str, Dict[str, List[str]]] = {
+            "global": {"__pipeline__": []},
+            "init": {},
+            "run": {},
+        }
+
+        # ✅ 新增：统一写日志（同时写到全局 logs 和该算子的 logs）
+        def add_log(stage: str, message: str, op_name: str = "__pipeline__"):
+            """同时写入：全局流水 logs + 分stage/分operator日志"""
+            ts_msg = message  # 你也可以在这里统一加时间戳
+            logs.append(ts_msg)
+            stage_operator_logs.setdefault(stage, {}).setdefault(op_name, []).append(ts_msg)
         
+        add_log("global", f"[{started_at}] Starting pipeline execution: {execution_id}")
         logs.append(f"[{started_at}] Starting pipeline execution: {execution_id}")
         logger.info(f"Starting pipeline execution: {execution_id}")
         
         try:
             # Step 1: 初始化 Storage
+            add_log("init", f"[{datetime.now().isoformat()}] Step 1: Initializing storage...")
             logs.append(f"[{datetime.now().isoformat()}] Step 1: Initializing storage...")
-            
+            logger.info(f"Step 1: Initializing storage...")
             try:
                 input_dataset = pipeline_config["input_dataset"]
                 if isinstance(input_dataset, dict):
@@ -208,6 +224,7 @@ class DataFlowEngine:
                     file_name_prefix="dataflow_cache_step",
                     cache_type="jsonl",
                 )
+                add_log("init", f"Storage initialized with dataset: {dataset['root']}")
                 logs.append(f"[{datetime.now().isoformat()}] Storage initialized with dataset: {dataset['root']}")
                 logger.info(f"Storage initialized with dataset: {dataset['root']}")
                 
@@ -224,7 +241,9 @@ class DataFlowEngine:
                 )
             
             # Step 2: 初始化所有 Operators
+            add_log("init", f"[{datetime.now().isoformat()}] Step 2: Initializing operators...")
             logs.append(f"[{datetime.now().isoformat()}] Step 2: Initializing operators...")
+            logger.info(f"Step 2: Initializing operators...")
             
             serving_instance_map: Dict[str, APILLMServing_request] = {}
             embedding_serving_instance_map: Dict[str, APILLMServing_request] = {}
@@ -232,13 +251,15 @@ class DataFlowEngine:
             run_op = []
             operators = pipeline_config.get("operators", [])
             
+            add_log("init", f"[{datetime.now().isoformat()}] Found {len(operators)} operators to initialize")
             logs.append(f"[{datetime.now().isoformat()}] Found {len(operators)} operators to initialize")
             logger.info(f"Initializing {len(operators)} operators...")
             
             for op_idx, op in enumerate(operators):
                 op_name = op.get("name", f"Operator_{op_idx}")
+                add_log("init", f"[{datetime.now().isoformat()}] [{op_idx+1}/{len(operators)}] Initializing operator: {op_name}", op_name)
                 logs.append(f"[{datetime.now().isoformat()}] [{op_idx+1}/{len(operators)}] Initializing operator: {op_name}")
-                
+                logger.info(f"[{op_idx+1}/{len(operators)}] Initializing operator: {op_name}")
                 try:
                     init_params = {}
                     run_params = {}
@@ -252,6 +273,7 @@ class DataFlowEngine:
                             if param_name == "llm_serving":
                                 serving_id = param_value
                                 logger.info(f"Operator {op_name}: initializing serving {serving_id}")
+                                add_log("init", f"[{datetime.now().isoformat()}]   - Initializing LLM serving: {serving_id}", op_name)
                                 logs.append(f"[{datetime.now().isoformat()}]   - Initializing LLM serving: {serving_id}")
                                 if serving_id not in serving_instance_map:
                                     serving_instance_map[serving_id] = self.init_serving_instance(serving_id)
@@ -260,6 +282,7 @@ class DataFlowEngine:
                             elif param_name == "embedding_serving":
                                 serving_id = param_value
                                 logger.info(f"Operator {op_name}: initializing embedding serving {serving_id}")
+                                add_log("init", f"[{datetime.now().isoformat()}]   - Initializing embedding serving: {serving_id}", op_name)
                                 logs.append(f"[{datetime.now().isoformat()}]   - Initializing embedding serving: {serving_id}")
                                 if serving_id not in embedding_serving_instance_map:
                                     embedding_serving_instance_map[serving_id] = self.init_serving_instance(serving_id, is_embedding=True)
@@ -280,6 +303,7 @@ class DataFlowEngine:
                             
                             elif param_name == "prompt_template":
                                 prompt_cls_name = extract_class_name(param_value)
+                                add_log("init", f"[{datetime.now().isoformat()}]   - Loading prompt template: {prompt_cls_name}", op_name)
                                 logs.append(f"[{datetime.now().isoformat()}]   - Loading prompt template: {prompt_cls_name}")
                                 prompt_cls = PROMPT_REGISTRY.get(prompt_cls_name)
                                 if not prompt_cls:
@@ -323,6 +347,7 @@ class DataFlowEngine:
                     
                     operator_instance = operator_cls(**init_params)
                     run_op.append((operator_instance, run_params, op_name))
+                    add_log("init", f"[{datetime.now().isoformat()}] [{op_idx+1}/{len(operators)}] {op_name} initialized successfully", op_name)
                     logs.append(f"[{datetime.now().isoformat()}] [{op_idx+1}/{len(operators)}] {op_name} initialized successfully")
                     logger.info(f"Operator {op_name} initialized successfully")
                     
@@ -340,6 +365,7 @@ class DataFlowEngine:
                     )
             
             # Step 3: 执行所有 Operators
+            add_log("run", f"[{datetime.now().isoformat()}] Step 3: Executing {len(run_op)} operators...")
             logs.append(f"[{datetime.now().isoformat()}] Step 3: Executing {len(run_op)} operators...")
             logger.info(f"Executing {len(run_op)} operators...")
             
@@ -348,12 +374,14 @@ class DataFlowEngine:
             for op_idx, (operator, run_params, op_name) in enumerate(run_op):
                 try:
                     run_params["storage"] = storage.step()
+                    add_log("run", f"[{datetime.now().isoformat()}] [{op_idx+1}/{len(run_op)}] Running operator: {op_name}", op_name)
                     logs.append(f"[{datetime.now().isoformat()}] [{op_idx+1}/{len(run_op)}] Running operator: {op_name}")
                     logger.info(f"[{op_idx+1}/{len(run_op)}] Running {op_name}")
                     logger.debug(f"Run params: {list(run_params.keys())}")
                     
                     operator.run(**run_params)
                     
+                    add_log("run", f"[{datetime.now().isoformat()}] [{op_idx+1}/{len(run_op)}] {op_name} completed successfully", op_name)
                     logs.append(f"[{datetime.now().isoformat()}] [{op_idx+1}/{len(run_op)}] {op_name} completed successfully")
                     logger.info(f"[{op_idx+1}/{len(run_op)}] {op_name} completed")
                     
@@ -377,10 +405,12 @@ class DataFlowEngine:
             
             # 成功完成
             completed_at = datetime.now().isoformat()
+            add_log("run", f"[{completed_at}] Pipeline execution completed successfully")
             logs.append(f"[{completed_at}] Pipeline execution completed successfully")
             logger.info(f"Pipeline execution completed successfully: {execution_id}")
             
             output["operators_executed"] = len(run_op)
+            output["stage_operator_logs"] = stage_operator_logs
             output["execution_results"] = execution_results
             output["success"] = True
             
@@ -396,17 +426,22 @@ class DataFlowEngine:
         except DataFlowEngineError as e:
             completed_at = datetime.now().isoformat()
             error_log = f"[{completed_at}] ERROR: {e.message}"
+            error_op_name = e.context.get("operator")
+            if error_op_name:
+                add_log("run", f"[{completed_at}] ERROR: {e.message}", error_op_name)
             logs.append(error_log)
             
             logger.error(f"Pipeline execution failed: {e.message}")
             logger.error(f"Context: {e.context}")
             if e.original_error:
-                logger.error(f"Original error: {e.original_error}")
+                add_log("run", f"[{completed_at}] ERROR: {e.message}", error_op_name)
             
             # 返回失败结果
             output["error"] = e.message
             output["error_context"] = e.context
             output["original_error"] = str(e.original_error) if e.original_error else None
+            output["stage_operator_logs"] = stage_operator_logs
+
             
             return {
                 "execution_id": execution_id,
@@ -428,6 +463,7 @@ class DataFlowEngine:
             # 返回失败结果
             output["error"] = "Pipeline执行过程中发生未预期的错误"
             output["error_message"] = str(e)
+            output["stage_operator_logs"] = stage_operator_logs
             
             return {
                 "execution_id": execution_id,
