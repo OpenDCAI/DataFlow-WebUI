@@ -7,6 +7,7 @@
                 :options="navList"
                 v-model:expand="isExpand"
                 :foreground="color"
+                expand-width="300"
                 :flyout-display="1368"
                 :mobile-display="1024"
                 class="navigation-view"
@@ -54,6 +55,7 @@ import { useTheme } from '@/stores/theme'
 import logo from '@/assets/logo/logo.png'
 import dataflow from '@/assets/nav/dataflow.svg'
 import serving from '@/assets/nav/serving.svg'
+import dbManager from '@/assets/nav/dbManager.svg'
 
 export default {
     data() {
@@ -84,6 +86,13 @@ export default {
                     icon: 'World',
                     img: serving,
                     route: '/m/serving'
+                },
+                {
+                    key: 1,
+                    name: () => this.local('DB Manager'),
+                    icon: 'World',
+                    img: dbManager,
+                    route: '/m/dm'
                 },
                 {
                     key: -1,

@@ -113,7 +113,7 @@ export const useDataflow = defineStore('useDataflow', () => {
         })
     }
 
-    const datasets = ref([]);
+    const datasets = ref([])
     const getDatasets = async () => {
         let res = await proxy.$api.datasets.list_datasets().catch((err) => {
             proxy.$barWarning(err, {
@@ -132,6 +132,19 @@ export const useDataflow = defineStore('useDataflow', () => {
                 status: 'warning'
             })
         }
+    }
+
+    const text2sqlDatasets = ref([])
+    const getText2SqlDatasets = async () => {
+        await proxy.$api.text2sql_database.list_databases().then((res) => {
+            if (res.code === 200) {
+                text2sqlDatasets.value = res.data
+            } else {
+                proxy.$barWarning(res.message, {
+                    status: 'warning'
+                })
+            }
+        })
     }
 
     const servingList = ref([])
@@ -183,6 +196,8 @@ export const useDataflow = defineStore('useDataflow', () => {
         getOperators,
         datasets,
         getDatasets,
+        text2sqlDatasets,
+        getText2SqlDatasets,
         servingList,
         currentServing,
         getServingList,
@@ -190,6 +205,6 @@ export const useDataflow = defineStore('useDataflow', () => {
         pipelines,
         getPipelines,
         isAutoConnection,
-        switchAutoConnection,
+        switchAutoConnection
     }
 })

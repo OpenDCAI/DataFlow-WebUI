@@ -328,6 +328,105 @@ export class ApiResponse_List_TaskOut__ {
     message=undefined
     
 }
+export class ApiResponse_List_Text2SQLDatabaseManagerClassSchema__ {
+  
+    /**
+     *
+     * @param {undefined} success 
+     * @param {Number} code 业务错误码，0 表示成功
+     * @param {String} message 
+     */ 
+    constructor(success = undefined,code = undefined,message = undefined,data = undefined,meta = undefined){
+        this.success = success
+        this.code = code
+        this.message = message
+        this.data = data
+        this.meta = meta
+    }
+       
+    /**
+     * 
+     * @type {undefined}
+     */
+    success=undefined   
+    /**
+     * 业务错误码，0 表示成功
+     * @type {Number}
+     */
+    code=undefined   
+    /**
+     * 
+     * @type {String}
+     */
+    message=undefined
+    
+}
+export class ApiResponse_List_Text2SQLDatabaseManagerDetailSchema__ {
+  
+    /**
+     *
+     * @param {undefined} success 
+     * @param {Number} code 业务错误码，0 表示成功
+     * @param {String} message 
+     */ 
+    constructor(success = undefined,code = undefined,message = undefined,data = undefined,meta = undefined){
+        this.success = success
+        this.code = code
+        this.message = message
+        this.data = data
+        this.meta = meta
+    }
+       
+    /**
+     * 
+     * @type {undefined}
+     */
+    success=undefined   
+    /**
+     * 业务错误码，0 表示成功
+     * @type {Number}
+     */
+    code=undefined   
+    /**
+     * 
+     * @type {String}
+     */
+    message=undefined
+    
+}
+export class ApiResponse_List_Text2SQLDatabaseSchema__ {
+  
+    /**
+     *
+     * @param {undefined} success 
+     * @param {Number} code 业务错误码，0 表示成功
+     * @param {String} message 
+     */ 
+    constructor(success = undefined,code = undefined,message = undefined,data = undefined,meta = undefined){
+        this.success = success
+        this.code = code
+        this.message = message
+        this.data = data
+        this.meta = meta
+    }
+       
+    /**
+     * 
+     * @type {undefined}
+     */
+    success=undefined   
+    /**
+     * 业务错误码，0 表示成功
+     * @type {Number}
+     */
+    code=undefined   
+    /**
+     * 
+     * @type {String}
+     */
+    message=undefined
+    
+}
 export class ApiResponse_OperatorDetailSchema_ {
   
     /**
@@ -658,6 +757,105 @@ export class ApiResponse_TaskOut_ {
     message=undefined
     
 }
+export class ApiResponse_Text2SQLDatabaseManagerDetailSchema_ {
+  
+    /**
+     *
+     * @param {undefined} success 
+     * @param {Number} code 业务错误码，0 表示成功
+     * @param {String} message 
+     */ 
+    constructor(success = undefined,code = undefined,message = undefined,data = undefined,meta = undefined){
+        this.success = success
+        this.code = code
+        this.message = message
+        this.data = data
+        this.meta = meta
+    }
+       
+    /**
+     * 
+     * @type {undefined}
+     */
+    success=undefined   
+    /**
+     * 业务错误码，0 表示成功
+     * @type {Number}
+     */
+    code=undefined   
+    /**
+     * 
+     * @type {String}
+     */
+    message=undefined
+    
+}
+export class ApiResponse_Text2SQLDatabaseManagerQuerySchema_ {
+  
+    /**
+     *
+     * @param {undefined} success 
+     * @param {Number} code 业务错误码，0 表示成功
+     * @param {String} message 
+     */ 
+    constructor(success = undefined,code = undefined,message = undefined,data = undefined,meta = undefined){
+        this.success = success
+        this.code = code
+        this.message = message
+        this.data = data
+        this.meta = meta
+    }
+       
+    /**
+     * 
+     * @type {undefined}
+     */
+    success=undefined   
+    /**
+     * 业务错误码，0 表示成功
+     * @type {Number}
+     */
+    code=undefined   
+    /**
+     * 
+     * @type {String}
+     */
+    message=undefined
+    
+}
+export class ApiResponse_Text2SQLDatabaseSchema_ {
+  
+    /**
+     *
+     * @param {undefined} success 
+     * @param {Number} code 业务错误码，0 表示成功
+     * @param {String} message 
+     */ 
+    constructor(success = undefined,code = undefined,message = undefined,data = undefined,meta = undefined){
+        this.success = success
+        this.code = code
+        this.message = message
+        this.data = data
+        this.meta = meta
+    }
+       
+    /**
+     * 
+     * @type {undefined}
+     */
+    success=undefined   
+    /**
+     * 业务错误码，0 表示成功
+     * @type {Number}
+     */
+    code=undefined   
+    /**
+     * 
+     * @type {String}
+     */
+    message=undefined
+    
+}
 export class ApiResponse_dict_ {
   
     /**
@@ -821,6 +1019,25 @@ export class ApiResponse_str_ {
      * @type {String}
      */
     message=undefined
+    
+}
+export class Body_upload_sqlite_database {
+  
+    /**
+     *
+     * @param {String} file 
+     */ 
+    constructor(file = undefined,name = undefined,description = undefined){
+        this.file = file
+        this.name = name
+        this.description = description
+    }
+       
+    /**
+     * 
+     * @type {String}
+     */
+    file=undefined
     
 }
 export class DatasetIn {
@@ -1684,6 +1901,179 @@ export class TaskUpdate {
         this.meta = meta
     }
     
+    
+}
+export class Text2SQLDatabaseManagerClassSchema {
+  
+    /**
+     *
+     * @param {String} cls_name DatabaseManager类名
+     * @param {Array} params 初始化参数列表
+     */ 
+    constructor(cls_name = undefined,params = undefined){
+        this.cls_name = cls_name
+        this.params = params
+    }
+       
+    /**
+     * DatabaseManager类名
+     * @type {String}
+     */
+    cls_name=undefined   
+    /**
+     * 初始化参数列表
+     * @type {Array}
+     */
+    params=undefined
+    
+}
+export class Text2SQLDatabaseManagerCreateSchema {
+  
+    /**
+     *
+     * @param {String} name DatabaseManager配置名称
+     * @param {String} cls_name DatabaseManager类名
+     * @param {String} db_type 数据库类型
+     * @param {Array} selected_db_ids 选择的sqlite db_id列表
+     */ 
+    constructor(name = undefined,cls_name = undefined,db_type = undefined,selected_db_ids = undefined,description = undefined){
+        this.name = name
+        this.cls_name = cls_name
+        this.db_type = db_type
+        this.selected_db_ids = selected_db_ids
+        this.description = description
+    }
+       
+    /**
+     * DatabaseManager配置名称
+     * @type {String}
+     */
+    name=undefined   
+    /**
+     * DatabaseManager类名
+     * @type {String}
+     */
+    cls_name=undefined   
+    /**
+     * 数据库类型
+     * @type {String}
+     */
+    db_type=undefined   
+    /**
+     * 选择的sqlite db_id列表
+     * @type {Array}
+     */
+    selected_db_ids=undefined
+    
+}
+export class Text2SQLDatabaseManagerDetailSchema {
+  
+    /**
+     *
+     * @param {String} name DatabaseManager配置名称
+     * @param {String} cls_name DatabaseManager类名
+     * @param {String} db_type 数据库类型
+     * @param {Array} selected_db_ids 选择的sqlite db_id列表
+     */ 
+    constructor(name = undefined,cls_name = undefined,db_type = undefined,selected_db_ids = undefined,description = undefined,id = undefined,created_at = undefined){
+        this.name = name
+        this.cls_name = cls_name
+        this.db_type = db_type
+        this.selected_db_ids = selected_db_ids
+        this.description = description
+        this.id = id
+        this.created_at = created_at
+    }
+       
+    /**
+     * DatabaseManager配置名称
+     * @type {String}
+     */
+    name=undefined   
+    /**
+     * DatabaseManager类名
+     * @type {String}
+     */
+    cls_name=undefined   
+    /**
+     * 数据库类型
+     * @type {String}
+     */
+    db_type=undefined   
+    /**
+     * 选择的sqlite db_id列表
+     * @type {Array}
+     */
+    selected_db_ids=undefined
+    
+}
+export class Text2SQLDatabaseManagerParamSchema {
+  
+    /**
+     *
+     * @param {String} name 参数名称
+     */ 
+    constructor(name = undefined,type = undefined,default_value = undefined,value = undefined,required = undefined){
+        this.name = name
+        this.type = type
+        this.default_value = default_value
+        this.value = value
+        this.required = required
+    }
+       
+    /**
+     * 参数名称
+     * @type {String}
+     */
+    name=undefined
+    
+}
+export class Text2SQLDatabaseManagerQuerySchema {
+  
+    /**
+     *
+
+     */ 
+    constructor(id = undefined){
+        this.id = id
+    }
+    
+    
+}
+export class Text2SQLDatabaseManagerUpdateSchema {
+  
+    /**
+     *
+
+     */ 
+    constructor(name = undefined,selected_db_ids = undefined,description = undefined){
+        this.name = name
+        this.selected_db_ids = selected_db_ids
+        this.description = description
+    }
+    
+    
+}
+export class Text2SQLDatabaseSchema {
+  
+    /**
+     *
+     * @param {String} id text2sql database的标识符
+     */ 
+    constructor(id = undefined,name = undefined,file_name = undefined,uploaded_at = undefined,size = undefined,description = undefined){
+        this.id = id
+        this.name = name
+        this.file_name = file_name
+        this.uploaded_at = uploaded_at
+        this.size = size
+        this.description = description
+    }
+       
+    /**
+     * text2sql database的标识符
+     * @type {String}
+     */
+    id=undefined
     
 }
 export class ValidationError {

@@ -1,103 +1,66 @@
 <template>
-    <div class="df-serving-container">
+    <div class="df-dm-container">
         <div class="major-container">
             <div class="title-block">
-                <p class="main-title">{{ local('Serving') }}</p>
+                <p class="main-title">{{ local('DB Manager') }}</p>
             </div>
             <div class="content-block">
-                <fv-Collapse
-                    v-model="show.add"
-                    class="serving-item"
-                    icon="Marquee"
-                    :title="local('Add Serving')"
-                    :content="local('Add new serving information.')"
-                    :disabled-collapse="true"
-                    :max-height="'auto'"
-                >
+                <fv-Collapse v-model="show.add" class="serving-item" icon="Marquee" :title="local('Add Serving')"
+                    :content="local('Add new serving information.')" :disabled-collapse="true" :max-height="'auto'">
                     <template v-slot:extension>
-                        <fv-button
-                            v-show="show.add"
-                            theme="dark"
-                            :is-box-shadow="true"
-                            :background="gradient"
-                            :disabled="!checkAdd() || !lock.add"
-                            border-radius="6"
-                            style="width: 90px; margin-right: 5px"
-                            @click="confirmAdd"
-                        >
+                        <fv-button v-show="show.add" theme="dark" :is-box-shadow="true" :background="gradient"
+                            :disabled="!checkAdd() || !lock.add" border-radius="6"
+                            style="width: 90px; margin-right: 5px" @click="confirmAdd">
                             {{ local('Confirm') }}
                         </fv-button>
-                        <fv-button
-                            :theme="show.add ? 'light' : 'dark'"
-                            :is-box-shadow="true"
-                            :background="show.add ? '' : gradient"
-                            border-radius="6"
-                            style="width: 90px"
-                            @click="handleAdd"
-                        >
+                        <fv-button :theme="show.add ? 'light' : 'dark'" :is-box-shadow="true"
+                            :background="show.add ? '' : gradient" border-radius="6" style="width: 90px"
+                            @click="handleAdd">
                             {{ show.add ? local('Cancel') : local('Add') }}
                         </fv-button>
                     </template>
                     <template v-slot:default>
                         <div class="serving-item-row column">
                             <p class="serving-item-light-title">{{ local('Serving Name') }}</p>
-                            <fv-text-box
-                                v-model="servingName"
-                                :placeholder="local('Serving Name')"
-                                border-radius="6"
-                                :reveal-border="true"
-                                :is-box-shadow="true"
-                            ></fv-text-box>
+                            <fv-text-box v-model="servingName" :placeholder="local('Serving Name')" border-radius="6"
+                                :reveal-border="true" :is-box-shadow="true"></fv-text-box>
+                        </div>
+                        <hr />
+                        <div class="serving-item-row column">
+                            <p class="serving-item-light-title">{{ local('Description') }}</p>
+                            <fv-text-field v-model="description" :placeholder="local('Description')" border-radius="6"
+                                :reveal-border="true" :is-box-shadow="true" style="height: 80px;"></fv-text-field>
                         </div>
                         <hr />
                         <div class="serving-item-row column">
                             <p class="serving-item-light-title">{{ local('Select CLS Name') }}</p>
-                            <fv-combobox
-                                v-model="choosenClsItem"
-                                :options="createProps"
-                                :placeholder="local('Select CLS Name')"
-                                :border-radius="6"
-                                :input-background="'rgba(252, 252, 252, 1)'"
-                            ></fv-combobox>
+                            <fv-combobox v-model="choosenClsItem" :options="createProps"
+                                :placeholder="local('Select CLS Name')" :border-radius="6"
+                                :input-background="'rgba(252, 252, 252, 1)'"></fv-combobox>
                         </div>
                         <hr />
-                        <div
-                            v-if="choosenClsItem && choosenClsItem.params"
-                            v-for="(param, p_index) in choosenClsItem.params"
-                        >
+                        <div v-if="choosenClsItem && choosenClsItem.params"
+                            v-for="(param, p_index) in choosenClsItem.params">
                             <div class="serving-item-row column">
                                 <p class="serving-item-light-title">{{ param.name }}</p>
-                                <fv-text-box
-                                    v-model="param.value"
-                                    :placeholder="local(param.name)"
-                                    border-radius="6"
-                                    :reveal-border="true"
-                                    :is-box-shadow="true"
-                                ></fv-text-box>
+                                <fv-text-box v-if="param.name !== 'selected_db_ids'" v-model="param.value"
+                                    :placeholder="local(param.name)" border-radius="6" :reveal-border="true"
+                                    :is-box-shadow="true"></fv-text-box>
+                                <fv-drop-down v-if="param.name === 'selected_db_ids'"
+                                    v-model="choosenText2SqlDatasetItems" :options="formatedText2SqlDatasets"
+                                    :multiple="true" :placeholder="local('Select Text2Sql Dataset')" :border-radius="6"
+                                    :input-background="'rgba(252, 252, 252, 1)'"></fv-drop-down>
                             </div>
                             <hr />
                         </div>
                     </template>
                 </fv-Collapse>
-                <fv-Collapse
-                    v-for="(item, index) in servingList"
-                    :key="index"
-                    class="serving-item"
-                    icon="DialShape4"
-                    :title="item.name"
-                    :content="item.cls_name"
-                    :max-height="740"
-                >
+                <fv-Collapse v-for="(item, index) in dmManagerList" :key="index" class="serving-item" icon="DialShape4"
+                    :title="item.name.value" :content="item.cls_name.value" :max-height="770">
                     <template v-slot:extension>
-                        <fv-button
-                            theme="dark"
-                            background="rgba(191, 95, 95, 1)"
-                            foreground="rgba(255, 255, 255, 1)"
-                            border-radius="6"
-                            :is-box-shadow="true"
-                            style="width: 90px"
-                            @click="$event.stopPropagation(), delServing(item)"
-                        >
+                        <fv-button theme="dark" background="rgba(191, 95, 95, 1)" foreground="rgba(255, 255, 255, 1)"
+                            border-radius="6" :is-box-shadow="true" style="width: 90px"
+                            @click="$event.stopPropagation(), delServing(item)">
                             {{ local('Delete') }}
                         </fv-button>
                     </template>
@@ -106,81 +69,31 @@
                         <div class="serving-item-row sep">
                             <div class="serving-item-row column no-pad" style="flex: 1">
                                 <p class="serving-item-light-title">{{ local('ID') }}</p>
-                                <p class="serving-item-std-info">{{ item.id }}</p>
+                                <p class="serving-item-std-info">{{ item.id.value }}</p>
                             </div>
-                            <fv-button
-                                v-show="item.edit"
-                                theme="dark"
-                                :is-box-shadow="true"
-                                :background="gradient"
-                                border-radius="6"
-                                :disabled="!checkEdit(item) || !lock.edit"
-                                style="width: 90px; margin-right: 5px"
-                                @click="confirmEdit(item)"
-                            >
+                            <fv-button v-show="item.edit" theme="dark" :is-box-shadow="true" :background="gradient"
+                                border-radius="6" :disabled="!checkEdit(item) || !lock.edit"
+                                style="width: 90px; margin-right: 5px" @click="confirmEdit(item)">
                                 {{ local('Confirm') }}
                             </fv-button>
-                            <fv-button
-                                :icon="item.edit ? 'Cancel' : 'Edit'"
-                                :is-box-shadow="true"
-                                border-radius="6"
-                                style="width: 90px"
-                                @click="handleEdit(item)"
-                            >
+                            <fv-button :icon="item.edit ? 'Cancel' : 'Edit'" :is-box-shadow="true" border-radius="6"
+                                style="width: 90px" @click="handleEdit(item)">
                                 {{ item.edit ? local('Cancel') : local('Edit') }}
                             </fv-button>
                         </div>
                         <hr />
-                        <div class="serving-item-row column">
-                            <p class="serving-item-light-title">{{ local('Serving Name') }}</p>
-                            <fv-text-box
-                                v-model="item.serving_name"
-                                border-radius="6"
-                                :disabled="!item.edit"
-                                :reveal-border="true"
-                                :is-box-shadow="item.edit"
-                            ></fv-text-box>
-                        </div>
-                        <hr />
-                        <div v-for="(param, p_index) in item.params">
+                        <div v-show="key !== 'edit'" v-for="(val, key) in item" :key="key">
                             <div class="serving-item-row column">
-                                <p class="serving-item-light-title">{{ param.name }}</p>
-                                <fv-text-box
-                                    v-model="param.value"
-                                    border-radius="6"
-                                    :disabled="!item.edit"
-                                    :reveal-border="true"
-                                    :is-box-shadow="item.edit"
-                                ></fv-text-box>
+                                <p class="serving-item-light-title">{{ key }}</p>
+                                <fv-text-box v-if="key !== 'selected_db_ids'" v-model="item[key].value"
+                                    border-radius="6" :disabled="!item.edit" :reveal-border="true"
+                                    :is-box-shadow="item.edit"></fv-text-box>
+                                <fv-drop-down v-if="key === 'selected_db_ids'" v-model="item[key].value"
+                                    :options="formatedText2SqlDatasets" :multiple="true"
+                                    :placeholder="local('Select Text2Sql Dataset')" :border-radius="6"
+                                    :disabled="!item.edit" :input-background="'rgba(252, 252, 252, 1)'"></fv-drop-down>
                             </div>
                             <hr />
-                        </div>
-                        <div class="serving-item-row column">
-                            <p class="serving-item-title">{{ local('Serving Testing') }}</p>
-                            <div class="serving-item-row no-pad">
-                                <fv-button
-                                    border-radius="8"
-                                    style="width: 30px; height: 30px"
-                                    :disabled="!lock.test"
-                                    :reveal-border-gradient-list="[
-                                        '#40e0d0',
-                                        '#40e0d0',
-                                        '#ff8c00',
-                                        '#ff8c00',
-                                        '#ff0080',
-                                        'rgba(255, 255, 255, 0)'
-                                    ]"
-                                    @click="testServing(item)"
-                                >
-                                    <i
-                                        class="ms-Icon ms-Icon--ProgressRingDots rainbow"
-                                        :class="[{ 'ring-animation': !lock.test }]"
-                                    ></i>
-                                </fv-button>
-                                <p class="serving-item-bold-info" style="margin-left: 15px">
-                                    {{ local('Response') }}: {{ item.response }}
-                                </p>
-                            </div>
                         </div>
                     </template>
                 </fv-Collapse>
@@ -190,26 +103,40 @@
 </template>
 
 <script>
-import { mapState } from 'pinia'
+import { mapActions, mapState } from 'pinia'
 import { useAppConfig } from '@/stores/appConfig'
 import { useTheme } from '@/stores/theme'
+import { useDataflow } from '@/stores/dataflow';
 
 export default {
     data() {
         return {
             createProps: [],
             choosenClsItem: {},
+            choosenText2SqlDatasetItems: [],
             servingName: '',
-            servingList: [],
+            description: '',
+            dmManagerList: [],
             defaultValues: {
                 str: '',
                 int: '0',
-                Any: ''
+                Any: '',
+                "List[str]": [],
+                'Optional': '',
             },
             formatValues: {
-                str: (val) => val.toString(),
-                int: (val) => parseInt(val),
-                Any: (val) => val.toString()
+                'str': (val) => val.toString(),
+                'int': (val) => parseInt(val),
+                'Any': (val) => val.toString(),
+                "List[str]": (val) => {
+                    let result = []
+                    for (let item of val) {
+                        if (item.key) result.push(item.key)
+                        else result.push(item.toString())
+                    }
+                    return result
+                },
+                'Optional': (val) => val.toString()
             },
             show: {
                 add: false
@@ -222,17 +149,38 @@ export default {
             }
         }
     },
+    watch: {
+        choosenText2SqlDatasetItems: {
+            handler(val) {
+                if (!this.choosenClsItem.params) return;
+                let selected_db_ids = this.choosenClsItem.params.find((param) => param.name === 'selected_db_ids');
+                if (!selected_db_ids.value == undefined) return;
+                selected_db_ids.value = val.map((item) => item.id)
+            },
+            deep: true
+        }
+    },
     computed: {
         ...mapState(useAppConfig, ['local']),
-        ...mapState(useTheme, ['theme', 'color', 'gradient'])
+        ...mapState(useTheme, ['theme', 'color', 'gradient']),
+        ...mapState(useDataflow, ['text2sqlDatasets']),
+        formatedText2SqlDatasets() {
+            return this.text2sqlDatasets.map((item) => {
+                item.key = item.id
+                item.text = item.name
+                return item
+            })
+        }
     },
     mounted() {
         this.getCreateProps()
-        this.getServingList()
+        this.getBMList()
+        this.getText2SqlDatasets();
     },
     methods: {
+        ...mapActions(useDataflow, ['getText2SqlDatasets']),
         getCreateProps() {
-            this.$api.serving.list_serving_classes().then((res) => {
+            this.$api.text2sql_database_manager.list_text2sql_database_manager_classes().then((res) => {
                 if (res.data) {
                     let createProps = res.data
                     createProps.forEach((item) => {
@@ -248,14 +196,39 @@ export default {
                 }
             })
         },
-        getServingList() {
-            this.$api.serving.list_serving_instances_api_v1_serving__get().then((res) => {
+        getBMList() {
+            this.$api.text2sql_database_manager.list_text2sql_database_managers().then((res) => {
                 if (res.data) {
-                    let servingList = res.data
-                    servingList.forEach((item) => {
-                        this.resetEditParams(item, true)
+                    let dmManagerList = res.data
+                    dmManagerList.forEach((item) => {
+                        for (let key in item) {
+                            if (key === 'selected_db_ids') {
+                                if (!Array.isArray(item[key])) item[key] = []
+                                let selected_db_ids = []
+                                for (let db_id of item[key]) {
+                                    let formatItem = this.formatedText2SqlDatasets.find((dataset) => dataset.key === db_id)
+                                    if (!formatItem) {
+                                        formatItem = {
+                                            key: db_id,
+                                            text: db_id
+                                        }
+                                    }
+                                    selected_db_ids.push(formatItem)
+                                }
+                                item[key] = selected_db_ids
+                            }
+                            else item[key] = item[key].toString()
+                        }
+                        for (let key in item) {
+                            item[key] = {
+                                key: item[key],
+                                value: item[key],
+                                default_value: item[key]
+                            }
+                        }
+                        item.edit = false
                     })
-                    this.servingList = servingList
+                    this.dmManagerList = dmManagerList
                 }
             })
         },
@@ -268,22 +241,14 @@ export default {
                 }
             }
         },
-        resetEditParams(item, overide = false) {
-            item.serving_name = item.name
-            if (item.params) {
-                for (let param of item.params) {
-                    if (overide) {
-                        if (param.value) param.default_value = param.value
-                    } else {
-                        if (param.default_value !== null)
-                            param.value = param.default_value.toString()
-                        else param.value = this.defaultValues[param.type]
-                    }
-                }
+        resetEditParams(item) {
+            for (let key in item) {
+                if (key === 'edit') continue
+                item[key].value = item[key].default_value
             }
         },
         valueBuilder(item) {
-            let type = item.type
+            let type = item.type.toString()
             return this.formatValues[type](item.value)
         },
         handleAdd() {
@@ -294,20 +259,26 @@ export default {
             if (!this.lock.add) return
             if (!this.checkAdd()) return
             this.lock.add = false
-            let params = []
+            let params = {}
             if (this.choosenClsItem.params) {
                 for (let param of this.choosenClsItem.params) {
-                    params.push({
+                    params[param.name] = {
                         name: param.name,
                         value: this.valueBuilder(param)
-                    })
+                    }
                 }
             }
-            this.$api.serving
-                .create_serving_instance(this.servingName, this.choosenClsItem.cls_name, params)
+            this.$api.text2sql_database_manager
+                .create_text2sql_database_manager({
+                    name: this.servingName,
+                    cls_name: this.choosenClsItem.key,
+                    db_type: params.db_type.value,
+                    selected_db_ids: params.selected_db_ids.value,
+                    description: this.description
+                })
                 .then((res) => {
                     if (res.code === 200) {
-                        this.getServingList()
+                        this.getBMList()
                         this.resetAddParams()
                         this.show.add ^= true
                     } else {
@@ -328,23 +299,19 @@ export default {
             if (!this.lock.edit) return
             if (!this.checkEdit(item)) return
             this.lock.edit = false
-            let params = []
-            if (item.params) {
-                for (let param of item.params) {
-                    params.push({
-                        name: param.name,
-                        value: this.valueBuilder(param)
-                    })
-                }
+            let selected_db_ids = []
+            for (let db_id of item.selected_db_ids.value) {
+                selected_db_ids.push(db_id.key)
             }
-            this.$api.serving
-                .update_serving_instance(item.id, {
-                    name: item.serving_name,
-                    params
+            this.$api.text2sql_database_manager
+                .update_text2sql_database_manager(item.id.value, {
+                    name: item.name.value,
+                    selected_db_ids: selected_db_ids,
+                    description: item.description.value
                 })
                 .then((res) => {
                     if (res.code === 200) {
-                        this.getServingList()
+                        this.getBMList()
                         item.edit ^= true
                         this.resetEditParams(item)
                         this.$barWarning(this.local('Update Success'), {
@@ -368,35 +335,17 @@ export default {
             item.edit ^= true
             this.resetEditParams(item)
         },
-        testServing(item) {
-            if (!this.lock.test) return
-            this.lock.test = false
-            this.$api.serving
-                .test_serving_instance(item.id, {
-                    prompt: '你好'
-                })
-                .then((res) => {
-                    if (res.code === 200) {
-                        item.response = res.data.response
-                    } else {
-                        this.$barWarning(res.message, {
-                            status: 'warning'
-                        })
-                    }
-                    this.lock.test = true
-                })
-        },
         delServing(item) {
             this.$infoBox(this.local('Are you sure to delete this serving?'), {
                 status: 'error',
                 confirm: () => {
                     if (!this.lock.delete) return
                     this.lock.delete = false
-                    this.$api.serving
-                        .delete_serving_instance(item.id)
+                    this.$api.text2sql_database_manager
+                        .delete_text2sql_database_manager(item.id.value)
                         .then((res) => {
                             if (res.code === 200) {
-                                this.getServingList()
+                                this.getBMList()
                                 this.$barWarning(this.local('Delete Success'), {
                                     status: 'correct'
                                 })
@@ -433,17 +382,10 @@ export default {
             return true
         },
         checkEdit(item) {
-            if (!item.serving_name) {
-                return false
-            }
-            if (!item.cls_name) {
-                return false
-            }
-            if (item.params) {
-                for (let param of item.params) {
-                    if (!param.value) {
-                        return false
-                    }
+            for (let key in item) {
+                if (key === 'edit') continue
+                if (!item[key].value) {
+                    return false
                 }
             }
             return true
@@ -453,7 +395,7 @@ export default {
 </script>
 
 <style lang="scss">
-.df-serving-container {
+.df-dm-container {
     position: relative;
     width: 100%;
     height: 100%;
@@ -605,6 +547,7 @@ export default {
         0% {
             transform: rotate(0deg);
         }
+
         100% {
             transform: rotate(360deg);
         }

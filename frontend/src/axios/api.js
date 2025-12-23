@@ -2399,3 +2399,601 @@ serving.test_serving_instance.fullPath=`${axios.defaults.baseURL}/api/v1/serving
 * @description test_serving_instance url链接，不包含baseURL
 */
 serving.test_serving_instance.path=`/api/v1/serving/{id}/test`
+
+export class text2sql_database {
+ 
+  /**
+  * @summary 列出所有已上传的sqlite数据库
+  * @param {CancelTokenSource} [cancelSource] Axios Cancel Source 对象，可以取消该请求
+  * @param {Function} [uploadProgress] 上传回调函数
+  * @param {Function} [downloadProgress] 下载回调函数
+  */
+  static async list_databases(cancelSource,uploadProgress,downloadProgress){
+    return await new Promise((resolve,reject)=>{
+      let responseType = "json";
+      let options = {
+        method:'get',
+        url:'/api/v1/text2sql_database/',
+        data:{},
+        params:{},
+        headers:{
+          "Content-Type":""
+        },
+        onUploadProgress:uploadProgress,
+        onDownloadProgress:downloadProgress
+      }
+      // support wechat mini program
+      if (cancelSource!=undefined){
+        options.cancelToken = cancelSource.token
+      }
+      if (responseType != "json"){
+        options.responseType = responseType;
+      }
+      axios(options)
+      .then(res=>{
+        if (res.config.responseType=="blob"){
+          resolve(new Blob([res.data],{
+            type: res.headers["content-type"].split(";")[0]
+          }))
+        }else{
+          resolve(res.data);
+          return res.data
+        }
+      }).catch(err=>{
+        if (err.response){
+          if (err.response.data)
+            reject(err.response.data)
+          else
+            reject(err.response);
+        }else{
+          reject(err)
+        }
+      })
+    })
+  }
+ 
+  /**
+  * @summary 获取指定db详情
+  * @param {String} [pathdb_id] 
+  * @param {CancelTokenSource} [cancelSource] Axios Cancel Source 对象，可以取消该请求
+  * @param {Function} [uploadProgress] 上传回调函数
+  * @param {Function} [downloadProgress] 下载回调函数
+  */
+  static async get_database_detail(pathdb_id,cancelSource,uploadProgress,downloadProgress){
+    return await new Promise((resolve,reject)=>{
+      let responseType = "json";
+      let options = {
+        method:'get',
+        url:'/api/v1/text2sql_database/'+pathdb_id+'',
+        data:{},
+        params:{},
+        headers:{
+          "Content-Type":""
+        },
+        onUploadProgress:uploadProgress,
+        onDownloadProgress:downloadProgress
+      }
+      // support wechat mini program
+      if (cancelSource!=undefined){
+        options.cancelToken = cancelSource.token
+      }
+      if (responseType != "json"){
+        options.responseType = responseType;
+      }
+      axios(options)
+      .then(res=>{
+        if (res.config.responseType=="blob"){
+          resolve(new Blob([res.data],{
+            type: res.headers["content-type"].split(";")[0]
+          }))
+        }else{
+          resolve(res.data);
+          return res.data
+        }
+      }).catch(err=>{
+        if (err.response){
+          if (err.response.data)
+            reject(err.response.data)
+          else
+            reject(err.response);
+        }else{
+          reject(err)
+        }
+      })
+    })
+  }
+ 
+  /**
+  * @summary 删除数据库
+  * @param {String} [pathdb_id] 
+  * @param {CancelTokenSource} [cancelSource] Axios Cancel Source 对象，可以取消该请求
+  * @param {Function} [uploadProgress] 上传回调函数
+  * @param {Function} [downloadProgress] 下载回调函数
+  */
+  static async delete_database(pathdb_id,cancelSource,uploadProgress,downloadProgress){
+    return await new Promise((resolve,reject)=>{
+      let responseType = "json";
+      let options = {
+        method:'delete',
+        url:'/api/v1/text2sql_database/'+pathdb_id+'',
+        data:{},
+        params:{},
+        headers:{
+          "Content-Type":""
+        },
+        onUploadProgress:uploadProgress,
+        onDownloadProgress:downloadProgress
+      }
+      // support wechat mini program
+      if (cancelSource!=undefined){
+        options.cancelToken = cancelSource.token
+      }
+      if (responseType != "json"){
+        options.responseType = responseType;
+      }
+      axios(options)
+      .then(res=>{
+        if (res.config.responseType=="blob"){
+          resolve(new Blob([res.data],{
+            type: res.headers["content-type"].split(";")[0]
+          }))
+        }else{
+          resolve(res.data);
+          return res.data
+        }
+      }).catch(err=>{
+        if (err.response){
+          if (err.response.data)
+            reject(err.response.data)
+          else
+            reject(err.response);
+        }else{
+          reject(err)
+        }
+      })
+    })
+  }
+ 
+  /**
+  * @summary 上传一个sqlite数据库文件并注册
+  * @param {UserModel.Body_upload_sqlite_database} [body_upload_sqlite_database] 
+  * @param {CancelTokenSource} [cancelSource] Axios Cancel Source 对象，可以取消该请求
+  * @param {Function} [uploadProgress] 上传回调函数
+  * @param {Function} [downloadProgress] 下载回调函数
+  */
+  static async upload_sqlite_database(body_upload_sqlite_database,cancelSource,uploadProgress,downloadProgress){
+    return await new Promise((resolve,reject)=>{
+      let responseType = "json";
+      let options = {
+        method:'post',
+        url:'/api/v1/text2sql_database/upload',
+        data:body_upload_sqlite_database,
+        params:{},
+        headers:{
+          "Content-Type":"multipart/form-data"
+        },
+        onUploadProgress:uploadProgress,
+        onDownloadProgress:downloadProgress
+      }
+      // support wechat mini program
+      if (cancelSource!=undefined){
+        options.cancelToken = cancelSource.token
+      }
+      if (responseType != "json"){
+        options.responseType = responseType;
+      }
+      axios(options)
+      .then(res=>{
+        if (res.config.responseType=="blob"){
+          resolve(new Blob([res.data],{
+            type: res.headers["content-type"].split(";")[0]
+          }))
+        }else{
+          resolve(res.data);
+          return res.data
+        }
+      }).catch(err=>{
+        if (err.response){
+          if (err.response.data)
+            reject(err.response.data)
+          else
+            reject(err.response);
+        }else{
+          reject(err)
+        }
+      })
+    })
+  }
+}
+
+// class text2sql_database static method properties bind
+/**
+* @description list_databases url链接，包含baseURL
+*/
+text2sql_database.list_databases.fullPath=`${axios.defaults.baseURL}/api/v1/text2sql_database/`
+/**
+* @description list_databases url链接，不包含baseURL
+*/
+text2sql_database.list_databases.path=`/api/v1/text2sql_database/`
+/**
+* @description get_database_detail url链接，包含baseURL
+*/
+text2sql_database.get_database_detail.fullPath=`${axios.defaults.baseURL}/api/v1/text2sql_database/{db_id}`
+/**
+* @description get_database_detail url链接，不包含baseURL
+*/
+text2sql_database.get_database_detail.path=`/api/v1/text2sql_database/{db_id}`
+/**
+* @description delete_database url链接，包含baseURL
+*/
+text2sql_database.delete_database.fullPath=`${axios.defaults.baseURL}/api/v1/text2sql_database/{db_id}`
+/**
+* @description delete_database url链接，不包含baseURL
+*/
+text2sql_database.delete_database.path=`/api/v1/text2sql_database/{db_id}`
+/**
+* @description upload_sqlite_database url链接，包含baseURL
+*/
+text2sql_database.upload_sqlite_database.fullPath=`${axios.defaults.baseURL}/api/v1/text2sql_database/upload`
+/**
+* @description upload_sqlite_database url链接，不包含baseURL
+*/
+text2sql_database.upload_sqlite_database.path=`/api/v1/text2sql_database/upload`
+
+export class text2sql_database_manager {
+ 
+  /**
+  * @summary 列出所有DatabaseManager配置
+  * @param {CancelTokenSource} [cancelSource] Axios Cancel Source 对象，可以取消该请求
+  * @param {Function} [uploadProgress] 上传回调函数
+  * @param {Function} [downloadProgress] 下载回调函数
+  */
+  static async list_text2sql_database_managers(cancelSource,uploadProgress,downloadProgress){
+    return await new Promise((resolve,reject)=>{
+      let responseType = "json";
+      let options = {
+        method:'get',
+        url:'/api/v1/text2sql_database_manager/',
+        data:{},
+        params:{},
+        headers:{
+          "Content-Type":""
+        },
+        onUploadProgress:uploadProgress,
+        onDownloadProgress:downloadProgress
+      }
+      // support wechat mini program
+      if (cancelSource!=undefined){
+        options.cancelToken = cancelSource.token
+      }
+      if (responseType != "json"){
+        options.responseType = responseType;
+      }
+      axios(options)
+      .then(res=>{
+        if (res.config.responseType=="blob"){
+          resolve(new Blob([res.data],{
+            type: res.headers["content-type"].split(";")[0]
+          }))
+        }else{
+          resolve(res.data);
+          return res.data
+        }
+      }).catch(err=>{
+        if (err.response){
+          if (err.response.data)
+            reject(err.response.data)
+          else
+            reject(err.response);
+        }else{
+          reject(err)
+        }
+      })
+    })
+  }
+ 
+  /**
+  * @summary 创建新的DatabaseManager
+  * @param {UserModel.Text2SQLDatabaseManagerCreateSchema} [text2sqldatabasemanagercreateschema] 
+  * @param {CancelTokenSource} [cancelSource] Axios Cancel Source 对象，可以取消该请求
+  * @param {Function} [uploadProgress] 上传回调函数
+  * @param {Function} [downloadProgress] 下载回调函数
+  */
+  static async create_text2sql_database_manager(text2sqldatabasemanagercreateschema,cancelSource,uploadProgress,downloadProgress){
+    return await new Promise((resolve,reject)=>{
+      let responseType = "json";
+      let options = {
+        method:'post',
+        url:'/api/v1/text2sql_database_manager/',
+        data:text2sqldatabasemanagercreateschema,
+        params:{},
+        headers:{
+          "Content-Type":"application/json"
+        },
+        onUploadProgress:uploadProgress,
+        onDownloadProgress:downloadProgress
+      }
+      // support wechat mini program
+      if (cancelSource!=undefined){
+        options.cancelToken = cancelSource.token
+      }
+      if (responseType != "json"){
+        options.responseType = responseType;
+      }
+      axios(options)
+      .then(res=>{
+        if (res.config.responseType=="blob"){
+          resolve(new Blob([res.data],{
+            type: res.headers["content-type"].split(";")[0]
+          }))
+        }else{
+          resolve(res.data);
+          return res.data
+        }
+      }).catch(err=>{
+        if (err.response){
+          if (err.response.data)
+            reject(err.response.data)
+          else
+            reject(err.response);
+        }else{
+          reject(err)
+        }
+      })
+    })
+  }
+ 
+  /**
+  * @summary 获取所有可用DatabaseManager类定义
+  * @param {CancelTokenSource} [cancelSource] Axios Cancel Source 对象，可以取消该请求
+  * @param {Function} [uploadProgress] 上传回调函数
+  * @param {Function} [downloadProgress] 下载回调函数
+  */
+  static async list_text2sql_database_manager_classes(cancelSource,uploadProgress,downloadProgress){
+    return await new Promise((resolve,reject)=>{
+      let responseType = "json";
+      let options = {
+        method:'get',
+        url:'/api/v1/text2sql_database_manager/classes',
+        data:{},
+        params:{},
+        headers:{
+          "Content-Type":""
+        },
+        onUploadProgress:uploadProgress,
+        onDownloadProgress:downloadProgress
+      }
+      // support wechat mini program
+      if (cancelSource!=undefined){
+        options.cancelToken = cancelSource.token
+      }
+      if (responseType != "json"){
+        options.responseType = responseType;
+      }
+      axios(options)
+      .then(res=>{
+        if (res.config.responseType=="blob"){
+          resolve(new Blob([res.data],{
+            type: res.headers["content-type"].split(";")[0]
+          }))
+        }else{
+          resolve(res.data);
+          return res.data
+        }
+      }).catch(err=>{
+        if (err.response){
+          if (err.response.data)
+            reject(err.response.data)
+          else
+            reject(err.response);
+        }else{
+          reject(err)
+        }
+      })
+    })
+  }
+ 
+  /**
+  * @summary 获取指定DatabaseManager配置详情
+  * @param {String} [pathmgr_id] 
+  * @param {CancelTokenSource} [cancelSource] Axios Cancel Source 对象，可以取消该请求
+  * @param {Function} [uploadProgress] 上传回调函数
+  * @param {Function} [downloadProgress] 下载回调函数
+  */
+  static async get_text2sql_database_manager_detail(pathmgr_id,cancelSource,uploadProgress,downloadProgress){
+    return await new Promise((resolve,reject)=>{
+      let responseType = "json";
+      let options = {
+        method:'get',
+        url:'/api/v1/text2sql_database_manager/'+pathmgr_id+'',
+        data:{},
+        params:{},
+        headers:{
+          "Content-Type":""
+        },
+        onUploadProgress:uploadProgress,
+        onDownloadProgress:downloadProgress
+      }
+      // support wechat mini program
+      if (cancelSource!=undefined){
+        options.cancelToken = cancelSource.token
+      }
+      if (responseType != "json"){
+        options.responseType = responseType;
+      }
+      axios(options)
+      .then(res=>{
+        if (res.config.responseType=="blob"){
+          resolve(new Blob([res.data],{
+            type: res.headers["content-type"].split(";")[0]
+          }))
+        }else{
+          resolve(res.data);
+          return res.data
+        }
+      }).catch(err=>{
+        if (err.response){
+          if (err.response.data)
+            reject(err.response.data)
+          else
+            reject(err.response);
+        }else{
+          reject(err)
+        }
+      })
+    })
+  }
+ 
+  /**
+  * @summary 更新DatabaseManager
+  * @param {String} [pathmgr_id] 
+  * @param {UserModel.Text2SQLDatabaseManagerUpdateSchema} [text2sqldatabasemanagerupdateschema] 
+  * @param {CancelTokenSource} [cancelSource] Axios Cancel Source 对象，可以取消该请求
+  * @param {Function} [uploadProgress] 上传回调函数
+  * @param {Function} [downloadProgress] 下载回调函数
+  */
+  static async update_text2sql_database_manager(pathmgr_id,text2sqldatabasemanagerupdateschema,cancelSource,uploadProgress,downloadProgress){
+    return await new Promise((resolve,reject)=>{
+      let responseType = "json";
+      let options = {
+        method:'put',
+        url:'/api/v1/text2sql_database_manager/'+pathmgr_id+'',
+        data:text2sqldatabasemanagerupdateschema,
+        params:{},
+        headers:{
+          "Content-Type":"application/json"
+        },
+        onUploadProgress:uploadProgress,
+        onDownloadProgress:downloadProgress
+      }
+      // support wechat mini program
+      if (cancelSource!=undefined){
+        options.cancelToken = cancelSource.token
+      }
+      if (responseType != "json"){
+        options.responseType = responseType;
+      }
+      axios(options)
+      .then(res=>{
+        if (res.config.responseType=="blob"){
+          resolve(new Blob([res.data],{
+            type: res.headers["content-type"].split(";")[0]
+          }))
+        }else{
+          resolve(res.data);
+          return res.data
+        }
+      }).catch(err=>{
+        if (err.response){
+          if (err.response.data)
+            reject(err.response.data)
+          else
+            reject(err.response);
+        }else{
+          reject(err)
+        }
+      })
+    })
+  }
+ 
+  /**
+  * @summary 删除DatabaseManager
+  * @param {String} [pathmgr_id] 
+  * @param {CancelTokenSource} [cancelSource] Axios Cancel Source 对象，可以取消该请求
+  * @param {Function} [uploadProgress] 上传回调函数
+  * @param {Function} [downloadProgress] 下载回调函数
+  */
+  static async delete_text2sql_database_manager(pathmgr_id,cancelSource,uploadProgress,downloadProgress){
+    return await new Promise((resolve,reject)=>{
+      let responseType = "json";
+      let options = {
+        method:'delete',
+        url:'/api/v1/text2sql_database_manager/'+pathmgr_id+'',
+        data:{},
+        params:{},
+        headers:{
+          "Content-Type":""
+        },
+        onUploadProgress:uploadProgress,
+        onDownloadProgress:downloadProgress
+      }
+      // support wechat mini program
+      if (cancelSource!=undefined){
+        options.cancelToken = cancelSource.token
+      }
+      if (responseType != "json"){
+        options.responseType = responseType;
+      }
+      axios(options)
+      .then(res=>{
+        if (res.config.responseType=="blob"){
+          resolve(new Blob([res.data],{
+            type: res.headers["content-type"].split(";")[0]
+          }))
+        }else{
+          resolve(res.data);
+          return res.data
+        }
+      }).catch(err=>{
+        if (err.response){
+          if (err.response.data)
+            reject(err.response.data)
+          else
+            reject(err.response);
+        }else{
+          reject(err)
+        }
+      })
+    })
+  }
+}
+
+// class text2sql_database_manager static method properties bind
+/**
+* @description list_text2sql_database_managers url链接，包含baseURL
+*/
+text2sql_database_manager.list_text2sql_database_managers.fullPath=`${axios.defaults.baseURL}/api/v1/text2sql_database_manager/`
+/**
+* @description list_text2sql_database_managers url链接，不包含baseURL
+*/
+text2sql_database_manager.list_text2sql_database_managers.path=`/api/v1/text2sql_database_manager/`
+/**
+* @description create_text2sql_database_manager url链接，包含baseURL
+*/
+text2sql_database_manager.create_text2sql_database_manager.fullPath=`${axios.defaults.baseURL}/api/v1/text2sql_database_manager/`
+/**
+* @description create_text2sql_database_manager url链接，不包含baseURL
+*/
+text2sql_database_manager.create_text2sql_database_manager.path=`/api/v1/text2sql_database_manager/`
+/**
+* @description list_text2sql_database_manager_classes url链接，包含baseURL
+*/
+text2sql_database_manager.list_text2sql_database_manager_classes.fullPath=`${axios.defaults.baseURL}/api/v1/text2sql_database_manager/classes`
+/**
+* @description list_text2sql_database_manager_classes url链接，不包含baseURL
+*/
+text2sql_database_manager.list_text2sql_database_manager_classes.path=`/api/v1/text2sql_database_manager/classes`
+/**
+* @description get_text2sql_database_manager_detail url链接，包含baseURL
+*/
+text2sql_database_manager.get_text2sql_database_manager_detail.fullPath=`${axios.defaults.baseURL}/api/v1/text2sql_database_manager/{mgr_id}`
+/**
+* @description get_text2sql_database_manager_detail url链接，不包含baseURL
+*/
+text2sql_database_manager.get_text2sql_database_manager_detail.path=`/api/v1/text2sql_database_manager/{mgr_id}`
+/**
+* @description update_text2sql_database_manager url链接，包含baseURL
+*/
+text2sql_database_manager.update_text2sql_database_manager.fullPath=`${axios.defaults.baseURL}/api/v1/text2sql_database_manager/{mgr_id}`
+/**
+* @description update_text2sql_database_manager url链接，不包含baseURL
+*/
+text2sql_database_manager.update_text2sql_database_manager.path=`/api/v1/text2sql_database_manager/{mgr_id}`
+/**
+* @description delete_text2sql_database_manager url链接，包含baseURL
+*/
+text2sql_database_manager.delete_text2sql_database_manager.fullPath=`${axios.defaults.baseURL}/api/v1/text2sql_database_manager/{mgr_id}`
+/**
+* @description delete_text2sql_database_manager url链接，不包含baseURL
+*/
+text2sql_database_manager.delete_text2sql_database_manager.path=`/api/v1/text2sql_database_manager/{mgr_id}`

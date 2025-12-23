@@ -13,6 +13,10 @@ export default {
         {
             path: 'serving',
             component: () => AsyncLoad(() => import("@/views/manage/serving/index.vue"))
+        },
+        {
+            path: 'dm',
+            component: () => AsyncLoad(() => import("@/views/manage/dbManager/index.vue"))
         }
     ]
 };
