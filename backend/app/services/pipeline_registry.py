@@ -577,7 +577,9 @@ class PipelineRegistry:
                         p_val = stored_params.get(p_name)
                     if p_val is None:
                         p_val = param_def.get("default_value")
-                        
+                    if p_val is None and param_def.get("name") == "prompt_template":
+                        # Get @prompt_restrict decorator from operator class
+                        p_val = op_details["allowed_prompts"][0]
                     # Create enriched param object
                     enriched_param = param_def.copy()
                     enriched_param["value"] = p_val
