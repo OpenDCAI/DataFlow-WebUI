@@ -96,7 +96,8 @@ class PipelineRegistry:
                                     "input_dataset": input_dataset,
                                     "operators": operators,
                                 },
-                                "tags": ["api"],
+                                # 从代码目录(api_pipelines)提取的预置 Pipeline
+                                "tags": ["api", "template"],
                                 "created_at": current_time,
                                 "updated_at": current_time,
                                 "status": "queued"
@@ -183,6 +184,15 @@ class PipelineRegistry:
             for pipeline_id, pipeline_data in data.get("pipelines", {}).items():
                 # 检查是否是api pipeline
                 if "api" in pipeline_data.get("tags", []):
+                    # 历史数据兼容：确保从代码提取的预置 Pipeline 都带 template tag
+                    tags = pipeline_data.get("tags", [])
+                    if "template" not in tags:
+                        tags.append("template")
+                        pipeline_data["tags"] = tags
+                        data["pipelines"][pipeline_id] = pipeline_data
+                        data["pipelines"][pipeline_id]["updated_at"] = self.get_current_time()
+                        updated = True
+
                     file_path = pipeline_data.get("config", {}).get("file_path")
                     if file_path and os.path.exists(file_path):
                         # 提取operator执行顺序
@@ -215,6 +225,14 @@ class PipelineRegistry:
                 self._write(data)
         except Exception as e:
             logger.error(f"Error updating API pipeline operators: {e}", exc_info=True)  
+
+    def list_templates(self) -> List[Dict[str, Any]]:
+        """列出所有预置(template) Pipelines"""
+        data = self._read()
+        pipelines = list(data.get("pipelines", {}).values())
+        templates = [p for p in pipelines if "template" in (p.get("tags") or [])]
+        templates.sort(key=lambda x: x.get("updated_at", ""), reverse=True)
+        return templates
     
     def _parse_frontend_params(self, params):
         if not params:
