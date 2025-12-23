@@ -58,7 +58,7 @@ def create_pipeline(request: Request, payload: PipelineIn):
 
         operators = pipeline_in_data.get("config", {}).get("operators", [])
         for op in operators:
-            op["params"] = container.pipeline_registry.parse_frontend_params(op.get("params", []))
+            op["params"] = container.pipeline_registry._parse_frontend_params(op.get("params", []))
 
         pipeline = container.pipeline_registry.create_pipeline(pipeline_in_data)
         return created(pipeline)

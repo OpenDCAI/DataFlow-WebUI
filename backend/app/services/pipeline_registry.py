@@ -216,20 +216,29 @@ class PipelineRegistry:
         except Exception as e:
             logger.error(f"Error updating API pipeline operators: {e}", exc_info=True)  
     
-    def _parse_frontend_params(self, params_list):
-        """
-        将前端 [{name: xxx, value: yyy}] 解析成字典 {xxx: yyy}
-        """
-        if not params_list:
+    def _parse_frontend_params(self, params):
+        if not params:
             return {}
-
+        if isinstance(params, dict):
+            if "init" in params or "run" in params:
+                merged = {}
+                for item in (params.get("init", []) or []):
+                    name = item.get("name")
+                    if name is not None:
+                        merged[name] = item.get("value")
+                for item in (params.get("run", []) or []):
+                    name = item.get("name")
+                    if name is not None:
+                        merged[name] = item.get("value")
+                return merged
+            return params
         parsed = {}
-        for item in params_list:
-            # item = {"name": "...", "value": ...}
-            key = item.get("name")
-            value = item.get("value")
-            if key is not None:
-                parsed[key] = value
+        for item in params:
+            if isinstance(item, dict):
+                key = item.get("name")
+                value = item.get("value")
+                if key is not None:
+                    parsed[key] = value
         return parsed
 
     def get_current_time(self):
@@ -262,10 +271,15 @@ class PipelineRegistry:
         current_time = self.get_current_time()
         
         # 直接创建字典表示的pipeline
+        config = pipeline_data.get("config", {})
+        operators = config.get("operators", [])
+        for op in operators:
+            params = op.get("params", {})
+            op["params"] = self._parse_frontend_params(params)
         pipeline = {
             "id": pipeline_id,
             "name": pipeline_data.get("name", ""),
-            "config": pipeline_data.get("config", {}),
+            "config": config,
             "tags": pipeline_data.get("tags", []),
             "created_at": current_time,
             "updated_at": current_time,
