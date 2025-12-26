@@ -14,16 +14,235 @@ from app.schemas.pipelines import PipelineOperator
 from app.services.dataflow_engine import dataflow_engine
 logger = get_logger(__name__)
 
+from dataclasses import dataclass
+
+@dataclass(frozen=True)
+class PipelineFileAnalyzer:
+    file_path: str
+    source: str
+    tree: ast.AST
+
+    @classmethod
+    def from_file(cls, file_path: str) -> "PipelineFileAnalyzer":
+        with open(file_path, "r", encoding="utf-8") as f:
+            source = f.read()
+        return cls(file_path=file_path, source=source, tree=ast.parse(source))
+
+    def operators(self) -> List[Dict[str, Any]]:
+        """返回 [{'name': class_name, 'params': {}}...]"""
+        names = self.execution_order()
+        return [{"name": n, "params": {}} for n in names]
+
+    def execution_order(self) -> List[str]:
+        """按 forward() 中 self.xxx.run() 的出现顺序提取 operator 类名"""
+        var_to_class = self._build_var_to_class_map()
+        out: List[str] = []
+
+        for class_node in self._iter_class_defs():
+            forward = self._find_method(class_node, "forward")
+            if not forward:
+                continue
+            for stmt in forward.body:
+                self._collect_run_calls(stmt, var_to_class, out)
+
+        return out
+
+    def init_params_by_class(self) -> Dict[str, Dict[str, Any]]:
+        """提取 __init__ 中 self.xxx = OpClass(...keyword args...)"""
+        result: Dict[str, Dict[str, Any]] = {}
+        for class_node in self._iter_class_defs():
+            init = self._find_method(class_node, "__init__")
+            if not init:
+                continue
+
+            for stmt in init.body:
+                class_name, kwargs = self._parse_self_assign_call(stmt)
+                if class_name:
+                    result[class_name] = kwargs
+        return result
+
+    def run_params_by_class(self) -> Dict[str, Dict[str, Any]]:
+        """提取 forward 中 self.xxx.run(...keyword args...)"""
+        var_to_class = self._build_var_to_class_map()
+        result: Dict[str, Dict[str, Any]] = {}
+
+        def visit(node: ast.AST):
+            if isinstance(node, ast.Call) and self._is_self_var_run_call(node):
+                var_name = node.func.value.attr  # type: ignore[attr-defined]
+                class_name = var_to_class.get(var_name)
+                if class_name:
+                    kwargs = {
+                        kw.arg: self._node_to_value(kw.value)
+                        for kw in node.keywords
+                        if kw.arg is not None
+                    }
+                    result[class_name] = kwargs
+
+            for child in ast.iter_child_nodes(node):
+                visit(child)
+
+        for class_node in self._iter_class_defs():
+            forward = self._find_method(class_node, "forward")
+            if not forward:
+                continue
+            for stmt in forward.body:
+                visit(stmt)
+
+        return result
+
+    # ---------- Internal helpers ----------
+
+    def _iter_class_defs(self) -> List[ast.ClassDef]:
+        return [n for n in ast.walk(self.tree) if isinstance(n, ast.ClassDef)]
+
+    def _find_method(self, class_node: ast.ClassDef, name: str) -> Optional[ast.FunctionDef]:
+        for item in class_node.body:
+            if isinstance(item, ast.FunctionDef) and item.name == name:
+                return item
+        return None
+
+    def _build_var_to_class_map(self) -> Dict[str, str]:
+        """
+        从 __init__ 中解析 self.var = Class()，建立 var -> Class 映射
+        """
+        mapping: Dict[str, str] = {}
+
+        for class_node in self._iter_class_defs():
+            init = self._find_method(class_node, "__init__")
+            if not init:
+                continue
+
+            for stmt in init.body:
+                if not isinstance(stmt, ast.Assign):
+                    continue
+                for target in stmt.targets:
+                    if not self._is_self_attr(target):
+                        continue
+                    var_name = target.attr  # self.<var_name>
+                    if isinstance(stmt.value, ast.Call):
+                        class_name = self._call_target_name(stmt.value)
+                        if class_name:
+                            mapping[var_name] = class_name
+
+        return mapping
+
+    def _collect_run_calls(self, node: ast.AST, var_to_class: Dict[str, str], out: List[str]) -> None:
+        """
+        递归收集 self.xxx.run() 出现顺序
+        """
+        if isinstance(node, ast.Call) and self._is_self_var_run_call(node):
+            var_name = node.func.value.attr  # type: ignore[attr-defined]
+            class_name = var_to_class.get(var_name)
+            if class_name:
+                out.append(class_name)
+
+        for child in ast.iter_child_nodes(node):
+            self._collect_run_calls(child, var_to_class, out)
+
+    def _is_self_var_run_call(self, node: ast.Call) -> bool:
+        """
+        是否形如：self.xxx.run(...)
+        """
+        if not (isinstance(node.func, ast.Attribute) and node.func.attr == "run"):
+            return False
+        # node.func.value == self.xxx
+        if not isinstance(node.func.value, ast.Attribute):
+            return False
+        if not (isinstance(node.func.value.value, ast.Name) and node.func.value.value.id == "self"):
+            return False
+        return True
+
+    def _parse_self_assign_call(self, stmt: ast.stmt) -> Tuple[Optional[str], Dict[str, Any]]:
+        """
+        解析：self.xxx = SomeClass(...kwargs...)
+        返回 (SomeClass, kwargs)
+        """
+        if not isinstance(stmt, ast.Assign):
+            return None, {}
+        # 仅处理 self.xxx = Call(...)
+        if not any(self._is_self_attr(t) for t in stmt.targets):
+            return None, {}
+        if not isinstance(stmt.value, ast.Call):
+            return None, {}
+
+        class_name = self._call_target_name(stmt.value)
+        if not class_name:
+            return None, {}
+
+        kwargs: Dict[str, Any] = {}
+        for kw in stmt.value.keywords:
+            if kw.arg is not None:
+                kwargs[kw.arg] = self._node_to_value(kw.value)
+        return class_name, kwargs
+
+    def _is_self_attr(self, node: ast.AST) -> bool:
+        return (
+            isinstance(node, ast.Attribute)
+            and isinstance(node.value, ast.Name)
+            and node.value.id == "self"
+        )
+
+    def _call_target_name(self, call: ast.Call) -> Optional[str]:
+        """
+        获取 Call 的目标名：Class() / module.Class()
+        """
+        if isinstance(call.func, ast.Name):
+            return call.func.id
+        if isinstance(call.func, ast.Attribute):
+            return call.func.attr
+        return None
+
+    @staticmethod
+    def _node_to_value(node: ast.AST) -> Any:
+        """
+        把 AST 节点尽量转成 Python 值；不能静态求值的返回 None
+        """
+        if isinstance(node, ast.Constant):
+            return node.value
+        if isinstance(node, ast.List):
+            return [PipelineFileAnalyzer._node_to_value(e) for e in node.elts]
+        if isinstance(node, ast.Tuple):
+            return tuple(PipelineFileAnalyzer._node_to_value(e) for e in node.elts)
+        if isinstance(node, ast.Dict):
+            return {
+                PipelineFileAnalyzer._node_to_value(k): PipelineFileAnalyzer._node_to_value(v)
+                for k, v in zip(node.keys, node.values)
+            }
+        if isinstance(node, ast.Name):
+            return None  # 变量名，静态无法解析
+        if isinstance(node, ast.Attribute):
+            # self.xxx -> None；其他 attr 返回可读字符串
+            if isinstance(node.value, ast.Name) and node.value.id == "self":
+                return None
+            left = PipelineFileAnalyzer._node_to_value(node.value)
+            left = "" if left is None else str(left)
+            full = f"{left}.{node.attr}" if left else node.attr
+            full = full.replace("<var:", "").replace(">", "")
+            return f"<class '{full}'>"
+        if isinstance(node, ast.Call):
+            # Prompt 类实例化：返回可读类名（沿用你原来的逻辑）
+            func_name = None
+            if isinstance(node.func, ast.Name):
+                func_name = node.func.id
+            elif isinstance(node.func, ast.Attribute):
+                func_name = node.func.attr
+            if func_name and "Prompt" in func_name:
+                return f"<class 'dataflow.prompts.{func_name}'>"
+            return None
+
+        return None
+
+
 class PipelineRegistry:
     def __init__(self, path: str | None = None):
         """
-        初始化Pipeline注册表
+        初始化Pipeline注册表i
         加载api_pipelines目录中的所有py文件并提取operator执行顺序
         """
         self.path = path or settings.PIPELINE_REGISTRY
         self.execution_path = settings.PIPELINE_EXECUTION_PATH
 
-        self._ensure()
+        self._init_registry_file()
         # 初始化后，更新所有api pipeline的operators列表
         self._update_all_api_pipelines_operators()
     
@@ -47,7 +266,7 @@ class PipelineRegistry:
         with open(self.execution_path, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2)  
 
-    def _ensure(self):
+    def _init_registry_file(self):
         """
         确保注册表文件存在，并加载api_pipelines目录中的所有py文件
         """
@@ -82,7 +301,8 @@ class PipelineRegistry:
                             file_path = os.path.join(api_pipelines_dir, filename)
                             
                             # 提取operator执行顺序
-                            operators = get_pipeline_operators_from_file(file_path)
+                            analyzer = PipelineFileAnalyzer.from_file(file_path)
+                            operators = analyzer.operators()
                             
                             # 查找关联的数据集
                             input_dataset = self._find_dataset_id(file_path)
@@ -196,7 +416,8 @@ class PipelineRegistry:
                     file_path = pipeline_data.get("config", {}).get("file_path")
                     if file_path and os.path.exists(file_path):
                         # 提取operator执行顺序
-                        operators = get_pipeline_operators_from_file(file_path)
+                        analyzer = PipelineFileAnalyzer.from_file(file_path)
+                        operators = analyzer.operators()
                         
                         # 查找关联的数据集
                         input_dataset = self._find_dataset_id(file_path)
@@ -269,7 +490,6 @@ class PipelineRegistry:
         在返回之前，确保api pipeline的operators列表是最新的
         """
         # 先更新所有api pipeline的operators列表（会自动 enrich）
-        # self._update_all_api_pipelines_operators()
         
         data = self._read()
         pipelines = list(data.get("pipelines", {}).values())
@@ -327,7 +547,8 @@ class PipelineRegistry:
             if "api" in pipeline_data.get("tags", []):
                 file_path = pipeline_data.get("config", {}).get("file_path")
                 if file_path and os.path.exists(file_path):
-                    operators = get_pipeline_operators_from_file(file_path)
+                    analyzer = PipelineFileAnalyzer.from_file(file_path)
+                    operators = analyzer.operators()
                     existing_op_names = [op.get("name") for op in pipeline_data["config"].get("operators", [])]
                     new_op_names = [op.get("name") for op in operators]
                     
@@ -528,8 +749,9 @@ class PipelineRegistry:
         pipeline_init_params = {}
         pipeline_run_params = {}
         if file_path and os.path.exists(file_path):
-            pipeline_init_params = extract_operator_params_from_pipeline(file_path)
-            pipeline_run_params = extract_operator_run_params_from_pipeline(file_path)
+            analyzer = PipelineFileAnalyzer.from_file(file_path)
+            pipeline_init_params = analyzer.init_params_by_class()
+            pipeline_run_params = analyzer.run_params_by_class()
             logger.info(f"Extracted init params for {len(pipeline_init_params)} operators, run params for {len(pipeline_run_params)} operators")
         
         enriched_operators = []
@@ -634,255 +856,3 @@ class PipelineRegistry:
             
         pipeline["config"]["operators"] = enriched_operators
         return pipeline
-
-def _ast_node_to_value(node: ast.AST) -> Any:
-    """
-    将 AST 节点转换为 Python 值
-    """
-    if isinstance(node, ast.Constant):
-        return node.value
-    elif isinstance(node, ast.Num):  # Python < 3.8
-        return node.n
-    elif isinstance(node, ast.Str):  # Python < 3.8
-        return node.s
-    elif isinstance(node, ast.NameConstant):  # Python < 3.8
-        return node.value
-    elif isinstance(node, ast.List):
-        return [_ast_node_to_value(elt) for elt in node.elts]
-    elif isinstance(node, ast.Tuple):
-        return tuple(_ast_node_to_value(elt) for elt in node.elts)
-    elif isinstance(node, ast.Dict):
-        return {_ast_node_to_value(k): _ast_node_to_value(v) for k, v in zip(node.keys, node.values)}
-    elif isinstance(node, ast.Name):
-        # 变量引用，返回 None (让系统使用默认值)
-        # 因为我们无法在静态分析时获取变量的实际值
-        return None
-    elif isinstance(node, ast.Attribute):
-        # 属性访问，如 self.llm_serving 或 module.Class
-        # 对于 self.xxx，返回 None
-        if hasattr(node, 'value') and isinstance(node.value, ast.Name) and node.value.id == 'self':
-            return None
-        # 对于 module.Class()，保留类名字符串用于 prompt_template 等
-        value_str = _ast_node_to_value(node.value) if hasattr(node, 'value') else ""
-        full_name = f"{value_str}.{node.attr}" if value_str else node.attr
-        # 去除 <var:> 前缀
-        full_name = full_name.replace("<var:", "").replace(">", "")
-        return f"<class '{full_name}'>"
-    elif isinstance(node, ast.Call):
-        # 函数调用，如 GeneralQuestionFilterPrompt()
-        func_name = None
-        if isinstance(node.func, ast.Name):
-            func_name = node.func.id
-        elif isinstance(node.func, ast.Attribute):
-            func_name = node.func.attr
-        
-        # 对于 Prompt 类的实例化，返回类名字符串
-        if func_name and "Prompt" in func_name:
-            return f"<class 'dataflow.prompts.{func_name}'>"
-        # 其他调用返回 None，让系统使用默认值
-        return None
-    else:
-        # 无法解析的节点，返回 None
-        return None
-
-def extract_operator_params_from_pipeline(file_path: str) -> Dict[str, Dict[str, Any]]:
-    """
-    从 pipeline 文件中提取每个 operator 初始化时的实际参数值
-    返回: {operator_class_name: {param_name: param_value}}
-    """
-    try:
-        with open(file_path, 'r', encoding='utf-8') as f:
-            file_content = f.read()
-        
-        tree = ast.parse(file_content)
-        operator_params = {}
-        
-        for node in ast.walk(tree):
-            if isinstance(node, ast.ClassDef):
-                for method in node.body:
-                    if isinstance(method, ast.FunctionDef) and method.name == '__init__':
-                        for stmt in method.body:
-                            if isinstance(stmt, ast.Assign):
-                                for target in stmt.targets:
-                                    if isinstance(target, ast.Attribute) and isinstance(target.value, ast.Name) and target.value.id == 'self':
-                                        if isinstance(stmt.value, ast.Call):
-                                            # 获取类名
-                                            class_name = None
-                                            if isinstance(stmt.value.func, ast.Name):
-                                                class_name = stmt.value.func.id
-                                            elif isinstance(stmt.value.func, ast.Attribute):
-                                                class_name = stmt.value.func.attr
-                                            
-                                            if class_name:
-                                                # 提取参数
-                                                params = {}
-                                                
-                                                # 提取位置参数 (暂不处理，因为需要知道参数名)
-                                                # for i, arg in enumerate(stmt.value.args):
-                                                #     params[f"arg_{i}"] = _ast_node_to_value(arg)
-                                                
-                                                # 提取关键字参数
-                                                for keyword in stmt.value.keywords:
-                                                    param_name = keyword.arg
-                                                    param_value = _ast_node_to_value(keyword.value)
-                                                    params[param_name] = param_value
-                                                
-                                                operator_params[class_name] = params
-                                                logger.debug(f"Extracted params for {class_name}: {params}")
-        
-        return operator_params
-    except Exception as e:
-        logger.error(f"Error extracting operator params from {file_path}: {e}", exc_info=True)
-        return {}
-
-def extract_operator_run_params_from_pipeline(file_path: str) -> Dict[str, Dict[str, Any]]:
-    """
-    从 pipeline 文件的 forward 方法中提取每个 operator 的 run() 参数
-    返回: {operator_class_name: {param_name: param_value}}
-    """
-    try:
-        with open(file_path, 'r', encoding='utf-8') as f:
-            file_content = f.read()
-        
-        tree = ast.parse(file_content)
-        
-        # 首先建立变量名到类名的映射
-        var_to_class_map = {}
-        for node in ast.walk(tree):
-            if isinstance(node, ast.ClassDef):
-                for method in node.body:
-                    if isinstance(method, ast.FunctionDef) and method.name == '__init__':
-                        for stmt in method.body:
-                            if isinstance(stmt, ast.Assign):
-                                for target in stmt.targets:
-                                    if isinstance(target, ast.Attribute) and isinstance(target.value, ast.Name) and target.value.id == 'self':
-                                        var_name = target.attr
-                                        if isinstance(stmt.value, ast.Call):
-                                            if isinstance(stmt.value.func, ast.Name):
-                                                class_name = stmt.value.func.id
-                                                var_to_class_map[var_name] = class_name
-                                            elif isinstance(stmt.value.func, ast.Attribute):
-                                                class_name = stmt.value.func.attr
-                                                var_to_class_map[var_name] = class_name
-        
-        # 然后提取 forward 方法中的 run() 调用参数
-        operator_run_params = {}
-        
-        def extract_run_params_from_node(node):
-            """递归提取 run() 调用的参数"""
-            if isinstance(node, ast.Call):
-                # 检查是否是 self.xxx.run() 的形式
-                if isinstance(node.func, ast.Attribute) and node.func.attr == 'run':
-                    if isinstance(node.func.value, ast.Attribute) and isinstance(node.func.value.value, ast.Name) and node.func.value.value.id == 'self':
-                        var_name = node.func.value.attr
-                        if var_name in var_to_class_map:
-                            class_name = var_to_class_map[var_name]
-                            
-                            # 提取 run() 的关键字参数
-                            run_params = {}
-                            for keyword in node.keywords:
-                                param_name = keyword.arg
-                                param_value = _ast_node_to_value(keyword.value)
-                                run_params[param_name] = param_value
-                            
-                            operator_run_params[class_name] = run_params
-                            logger.debug(f"Extracted run params for {class_name}: {run_params}")
-            
-            # 递归处理子节点
-            for child in ast.iter_child_nodes(node):
-                extract_run_params_from_node(child)
-        
-        # 遍历 forward 方法
-        for node in ast.walk(tree):
-            if isinstance(node, ast.ClassDef):
-                for method in node.body:
-                    if isinstance(method, ast.FunctionDef) and method.name == 'forward':
-                        for stmt in method.body:
-                            extract_run_params_from_node(stmt)
-        
-        return operator_run_params
-    except Exception as e:
-        logger.error(f"Error extracting operator run params from {file_path}: {e}", exc_info=True)
-        return {}
-
-def _extract_run_calls_from_node(node: ast.AST, var_to_class_map: Dict[str, str], operator_class_names: List[str]):
-    """递归提取所有 self.xxx.run() 调用"""
-    if isinstance(node, ast.Call):
-        # 检查是否是self.var.run()的形式
-        if isinstance(node.func, ast.Attribute) and node.func.attr == 'run':
-            if isinstance(node.func.value, ast.Attribute) and isinstance(node.func.value.value, ast.Name) and node.func.value.value.id == 'self':
-                var_name = node.func.value.attr
-                if var_name in var_to_class_map:
-                    operator_class_names.append(var_to_class_map[var_name])
-                    logger.debug(f"Found operator execution: {var_name}.run() -> {var_to_class_map[var_name]}")
-    
-    # 递归处理子节点
-    for child in ast.iter_child_nodes(node):
-        _extract_run_calls_from_node(child, var_to_class_map, operator_class_names)
-
-def extract_operator_execution_order(file_path: str) -> List[str]:
-    """
-    使用ast模块解析Python文件，提取pipeline中operator的执行顺序
-    从forward方法中按顺序提取所有.run()调用的对象类名
-    """
-    try:
-        with open(file_path, 'r', encoding='utf-8') as f:
-            file_content = f.read()
-        
-        # 解析Python代码为AST
-        tree = ast.parse(file_content)
-        
-        # 存储找到的operator类名
-        operator_class_names = []
-        
-        # 存储变量名到类名的映射
-        var_to_class_map = {}
-        
-        # 首先，找出所有在__init__方法中创建的operator实例
-        for node in ast.walk(tree):
-            # 查找类定义
-            if isinstance(node, ast.ClassDef):
-                # 查找__init__方法
-                for method in node.body:
-                    if isinstance(method, ast.FunctionDef) and method.name == '__init__':
-                        # 分析__init__方法中的赋值语句
-                        for stmt in method.body:
-                            if isinstance(stmt, ast.Assign):
-                                for target in stmt.targets:
-                                    # 检查是否是self.var = Class()的形式
-                                    if isinstance(target, ast.Attribute) and isinstance(target.value, ast.Name) and target.value.id == 'self':
-                                        var_name = target.attr
-                                        # 检查右侧是否是调用表达式
-                                        if isinstance(stmt.value, ast.Call):
-                                            # 获取类名
-                                            if isinstance(stmt.value.func, ast.Name):
-                                                class_name = stmt.value.func.id
-                                                var_to_class_map[var_name] = class_name
-                                                logger.debug(f"Found operator: {var_name} = {class_name}")
-                                            elif isinstance(stmt.value.func, ast.Attribute):
-                                                # 处理形如module.Class()的情况
-                                                class_name = stmt.value.func.attr
-                                                var_to_class_map[var_name] = class_name
-                                                logger.debug(f"Found operator: {var_name} = {class_name}")
-            
-            # 查找forward方法
-            if isinstance(node, ast.ClassDef):
-                for method in node.body:
-                    if isinstance(method, ast.FunctionDef) and method.name == 'forward':
-                        # 按顺序遍历 forward 方法中的语句
-                        for stmt in method.body:
-                            # 递归检查语句中的所有 Call 节点，保持顺序
-                            _extract_run_calls_from_node(stmt, var_to_class_map, operator_class_names)
-        
-        return operator_class_names
-    except Exception as e:
-        logger.error(f"Error parsing file {file_path}: {e}", exc_info=True)
-        return []
-
-def get_pipeline_operators_from_file(file_path: str) -> List[Dict[str, Any]]:
-    """
-    从pipeline文件中提取operator列表
-    """
-    operator_class_names = extract_operator_execution_order(file_path)
-    # 将类名转换为PipelineOperator格式
-    return [{'name': class_name, 'params': {}} for class_name in operator_class_names]
