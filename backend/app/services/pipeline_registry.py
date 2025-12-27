@@ -732,6 +732,194 @@ class PipelineRegistry:
         data = self._read_execution()
         # 直接返回字典列表，不需要转换为对象
         return list(data.get("executions", {}).values())
+    
+    def get_execution_status(
+        self, 
+        execution_id: str,
+        task_id: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        获取执行状态（包含算子粒度）
+        
+        Args:
+            execution_id: 执行 ID
+            task_id: 任务 ID（可选）
+        
+        Returns:
+            执行状态字典
+        """
+        # 读取执行记录
+        data = self._read_execution()
+        execution_data = data.get("executions", {}).get(execution_id)
+        
+        if not execution_data:
+            return None
+        
+        # 如果提供了 task_id，读取任务信息
+        task_info = None
+        if task_id:
+            task_info = container.task_registry.get(task_id)
+        
+        return {
+            "execution_id": execution_id,
+            "task_id": task_id,
+            "status": execution_data.get("status"),
+            "operator_progress": execution_data.get("operator_progress", {}),
+            "logs": execution_data.get("logs", []),
+            "output": execution_data.get("output", {}),
+            "started_at": execution_data.get("started_at"),
+            "completed_at": execution_data.get("completed_at"),
+            "task_status": task_info.get("status") if task_info else None,
+            "task_started_at": task_info.get("started_at") if task_info else None,
+            "task_finished_at": task_info.get("finished_at") if task_info else None
+        }
+    
+    def get_execution_result(
+        self, 
+        execution_id: str,
+        step: Optional[int] = None
+    ) -> Dict[str, Any]:
+        """
+        获取执行结果
+        
+        Args:
+            execution_id: 执行 ID
+            step: 步骤索引（可选，None 表示返回最后一个步骤的输出）
+        
+        Returns:
+            执行结果字典
+        """
+        data = self._read_execution()
+        execution_data = data.get("executions", {}).get(execution_id)
+        
+        if not execution_data:
+            return None
+        
+        # 获取输出
+        output = execution_data.get("output", {})
+        logs = execution_data.get("logs", [])
+        
+        # 如果指定了 step，返回中间步骤的输出
+        if step is not None:
+            operator_progress = execution_data.get("operator_progress", {})
+            stage_operator_logs = execution_data.get("stage_operator_logs", {})
+            
+            # 找到对应的步骤输出
+            step_output = None
+            for stage_name, stage_logs in stage_operator_logs.items():
+                for op_name, op_logs in stage_logs.items():
+                    if step < len(op_logs):
+                        # 返回该步骤的输出
+                        step_output = {
+                            "step": step,
+                            "stage": stage_name,
+                            "operator": op_name,
+                            "output": op_logs[step].get("output") if isinstance(op_logs[step], dict) else None,
+                            "log": op_logs[step]
+                        }
+                        break
+                if step_output:
+                    break
+            
+            return {
+                "execution_id": execution_id,
+                "status": execution_data.get("status"),
+                "step_output": step_output,
+                "output": output if step is None else step_output,
+                "logs": logs,
+                "started_at": execution_data.get("started_at"),
+                "completed_at": execution_data.get("completed_at")
+            }
+        
+        # 默认返回最后一个步骤的输出
+        return {
+            "execution_id": execution_id,
+            "status": execution_data.get("status"),
+            "output": output,
+            "logs": logs,
+            "started_at": execution_data.get("started_at"),
+            "completed_at": execution_data.get("completed_at")
+        }
+    
+    async def start_execution_async(
+        self, 
+        pipeline_id: Optional[str] = None, 
+        config: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """
+        异步开始执行Pipeline（使用 Ray）
+        
+        Args:
+            pipeline_id: 预定义 Pipeline ID
+            config: 自定义 Pipeline 配置
+        
+        Returns:
+            包含 task_id 和 execution_id 的字典
+        """
+        from app.services.dataflow_engine import ray_executor
+        
+        # 获取Pipeline配置
+        if pipeline_id:
+            pipeline = self.get_pipeline(pipeline_id)
+            if not pipeline:
+                raise ValueError(f"Pipeline with id {pipeline_id} not found")
+            pipeline_config = pipeline.get("config", {})
+            pipeline_name = pipeline.get("name", "Unknown Pipeline")
+            logger.info(f"Executing predefined pipeline asynchronously: {pipeline_id}")
+        else:
+            if not config:
+                raise ValueError("Either pipeline_id or config must be provided")
+            pipeline_config = config
+            pipeline_name = "Custom Pipeline"
+            logger.info("Executing pipeline with provided config asynchronously")
+        
+        # 生成执行ID
+        execution_id = str(uuid.uuid4())
+        
+        # 创建 Task
+        task_data = {
+            "dataset_id": pipeline_config.get("input_dataset", {}).get("id", ""),
+            "executor_name": pipeline_name,
+            "executor_type": "pipeline",
+            "meta": {
+                "pipeline_id": pipeline_id if pipeline_id else "custom",
+                "execution_id": execution_id
+            }
+        }
+        task = container.task_registry.create(task_data)
+        task_id = task["id"]
+        
+        logger.info(f"Task created: {task_id}")
+        
+        # 创建初始结果
+        initial_result = {
+            "execution_id": execution_id,
+            "task_id": task_id,
+            "status": "queued",
+            "output": {},
+            "logs": [f"[{self.get_current_time()}] Pipeline execution queued"],
+            "operator_progress": {}
+        }
+        
+        # 保存初始状态
+        data = self._read_execution()
+        data["executions"][execution_id] = initial_result
+        self._write_execution(data)
+        
+        # 提交到 Ray 异步执行
+        await ray_executor.submit_execution(
+            pipeline_config=pipeline_config,
+            execution_id=execution_id,
+            pipeline_registry_path=self.path,
+            pipeline_execution_path=self.execution_path
+        )
+        
+        logger.info(f"Pipeline execution submitted to Ray: {execution_id}")
+        
+        return {
+            "execution_id": execution_id,
+            "task_id": task_id
+        }
 
     def _enrich_pipeline_operators_internal(self, pipeline_data: Dict[str, Any]) -> Dict[str, Any]:
         """
