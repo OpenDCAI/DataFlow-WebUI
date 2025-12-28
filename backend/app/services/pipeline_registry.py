@@ -802,7 +802,8 @@ class PipelineRegistry:
                         p_val = param_def.get("default_value")
                     if p_val is None and param_def.get("name") == "prompt_template":
                         # Get @prompt_restrict decorator from operator class
-                        p_val = op_details["allowed_prompts"][0]
+                        if op_details.get("allowed_prompts"):
+                            p_val = op_details["allowed_prompts"][0]
                     # Create enriched param object
                     enriched_param = param_def.copy()
                     enriched_param["value"] = p_val
