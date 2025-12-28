@@ -1,14 +1,8 @@
 <template>
     <base-node v-bind="props" :data="thisData">
         <div class="fv-loading-block">
-            <fv-progress-ring
-                v-if="loading"
-                :loading="true"
-                :r="18"
-                :border-width="3"
-                background="white"
-                :color="thisData.borderColor"
-            ></fv-progress-ring>
+            <fv-progress-ring v-if="loading" :loading="true" :r="18" :border-width="3" background="white"
+                :color="thisData.borderColor"></fv-progress-ring>
         </div>
         <div class="node-row-item">
             <span class="info-title" style="font-size: 13px; color: rgba(52, 199, 89, 1)">{{
@@ -18,50 +12,23 @@
         <hr />
         <div v-if="allowedPrompts.length > 0" class="node-row-item col" @mousedown.stop @click.stop>
             <span class="info-title">{{ appConfig.local('Prompt Template') }}</span>
-            <fv-combobox
-                v-model="promptTemplateModel"
-                :placeholder="appConfig.local('Select Prompt')"
-                :options="allowedPrompts"
-                :choosen-slider-background="thisData.borderColor"
+            <fv-combobox v-model="promptTemplateModel" :placeholder="appConfig.local('Select Prompt')"
+                :options="allowedPrompts" :choosen-slider-background="thisData.borderColor"
                 :reveal-background-color="[thisData.shadowColor, 'rgba(255, 255, 255, 1)']"
-                :reveal-border-color="thisData.borderColor"
-                border-radius="8"
-                style="width: 100%"
-            ></fv-combobox>
+                :reveal-border-color="thisData.borderColor" border-radius="8" style="width: 100%"></fv-combobox>
         </div>
-        <div
-            v-if="thisData.operatorParams"
-            v-show="item.show"
-            v-for="(item, index) in thisData.operatorParams.init"
-            :key="`init_${index}`"
-            class="node-row-item col"
-        >
+        <div v-if="thisData.operatorParams" v-show="item.show" v-for="(item, index) in thisData.operatorParams.init"
+            :key="`init_${index}`" class="node-row-item col">
             <span class="info-title">{{ item.name }}</span>
-            <fv-text-box
-                v-if="item.name.indexOf('_serving') === -1"
-                v-model="item.value"
-                :placeholder="appConfig.local('Please input') + ` ${item.name}`"
-                font-size="12"
-                border-radius="8"
-                :reveal-border="true"
-                style="width: 100%; height: 35px"
-                @mousedown.stop
-                @click.stop
-            ></fv-text-box>
-            <fv-combobox
-                v-if="item.name.indexOf('_serving') !== -1"
-                :model-value="computedServingItem(item)"
-                @update:modelValue="setServingItem(item, $event)"
-                :placeholder="appConfig.local('Select Serving')"
-                :options="servingList"
-                :choosen-slider-background="thisData.borderColor"
+            <fv-text-box v-if="item.name.indexOf('_serving') === -1" v-model="item.value"
+                :placeholder="appConfig.local('Please input') + ` ${item.name}`" font-size="12" border-radius="8"
+                :reveal-border="true" style="width: 100%; height: 35px" @mousedown.stop @click.stop></fv-text-box>
+            <fv-combobox v-if="item.name.indexOf('_serving') !== -1" :model-value="computedServingItem(item)"
+                @update:modelValue="setServingItem(item, $event)" :placeholder="appConfig.local('Select Serving')"
+                :options="servingList" :choosen-slider-background="thisData.borderColor"
                 :reveal-background-color="[thisData.shadowColor, 'rgba(255, 255, 255, 1)']"
-                :reveal-border-color="thisData.borderColor"
-                border-radius="8"
-                style="width: 100%"
-                @mousedown.stop
-                @click.stop
-            ></fv-combobox>
+                :reveal-border-color="thisData.borderColor" border-radius="8" style="width: 100%" @mousedown.stop
+                @click.stop></fv-combobox>
         </div>
         <div class="node-row-item">
             <span class="info-title" style="font-size: 13px; color: rgba(0, 122, 255, 1)">{{
@@ -69,36 +36,15 @@
             }}</span>
         </div>
         <hr />
-        <div
-            v-if="thisData.operatorParams"
-            v-for="(item, index) in thisData.operatorParams.run"
-            :key="`run_${index}`"
-            class="node-row-item col"
-        >
+        <div v-if="thisData.operatorParams" v-for="(item, index) in thisData.operatorParams.run" :key="`run_${index}`"
+            class="node-row-item col">
             <span class="info-title">{{ item.name }}</span>
-            <Handle
-                :id="`${item.name}::target::run_key`"
-                type="target"
-                class="handle-item"
-                :position="Position.Left"
-            />
-            <Handle
-                :id="`${item.name}::source::run_key`"
-                type="source"
-                class="handle-item"
-                :position="Position.Right"
-            />
-            <fv-text-box
-                v-model="item.value"
-                :placeholder="appConfig.local('Please input') + ` ${item.name}`"
-                font-size="12"
-                border-radius="8"
-                :reveal-border="true"
-                style="width: 100%; height: 35px"
-                @update:modelValue="emitUpdateRunValue(item)"
-                @mousedown.stop
-                @click.stop
-            ></fv-text-box>
+            <Handle :id="`${item.name}::target::run_key`" type="target" class="handle-item" :position="Position.Left" />
+            <Handle :id="`${item.name}::source::run_key`" type="source" class="handle-item"
+                :position="Position.Right" />
+            <fv-text-box v-model="item.value" :placeholder="appConfig.local('Please input') + ` ${item.name}`"
+                font-size="12" border-radius="8" :reveal-border="true" style="width: 100%; height: 35px"
+                @update:modelValue="emitUpdateRunValue(item)" @mousedown.stop @click.stop></fv-text-box>
         </div>
     </base-node>
 </template>
@@ -200,7 +146,12 @@ const servingList = computed(() => {
 })
 const computedServingItem = (item) => {
     let selectedItem = servingList.value.find((it) => it.key === item.value)
-    return selectedItem || dataflow.currentServing || {}
+    if (selectedItem) return selectedItem;
+    if (dataflow.currentServing) {
+        item.value = dataflow.currentServing.key
+        return dataflow.currentServing
+    }
+    return {}
 }
 const setServingItem = (item, val) => {
     if (!val.key) return
