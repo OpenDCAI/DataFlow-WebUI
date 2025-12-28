@@ -57,10 +57,11 @@ class VisualizeDatasetService:
 
 
 class DatasetRegistry:
-    def __init__(self, path: str | None = None):
+    def __init__(self, path: str | None = None, scan: bool = True):
         self.path = path or settings.DATA_REGISTRY
         self._ensure()
-        self.scan_all_datasets()
+        if scan:
+            self.scan_all_datasets()
 
     def scan_all_datasets(self) -> int:
         """
