@@ -239,13 +239,14 @@ class PipelineRegistry:
         初始化Pipeline注册表i
         加载api_pipelines目录中的所有py文件并提取operator执行顺序
         """
-        self.path = path or settings.PIPELINE_REGISTRY
-        self.execution_path = settings.PIPELINE_EXECUTION_PATH
+        # using absolute path
+        self.path = os.path.join(settings.BASE_DIR, "data", "pipeline_registry.json")
+        self.execution_path = os.path.join(settings.BASE_DIR, "data", "pipeline_execution.json")
 
         self._init_registry_file()
         # 初始化后，更新所有api pipeline的operators列表
         self._update_all_api_pipelines_operators()
-    
+        
     def _read(self) -> Dict:
         """读取注册表文件"""
         with open(self.path, "r", encoding="utf-8") as f:

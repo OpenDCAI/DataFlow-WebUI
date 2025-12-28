@@ -1,3 +1,4 @@
+import os
 from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
@@ -12,6 +13,7 @@ class Settings(BaseSettings):
         # "http://127.0.0.1",
         # # "*"
     ]
+    BASE_DIR: str = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     DATA_REGISTRY: str = "data/data_registry.yaml" #
     TASK_REGISTRY: str = "data/task_registry.yaml"
     PIPELINE_REGISTRY: str = "data/pipeline_registry.json"
@@ -22,6 +24,6 @@ class Settings(BaseSettings):
     OPS_JSON_PATH: str = "data/ops.json"  # op information cache
     SQLITE_DB_DIR: str = "data/text2sql_dbs" # where sqlite database files are stored
     PIPELINE_EXECUTION_PATH: str = "data/pipeline_execution.json"
-    DEFAULT_SERVING_FILLING: bool = False
+    DEFAULT_SERVING_FILLING: bool = True
 
 settings = Settings()
