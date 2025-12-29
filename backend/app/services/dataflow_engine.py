@@ -424,7 +424,8 @@ class DataFlowEngine:
                     logger.debug(f"Run params: {list(run_params.keys())}")
                     
                     # ✅ 更新算子粒度状态：开始执行
-                    operator_progress["run"].setdefault(op_name, []).append(f"[{datetime.now().isoformat()}] Started")
+                    op_key = f"{op_name}_{op_idx}"
+                    operator_progress["run"].setdefault(op_key, []).append(f"[{datetime.now().isoformat()}] Started")
                     # ✅ 记录当前正在执行的 step
                     operator_progress["current_step"] = op_idx
                     # ✅ 实时更新状态到文件
@@ -437,7 +438,7 @@ class DataFlowEngine:
                     logger.info(f"[{op_idx+1}/{len(run_op)}] {op_name} completed")
                     
                     # ✅ 更新算子粒度状态：执行完成
-                    operator_progress["run"].setdefault(op_name, []).append(f"[{datetime.now().isoformat()}] Completed")
+                    operator_progress["run"].setdefault(op_key, []).append(f"[{datetime.now().isoformat()}] Completed")
                     
                     # ✅ 记录缓存文件信息
                     from app.core.config import settings

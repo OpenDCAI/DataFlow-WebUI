@@ -859,19 +859,21 @@ class PipelineRegistry:
             run_progress = operator_progress.get("run", {})
             if run_progress:
                 # 找到第一个正在运行的 operator（Started 但还没有 Completed）
-                current_operator_name = None
-                for op_name, op_logs in run_progress.items():
+                current_operator_key = None
+                for op_key, op_logs in run_progress.items():
                     if op_logs:
                         last_log = op_logs[-1]
                         if "Started" in last_log and "Completed" not in last_log:
-                            current_operator_name = op_name
+                            current_operator_key = op_key
                             operator_status = "running"
                             break
                         elif "Completed" in last_log:
                             # 这个已经完成了，继续找下一个
                             continue
                 
-                operator_name = current_operator_name
+                # 从 key 中提取 operator 名称（去掉 _idx 后缀）
+                if current_operator_key:
+                    operator_name = current_operator_key.rsplit('_', 1)[0]
         
         return {
             "execution_id": execution_id,
