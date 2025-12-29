@@ -28,6 +28,6 @@ class Settings(BaseSettings):
     SQLITE_DB_DIR: str = os.path.join(BASE_DIR, "data", "text2sql_dbs") # where sqlite database files are stored
     PIPELINE_EXECUTION_PATH: str = os.path.join(BASE_DIR, "data", "pipeline_execution.json")
     CACHE_DIR: str = os.path.join(BASE_DIR, "cache_local") # cache directory for pipeline execution
-    DEFAULT_SERVING_FILLING: bool = True
+    DEFAULT_SERVING_FILLING: bool = False
 
 settings = Settings()
