@@ -263,8 +263,8 @@ class DataFlowEngine:
                 logger.info(f"Cache directory: {cache_path}, exists: {os.path.exists(cache_path)}")
                 
                 storage = FileStorage(
-                    first_entry_file_name=dataset["root"],
-                    cache_path=cache_path,
+                    first_entry_file_name=os.path.abspath(dataset['root']),
+                    cache_path=os.path.join(settings.BASE_DIR, "cache_local"),
                     file_name_prefix="dataflow_cache_step",
                     cache_type="jsonl",
                 )
@@ -414,7 +414,6 @@ class DataFlowEngine:
             logger.info(f"Executing {len(run_op)} operators...")
             
             execution_results = []
-            
             for op_idx, (operator, run_params, op_name) in enumerate(run_op):
                 try:
                     run_params["storage"] = storage.step()
@@ -431,7 +430,11 @@ class DataFlowEngine:
                     # ✅ 实时更新状态到文件
                     update_execution_status("running", {"operator_progress": operator_progress})
                     
+                    api_pipeline_path = os.path.join(settings.DATAFLOW_CORE_DIR, "api_pipelines")
+                    print(api_pipeline_path)
+                    os.chdir(api_pipeline_path)
                     operator.run(**run_params)
+                    os.chdir(settings.BASE_DIR)
                     
                     add_log("run", f"[{datetime.now().isoformat()}] [{op_idx+1}/{len(run_op)}] {op_name} completed successfully", op_name)
                     logs.append(f"[{datetime.now().isoformat()}] [{op_idx+1}/{len(run_op)}] {op_name} completed successfully")
@@ -473,7 +476,7 @@ class DataFlowEngine:
                         },
                         original_error=e
                     )
-            
+            # os.chdir(settings.BASE_DIR)
             # 成功完成
             completed_at = datetime.now().isoformat()
             add_log("run", f"[{completed_at}] Pipeline execution completed successfully")
