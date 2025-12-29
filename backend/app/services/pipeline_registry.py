@@ -733,6 +733,244 @@ class PipelineRegistry:
         data = self._read_execution()
         # 直接返回字典列表，不需要转换为对象
         return list(data.get("executions", {}).values())
+    
+    def get_execution_status(
+        self, 
+        execution_id: str,
+        task_id: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        获取执行状态（包含算子粒度）
+        
+        Args:
+            execution_id: 执行 ID
+            task_id: 任务 ID（可选）
+        
+        Returns:
+            执行状态字典
+        """
+        # 读取执行记录
+        data = self._read_execution()
+        execution_data = data.get("executions", {}).get(execution_id)
+        
+        if not execution_data:
+            return None
+        
+        # 如果提供了 task_id，读取任务信息
+        task_info = None
+        if task_id:
+            task_info = container.task_registry.get(task_id)
+        
+        return {
+            "execution_id": execution_id,
+            "task_id": task_id,
+            "status": execution_data.get("status"),
+            "operator_progress": execution_data.get("operator_progress", {}),
+            "logs": execution_data.get("logs", []),
+            "output": execution_data.get("output", {}),
+            "started_at": execution_data.get("started_at"),
+            "completed_at": execution_data.get("completed_at"),
+            "task_status": task_info.get("status") if task_info else None,
+            "task_started_at": task_info.get("started_at") if task_info else None,
+            "task_finished_at": task_info.get("finished_at") if task_info else None
+        }
+    
+    def get_execution_result(
+        self, 
+        execution_id: str,
+        step: Optional[int] = None,
+        limit: int = 5
+    ) -> Dict[str, Any]:
+        """
+        获取执行结果
+        
+        Args:
+            execution_id: 执行 ID
+            step: 步骤索引（可选，None 表示返回最后一个步骤的输出）
+            limit: 返回的数据条数（默认5条）
+        
+        Returns:
+            执行结果字典
+        """
+        data = self._read_execution()
+        execution_data = data.get("executions", {}).get(execution_id)
+        
+        if not execution_data:
+            return None
+        
+        # 获取输出
+        output = execution_data.get("output", {})
+        logs = execution_data.get("logs", [])
+        
+        # 获取执行结果和算子进度
+        execution_results = output.get("execution_results", [])
+        operator_progress = execution_data.get("operator_progress", {})
+        
+        # 确定要查询的步骤索引
+        if step is None:
+            # 默认返回最后一个已完成的步骤
+            if execution_results:
+                step = execution_results[-1].get("index", 0)
+            else:
+                # 如果没有完成的步骤，尝试从 operator_progress 获取当前正在运行的步骤
+                current_step = operator_progress.get("current_step")
+                if current_step is not None:
+                    # 使用当前正在运行的 step
+                    step = current_step
+                else:
+                    step = 0
+        
+        # 读取缓存文件（使用绝对路径）
+        cache_path = settings.CACHE_DIR
+        cache_file_prefix = "dataflow_cache_step"
+        cache_file = os.path.join(cache_path, f"{cache_file_prefix}_step{step}.jsonl")
+        
+        sample_data = []
+        total_count = 0
+        file_exists = False
+        
+        # 如果当前 step 的文件不存在，尝试读取上一步的文件（运行中时，当前 step 的文件还没写入）
+        if not os.path.exists(cache_file) and step > 0:
+            cache_file = os.path.join(cache_path, f"{cache_file_prefix}_step{step-1}.jsonl")
+        
+        if os.path.exists(cache_file):
+            file_exists = True
+            try:
+                with open(cache_file, "r", encoding="utf-8") as f:
+                    for line in f:
+                        total_count += 1
+                        if len(sample_data) < limit:
+                            try:
+                                sample_data.append(json.loads(line.strip()))
+                            except json.JSONDecodeError:
+                                pass
+            except Exception as e:
+                logger.error(f"Failed to read cache file {cache_file}: {e}")
+        
+        # 获取算子信息
+        operator_name = None
+        operator_status = None
+        
+        # 首先尝试从 execution_results 获取（已完成的算子）
+        if step < len(execution_results):
+            operator_name = execution_results[step].get("operator")
+            operator_status = execution_results[step].get("status")
+        else:
+            # 如果 execution_results 中没有，尝试从 operator_progress 获取（正在运行的算子）
+            run_progress = operator_progress.get("run", {})
+            if run_progress:
+                # 找到第一个正在运行的 operator（Started 但还没有 Completed）
+                current_operator_key = None
+                for op_key, op_logs in run_progress.items():
+                    if op_logs:
+                        last_log = op_logs[-1]
+                        if "Started" in last_log and "Completed" not in last_log:
+                            current_operator_key = op_key
+                            operator_status = "running"
+                            break
+                        elif "Completed" in last_log:
+                            # 这个已经完成了，继续找下一个
+                            continue
+                
+                # 从 key 中提取 operator 名称（去掉 _idx 后缀）
+                if current_operator_key:
+                    operator_name = current_operator_key.rsplit('_', 1)[0]
+        
+        return {
+            "execution_id": execution_id,
+            "status": execution_data.get("status"),
+            "step": step,
+            "operator_name": operator_name,
+            "operator_status": operator_status,
+            "sample_data": sample_data,
+            "sample_count": len(sample_data),
+            "total_count": total_count,
+            "file_exists": file_exists,
+            "cache_file": cache_file,
+            "logs": logs,
+            "started_at": execution_data.get("started_at"),
+            "completed_at": execution_data.get("completed_at")
+        }
+    
+    async def start_execution_async(
+        self, 
+        pipeline_id: Optional[str] = None, 
+        config: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """
+        异步开始执行Pipeline（使用 Ray）
+        
+        Args:
+            pipeline_id: 预定义 Pipeline ID
+            config: 自定义 Pipeline 配置
+        
+        Returns:
+            包含 task_id 和 execution_id 的字典
+        """
+        from app.services.dataflow_engine import ray_executor
+        
+        # 获取Pipeline配置
+        if pipeline_id:
+            pipeline = self.get_pipeline(pipeline_id)
+            if not pipeline:
+                raise ValueError(f"Pipeline with id {pipeline_id} not found")
+            pipeline_config = pipeline.get("config", {})
+            pipeline_name = pipeline.get("name", "Unknown Pipeline")
+            logger.info(f"Executing predefined pipeline asynchronously: {pipeline_id}")
+        else:
+            if not config:
+                raise ValueError("Either pipeline_id or config must be provided")
+            pipeline_config = config
+            pipeline_name = "Custom Pipeline"
+            logger.info("Executing pipeline with provided config asynchronously")
+        
+        # 生成执行ID
+        execution_id = str(uuid.uuid4())
+        
+        # 创建 Task
+        task_data = {
+            "dataset_id": pipeline_config.get("input_dataset", {}).get("id", ""),
+            "executor_name": pipeline_name,
+            "executor_type": "pipeline",
+            "meta": {
+                "pipeline_id": pipeline_id if pipeline_id else "custom",
+                "execution_id": execution_id
+            }
+        }
+        task = container.task_registry.create(task_data)
+        task_id = task["id"]
+        
+        logger.info(f"Task created: {task_id}")
+        
+        # 创建初始结果
+        initial_result = {
+            "execution_id": execution_id,
+            "task_id": task_id,
+            "status": "queued",
+            "output": {},
+            "logs": [f"[{self.get_current_time()}] Pipeline execution queued"],
+            "operator_progress": {}
+        }
+        
+        # 保存初始状态
+        data = self._read_execution()
+        data["executions"][execution_id] = initial_result
+        self._write_execution(data)
+        
+        # 提交到 Ray 异步执行
+        await ray_executor.submit_execution(
+            pipeline_config=pipeline_config,
+            execution_id=execution_id,
+            pipeline_registry_path=self.path,
+            pipeline_execution_path=self.execution_path
+        )
+        
+        logger.info(f"Pipeline execution submitted to Ray: {execution_id}")
+        
+        return {
+            "execution_id": execution_id,
+            "task_id": task_id
+        }
 
     def _enrich_pipeline_operators_internal(self, pipeline_data: Dict[str, Any]) -> Dict[str, Any]:
         """

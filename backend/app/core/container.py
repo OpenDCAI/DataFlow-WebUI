@@ -23,10 +23,13 @@ class AppContainer:
         from app.services.serving_registry import ServingRegistry
         from app.services.task_registry import TaskRegistry
         from app.services.text2sql_database_registry import Text2SQLDatabaseRegistry, Text2SQLDatabaseManagerRegistry
-
+        
+        # 检查是否在 Ray worker 中运行
+        import ray
+        is_ray_worker = ray.is_initialized() and ray.get_runtime_context().worker.mode != 0
 
         # 初始化顺序在这里完全由你控制
-        self.dataset_registry = DatasetRegistry()
+        self.dataset_registry = DatasetRegistry(scan=not is_ray_worker)
         self.dataset_visualize_service = VisualizeDatasetService()
         self.operator_registry = OperatorRegistry()
         self.prompt_registry = PromptRegistry()
