@@ -109,9 +109,10 @@ def _gather_single_operator(
 
     # 3) 简化信息里也有的 type（三级分类）和 allowed_prompts
     op_type_category = OPERATOR_REGISTRY.get_type_of_objects().get(op_name, "Unknown/Unknown")
-    _ = op_type_category[0]  # 只是表征是算子还是 prompt
-    type1 = op_type_category[1] if len(op_type_category) > 1 else "Unknown"
-    type2 = op_type_category[2] if len(op_type_category) > 2 else "Unknown"
+    # 新格式: ['dataflow', 'operators', 'core_text', 'generate', 'text2qa_generator']
+    # [0]=dataflow前缀, [1]=operators, [2]=level_1大类, [3]=level_2类型, [4]=具体名称
+    type1 = op_type_category[2] if len(op_type_category) > 2 else "Unknown"  # level_1: 算子大类（如 core_text）
+    type2 = op_type_category[3] if len(op_type_category) > 3 else "Unknown"  # level_2: 算子类型（如 generate/filter/eval）
 
     allowed_prompt_templates = getattr(cls, "ALLOWED_PROMPTS", [])
     allowed_prompt_templates = [prompt_name.__name__ for prompt_name in allowed_prompt_templates]
@@ -170,12 +171,10 @@ class OperatorRegistry:
             # 类型信息，三级分类
             op_type_category = self.op_to_type.get(op_name, "Unknown/Unknown")
 
-            import loguru
-            loguru.logger.info(op_type_category)
-
-            _ = op_type_category[0]  # 只是表征是算子还是 prompt
-            type1 = op_type_category[1] if len(op_type_category) > 1 else "Unknown"   # 大类，比如 "text2sql"
-            type2 = op_type_category[2] if len(op_type_category) > 2 else "Unknown"   # 小类，比如 "generate" 等
+            # 新格式: ['dataflow', 'operators', 'core_text', 'generate', 'text2qa_generator']
+            # [0]=dataflow前缀, [1]=operators, [2]=level_1大类, [3]=level_2类型, [4]=具体名称
+            type1 = op_type_category[2] if len(op_type_category) > 2 else "Unknown"   # level_1: 算子大类（如 core_text）
+            type2 = op_type_category[3] if len(op_type_category) > 3 else "Unknown"   # level_2: 算子类型（如 generate/filter/eval）
 
             # 描述
             if hasattr(op_cls, "get_desc") and callable(op_cls.get_desc):
