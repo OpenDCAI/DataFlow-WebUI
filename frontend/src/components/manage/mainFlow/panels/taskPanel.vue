@@ -66,7 +66,7 @@ export default {
             default: 'task'
         },
         currentPipeline: {
-            default: () => ({})
+            default: null
         }
     },
     data() {
@@ -90,6 +90,9 @@ export default {
         ...mapState(useDataflow, ['tasks']),
         ...mapState(useTheme, ['color', 'gradient']),
         filteredTasks() {
+            if (!this.currentPipeline) {
+                return []
+            }
             return this.tasks.filter((item) => item.meta.pipeline_id === this.currentPipeline.id)
         }
     },
