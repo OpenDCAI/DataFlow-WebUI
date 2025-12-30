@@ -16,21 +16,11 @@
                         style="width: auto"
                     ></time-rounder>
                 </div>
-                <span class="title-block">{{ local('Execution Results') }}</span>
-                <div v-if="runningResult" class="operators-list">
-                    <div v-for="(item, index) in operators" class="operator-item" :key="index">
-                        <div class="operator-icon" :style="{ background: gradient }">
-                            <i class="ms-Icon ms-Icon--DialShape3"></i>
-                        </div>
-                        <div class="operator-name">
-                            {{ item.operator }}
-                        </div>
-                        <i
-                            class="ms-Icon ms-Icon--Completed"
-                            style="color: rgba(0, 204, 153, 1)"
-                        ></i>
-                    </div>
-                </div>
+                <span class="title-block">{{ local('Execution Sampled Data') }}</span>
+                <table-info
+                    v-if="runningResult && runningResult.sample_data"
+                    :table-info="runningResult.sample_data"
+                ></table-info>
                 <span class="title-block">{{ local('Logs') }}</span>
                 <div v-if="runningResult" class="log-container">
                     <p v-for="(item, index) in runningResult.logs" :key="index" class="log-item">
@@ -59,11 +49,13 @@ import { useTheme } from '@/stores/theme'
 
 import basePanel from '@/components/general/basePanel.vue'
 import timeRounder from '@/components/general/timeRounder.vue'
+import tableInfo from './preview/tableInfo.vue'
 
 export default {
     components: {
         basePanel,
-        timeRounder
+        timeRounder,
+        tableInfo
     },
     props: {
         modelValue: {

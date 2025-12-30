@@ -39,6 +39,7 @@
                     @delete-node="deleteNode"
                     @update-node-data="updateNodeData"
                     @update-run-value="updateRunValue"
+                    @show-details="showDetails"
                 />
             </template>
 
@@ -73,7 +74,8 @@ const emits = defineEmits([
     'connect',
     'connect-end',
     'connect-start',
-    'update-run-value'
+    'update-run-value',
+    'show-details'
 ])
 
 const props = defineProps({
@@ -179,6 +181,10 @@ const deleteNode = (nodeInfo) => {
             flow.removeNodes(nodeInfo.id)
         }
     })
+}
+
+const showDetails = ({ pipeline_idx }) => {
+    emits('show-details', pipeline_idx)
 }
 </script>
 

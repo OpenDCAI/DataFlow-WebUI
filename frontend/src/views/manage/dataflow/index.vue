@@ -18,6 +18,7 @@
                 @connect-start="onConnectStart"
                 @connect-end="onConnectEnd"
                 @update-run-value="useEdgeSync.syncRunValue($event, flowId)"
+                @show-details="showExecDetails"
             ></mainFlow>
             <div class="control-menu-block">
                 <fv-command-bar
@@ -207,6 +208,7 @@
         <taskPanel
             v-model="show.taskPanel"
             :title="local('Executions')"
+            :current-pipeline="currentPipeline"
             @confirm="handleWatchExecution"
         ></taskPanel>
     </div>
@@ -227,7 +229,7 @@ import datasetPanel from '@/components/manage/mainFlow/panels/datasetPanel/index
 import operatorPanel from '@/components/manage/mainFlow/panels/operatorPanel.vue'
 import pageLoading from '@/components/general/pageLoading.vue'
 import currentPipelineBlock from '@/components/manage/mainFlow/tools/currentPipelineBlock.vue'
-import execResultPanel from '@/components/manage/mainFlow/panels/execResultPanel.vue'
+import execResultPanel from '@/components/manage/mainFlow/panels/execResultPanel/index.vue'
 import taskPanel from '@/components/manage/mainFlow/panels/taskPanel.vue'
 
 import databaseIcon from '@/assets/flow/database.svg'
@@ -668,6 +670,17 @@ export default {
                         status: 'error'
                     })
                     this.lock.running = true
+                })
+        },
+        showExecDetails(pipeline_idx) {
+            if (!this.executionInfo.exec_id || !this.executionInfo.task_id) return
+            this.$api.pipelines
+                .get_execution_result(this.executionInfo.exec_id, pipeline_idx - 1, 15)
+                .then((res) => {
+                    if (res.code === 200) {
+                        this.runningResult = res.data
+                        this.show.execResult = true
+                    }
                 })
         },
         handleWatchExecution({ exec_id, task_id }) {

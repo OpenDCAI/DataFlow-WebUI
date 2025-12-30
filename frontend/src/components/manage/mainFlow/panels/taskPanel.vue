@@ -3,7 +3,7 @@
         <template v-slot:content>
             <div v-show="thisValue" class="panel-task-content-block">
                 <fv-Collapse
-                    v-for="(item, index) in tasks"
+                    v-for="(item, index) in filteredTasks"
                     :key="index"
                     class="task-item"
                     :title="item.id"
@@ -64,6 +64,9 @@ export default {
         },
         title: {
             default: 'task'
+        },
+        currentPipeline: {
+            default: () => ({})
         }
     },
     data() {
@@ -85,7 +88,10 @@ export default {
     computed: {
         ...mapState(useAppConfig, ['local']),
         ...mapState(useDataflow, ['tasks']),
-        ...mapState(useTheme, ['color', 'gradient'])
+        ...mapState(useTheme, ['color', 'gradient']),
+        filteredTasks() {
+            return this.tasks.filter((item) => item.meta.pipeline_id === this.currentPipeline.id)
+        }
     },
     mounted() {},
     methods: {

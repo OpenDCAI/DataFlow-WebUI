@@ -195,10 +195,17 @@ export const useDataflow = defineStore('useDataflow', () => {
     }
 
     const execution = ref({})
+    const executionStep = ref(null)
     const getExecution = async (exec_id, task_id) => {
         await proxy.$api.pipelines.get_execution_status(exec_id, task_id).then((res) => {
             if (res.code === 200) {
                 execution.value = res.data
+                try {
+                    executionStep.value = execution.value.operator_progress.current_step
+                }
+                catch (error) {
+                    executionStep.value = null
+                }
             }
         })
     }
@@ -229,6 +236,7 @@ export const useDataflow = defineStore('useDataflow', () => {
         tasks,
         getTasks,
         execution,
+        executionStep,
         getExecution,
         clearExecution,
         isAutoConnection,

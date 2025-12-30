@@ -105,6 +105,19 @@
             <div class="log-list">
                 <p v-for="(text, index) in currentLog" :key="index">{{ text }}</p>
             </div>
+            <fv-button
+                v-show="isOverStep"
+                theme="dark"
+                icon="Info"
+                :background="thisData.borderColor"
+                border-radius="8"
+                :is-box-shadow="true"
+                style="width: 100%; margin-top: 5px"
+                @mousedown.stop
+                @click.stop
+                @click="showDetails"
+                >{{ appConfig.local('Show Details') }}</fv-button
+            >
         </div>
     </base-node>
 </template>
@@ -120,7 +133,7 @@ import baseNode from '@/components/manage/mainFlow/nodes/baseNode.vue'
 
 const { $api } = useGlobal()
 
-const emits = defineEmits(['switch-database', 'update-node-data', 'update-run-value'])
+const emits = defineEmits(['update-node-data', 'update-run-value', 'show-details'])
 
 const props = defineProps({
     id: {
@@ -277,6 +290,13 @@ watch(
     }
 )
 
+watch(
+    () => dataflow.executionStep,
+    (newVal, oldVal) => {
+        syncLoading()
+    }
+)
+
 const currentLog = computed(() => {
     if (!dataflow.execution) return null
     if (!dataflow.execution.execution_id) return null
@@ -285,27 +305,32 @@ const currentLog = computed(() => {
     if (!currentOutput) return null
     return currentOutput || []
 })
+const isOverStep = computed(() => {
+    if (!dataflow.execution) return null
+    if (!dataflow.execution.execution_id) return null
+    let pipeline_idx = thisData.value.pipeline_idx - 1
+    return dataflow.executionStep > pipeline_idx || dataflow.execution.status === 'completed'
+})
 const syncLoading = () => {
     if (!dataflow.execution) return null
     if (!dataflow.execution.execution_id) return null
     let pipeline_idx = thisData.value.pipeline_idx - 1
-    let current_step = dataflow.execution.operator_progress.current_step
+    let current_step = dataflow.executionStep
     if (current_step === pipeline_idx && dataflow.execution.status !== 'completed') {
         props.data.loading = true
     } else {
         props.data.loading = false
     }
 }
-let syncTimer = null
+
+const showDetails = () => {
+    emits('show-details', {
+        pipeline_idx: thisData.value.pipeline_idx
+    })
+}
 
 onMounted(() => {
     getNodeDetail()
-    syncTimer = setInterval(() => {
-        syncLoading()
-    }, 300)
-})
-onBeforeUnmount(() => {
-    clearInterval(syncTimer)
 })
 
 const emitUpdateRunValue = (item) => {
