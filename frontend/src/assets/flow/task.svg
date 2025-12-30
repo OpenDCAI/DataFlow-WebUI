@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" xmlns:xlink="http://www.w3.org/1999/xlink" width="512"
+    height="512" x="0" y="0" viewBox="0 0 24 24" style="enable-background:new 0 0 512 512" xml:space="preserve"
+    class="">
+    <g>
+        <linearGradient id="a" x1="12.008" x2="12.008" y1="1.479" y2="22.536" gradientUnits="userSpaceOnUse">
+            <stop stop-opacity="1" stop-color="#fffda2" offset="0"></stop>
+            <stop stop-opacity="1" stop-color="#ff7700" offset="1"></stop>
+        </linearGradient>
+        <g fill="url(#a)">
+            <path
+                d="M13.555 10.002V2.33a.1.1 0 0 0-.183-.056L5.146 14.638a.1.1 0 0 0 .108.152l4.563-1.197a.5.5 0 0 1 .627.484v7.608a.1.1 0 0 0 .182.057l8.243-11.698a.1.1 0 0 0-.095-.157l-4.654.61a.5.5 0 0 1-.565-.495z"
+                fill="" opacity="1"></path>
+            <path fill-rule="evenodd"
+                d="M12.747 1.86c.466-.7 1.558-.37 1.558.47v7.387l4.371-.574a.85.85 0 0 1 .806 1.333l-8.243 11.698c-.478.678-1.545.34-1.545-.49v-7.283l-4.25 1.115c-.755.198-1.356-.643-.923-1.293zm-2.74 12.459zm4.015-4.565zM12.805 4.48l-6.088 9.15 2.91-.763a1.25 1.25 0 0 1 1.567 1.209v5.556l6.208-8.81-3.184.418A1.25 1.25 0 0 1 12.805 10z"
+                clip-rule="evenodd" fill="" opacity="1"></path>
+        </g>
+    </g>
+</svg>

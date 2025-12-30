@@ -17,8 +17,24 @@
     >
         <div class="node-banner" :title="id">
             <div class="icon-block" :style="{ background: thisData.iconBackground }">
-                <i v-if="!thisData.img" class="ms-Icon" :class="[`ms-Icon--${thisData.icon}`]"></i>
-                <fv-img v-else class="icon-img" :src="thisData.img"></fv-img>
+                <i
+                    v-if="!thisData.img && !thisData.loading"
+                    class="ms-Icon"
+                    :class="[`ms-Icon--${thisData.icon}`]"
+                ></i>
+                <fv-img
+                    v-if="thisData.img && !thisData.loading"
+                    class="icon-img"
+                    :src="thisData.img"
+                ></fv-img>
+                <fv-progress-ring
+                    v-if="thisData.loading"
+                    :r="12"
+                    :loading="true"
+                    border-width="2"
+                    color="white"
+                    background="rgba(120, 120, 120, 0.1)"
+                ></fv-progress-ring>
             </div>
             <div class="content-block">
                 <p class="sub-status" :title="thisData.status">{{ thisData.status }}</p>

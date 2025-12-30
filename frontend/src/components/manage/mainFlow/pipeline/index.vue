@@ -72,7 +72,10 @@
                             </div>
 
                             <div class="content-block">
-                                <p class="pipeline-name" :title="item.name">{{ item.name }}</p>
+                                <div class="row-item">
+                                    <p class="pipeline-name" :title="item.name">{{ item.name }}</p>
+                                    <exec-label :model-value="item"></exec-label>
+                                </div>
                                 <div class="row-item">
                                     <p class="pipeline-info">
                                         {{ local('Total') }}: {{ item.config.operators.length }}
@@ -123,6 +126,7 @@ import { useTheme } from '@/stores/theme'
 
 import timeRounder from '@/components/general/timeRounder.vue'
 import pipelinePanel from '@/components/manage/mainFlow/panels/piplinePanel.vue'
+import execLabel from '@/components/manage/mainFlow/pipeline/execLabel.vue'
 
 import pipelineIcon from '@/assets/flow/pipeline.svg'
 
@@ -130,7 +134,8 @@ export default {
     name: 'pipeline',
     components: {
         timeRounder,
-        pipelinePanel
+        pipelinePanel,
+        execLabel
     },
     props: {
         modelValue: {
@@ -212,11 +217,12 @@ export default {
         this.getPipelineList()
     },
     methods: {
-        ...mapActions(useDataflow, ['getDatasets', 'getOperators', 'getPipelines']),
+        ...mapActions(useDataflow, ['getDatasets', 'getOperators', 'getPipelines', 'getTasks']),
         async getPipelineList() {
             if (!this.lock.pipeline) return
             this.lock.pipeline = false
             await this.getPipelines()
+            await this.getTasks()
             this.lock.pipeline = true
         },
         filterValues() {
@@ -231,11 +237,10 @@ export default {
         addPipelineNode(data) {
             data.enableDelete = true
             const flow = useVueFlow(this.flowId)
-            const { screenToFlowCoordinate } = useVueFlow(this.flowId)
-            const position = screenToFlowCoordinate({
+            const position = {
                 x: data.location.x,
                 y: data.location.y + parseInt(5 * Math.random())
-            })
+            }
             const newNode = {
                 id: data.nodeId,
                 type: 'operator-node',
@@ -263,8 +268,8 @@ export default {
             this.thisLoading = false
             const { input_dataset, operators } = item.config
             const basicPos = {
-                x: 1300,
-                y: 160
+                x: 350,
+                y: 0
             }
             let dataset = this.datasets.find((item) => item.id === input_dataset.id)
             if (!dataset) {

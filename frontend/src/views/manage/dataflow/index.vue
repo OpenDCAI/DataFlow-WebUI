@@ -204,6 +204,11 @@
             :current-pipeline="currentPipeline"
             :running-result="runningResult"
         ></execResultPanel>
+        <taskPanel
+            v-model="show.taskPanel"
+            :title="local('Executions')"
+            @confirm="handleWatchExecution"
+        ></taskPanel>
     </div>
 </template>
 
@@ -223,10 +228,12 @@ import operatorPanel from '@/components/manage/mainFlow/panels/operatorPanel.vue
 import pageLoading from '@/components/general/pageLoading.vue'
 import currentPipelineBlock from '@/components/manage/mainFlow/tools/currentPipelineBlock.vue'
 import execResultPanel from '@/components/manage/mainFlow/panels/execResultPanel.vue'
+import taskPanel from '@/components/manage/mainFlow/panels/taskPanel.vue'
 
 import databaseIcon from '@/assets/flow/database.svg'
 import pipelineIcon from '@/assets/flow/pipeline.svg'
 import operatorIcon from '@/assets/flow/operator.svg'
+import taskIcon from '@/assets/flow/task.svg'
 import saveIcon from '@/assets/flow/save.svg'
 
 export default {
@@ -238,7 +245,8 @@ export default {
         operatorPanel,
         pageLoading,
         currentPipelineBlock,
-        execResultPanel
+        execResultPanel,
+        taskPanel
     },
     data() {
         return {
@@ -265,6 +273,16 @@ export default {
                     img: operatorIcon,
                     func: () => {
                         this.show.operator = true
+                    }
+                },
+                {
+                    name: () => this.local('Execution'),
+                    img: taskIcon,
+                    show: () => {
+                        return this.relatedTasks.length > 0
+                    },
+                    func: () => {
+                        this.show.taskPanel = true
                     }
                 },
                 {
@@ -327,6 +345,13 @@ export default {
             sourceDatabase: null,
             currentPipeline: null,
             runningResult: null,
+            executionInfo: {
+                exec_id: null,
+                task_id: null
+            },
+            timer: {
+                exec: null
+            },
             useEdgeSync: new useEdgeSync(),
             show: {
                 dataset: false,
@@ -334,7 +359,8 @@ export default {
                 pipelinePanel: false,
                 operator: false,
                 serving: false,
-                execResult: false
+                execResult: false,
+                taskPanel: false
             },
             lock: {
                 serving: true,
@@ -352,6 +378,10 @@ export default {
             },
             deep: true
         },
+        currentPipeline() {
+            this.getTasks()
+            this.clearExecution()
+        },
         isAutoConnection(val) {
             if (val) {
                 this.useEdgeSync.autoConnectAllRunEdges(this.flowId, this.$Guid)
@@ -361,7 +391,13 @@ export default {
     computed: {
         ...mapState(useAppConfig, ['local']),
         ...mapState(useTheme, ['color', 'gradient']),
-        ...mapState(useDataflow, ['isAutoConnection', 'servingList', 'currentServing']),
+        ...mapState(useDataflow, [
+            'isAutoConnection',
+            'servingList',
+            'currentServing',
+            'tasks',
+            'execution'
+        ]),
         isAutoConnectionModel: {
             get() {
                 return this.isAutoConnection
@@ -369,6 +405,20 @@ export default {
             set(val) {
                 this.switchAutoConnection(val)
             }
+        },
+        relatedTasks() {
+            if (!this.currentPipeline) return []
+            let tags = this.currentPipeline.tags
+            if (!Array.isArray(tags)) return []
+            if (tags.includes('template')) return []
+            let result = []
+            this.tasks.forEach((item) => {
+                let meta = item.meta || {}
+                if (meta.pipeline_id === this.currentPipeline.id) {
+                    result.push(item)
+                }
+            })
+            return result
         }
     },
     mounted() {
@@ -380,7 +430,10 @@ export default {
             'switchAutoConnection',
             'getServingList',
             'chooseServing',
-            'getPipelines'
+            'getPipelines',
+            'getTasks',
+            'getExecution',
+            'clearExecution'
         ]),
         setViewport() {
             const flow = useVueFlow(this.flowId)
@@ -508,10 +561,17 @@ export default {
             return nodeOperators
         },
         handleSaveClick() {
-            if (this.currentPipeline && this.currentPipeline.id) this.savePipeline()
-            else {
+            if (!this.currentPipeline || !this.currentPipeline.id) {
                 this.show.pipelinePanel = true
+                return
             }
+            let tags = this.currentPipeline.tags
+            if (!Array.isArray(tags)) tags = []
+            if (tags.includes('template')) {
+                this.show.pipelinePanel = true
+                return
+            }
+            this.savePipeline()
         },
         savePipeline() {
             if (!this.sourceDatabase) {
@@ -572,6 +632,7 @@ export default {
                         this.$barWarning(this.local('Pipeline has been created'), {
                             status: 'correct'
                         })
+                        this.show.pipelinePanel = false
                     }
                 })
         },
@@ -590,11 +651,12 @@ export default {
             }
             this.lock.running = false
             this.$api.pipelines
-                .execute_pipeline(this.currentPipeline.id)
+                .execute_pipeline_async(this.currentPipeline.id)
                 .then((res) => {
                     if (res.code === 200) {
-                        this.runningResult = res.data
-                        this.show.execResult = true
+                        this.executionInfo.exec_id = res.data.execution_id
+                        this.executionInfo.task_id = res.data.task_id
+                        this.watchExecution()
                         this.$barWarning(this.local('Pipeline has been executed'), {
                             status: 'correct'
                         })
@@ -607,6 +669,24 @@ export default {
                     })
                     this.lock.running = true
                 })
+        },
+        handleWatchExecution({ exec_id, task_id }) {
+            this.executionInfo.exec_id = exec_id
+            this.executionInfo.task_id = task_id
+            this.watchExecution()
+        },
+        watchExecution() {
+            if (!this.executionInfo.exec_id || !this.executionInfo.task_id) return
+            this.getExecution(this.executionInfo.exec_id, this.executionInfo.task_id)
+            clearInterval(this.timer.exec)
+            this.timer.exec = setInterval(() => {
+                this.getExecution(this.executionInfo.exec_id, this.executionInfo.task_id)
+                this.lock.running = false
+                if (this.execution.status === 'completed') {
+                    clearInterval(this.timer.exec)
+                    this.lock.running = true
+                }
+            }, 3000)
         },
         onConnect(connection) {
             const { source, sourceHandle, target, targetHandle } = connection
@@ -741,7 +821,7 @@ export default {
         .command-bar {
             min-width: 320px;
             width: 70%;
-            max-width: 700px;
+            max-width: 800px;
             border: rgba(120, 120, 120, 0.1) solid thin;
             border-radius: 30px;
             backdrop-filter: blur(10px);

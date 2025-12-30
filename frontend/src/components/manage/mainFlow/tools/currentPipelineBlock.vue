@@ -1,21 +1,29 @@
 <template>
     <div
         class="df-current-pipeline-container"
+        :class="[{ template: isTemplate }]"
         @mouseenter="inside = true"
         @mouseleave="inside = false"
     >
-        <div class="df-current-pipeline-title" :title="local('Current Pipeline')">
-            {{ modelValue ? modelValue.name : local('Temp. Pipeline') }}
+        <div class="row-item">
+            <div class="df-current-pipeline-title" :title="local('Current Pipeline')">
+                {{ displayName }}
+            </div>
+            <transition name="df-cp-scale-up-to-up">
+                <time-rounder
+                    v-if="modelValue"
+                    v-show="inside"
+                    :model-value="new Date(modelValue.updated_at)"
+                    :foreground="color"
+                    style="width: auto"
+                ></time-rounder>
+            </transition>
         </div>
-        <transition name="df-cp-scale-up-to-up">
-            <time-rounder
-                v-if="modelValue"
-                v-show="inside"
-                :model-value="new Date(modelValue.updated_at)"
-                :foreground="color"
-                style="width: auto"
-            ></time-rounder>
-        </transition>
+        <div v-if="isTemplate" class="row-item">
+            <p class="df-current-sec-info">
+                {{ local('Created from') }}: {{ modelValue ? modelValue.name : '' }}
+            </p>
+        </div>
     </div>
 </template>
 
@@ -50,25 +58,36 @@ export default {
     },
     computed: {
         ...mapState(useAppConfig, ['local']),
-        ...mapState(useTheme, ['color'])
+        ...mapState(useTheme, ['color']),
+        isTemplate() {
+            if (!this.thisValue) return false
+            let tags = this.thisValue.tags
+            if (!Array.isArray(tags)) return false
+            return tags.includes('template')
+        },
+        displayName() {
+            if (this.isTemplate) return this.local('Temp. Pipeline')
+            return this.modelValue ? this.modelValue.name : this.local('Temp. Pipeline')
+        }
     }
 }
 </script>
 
 <style lang="scss">
 .df-current-pipeline-container {
-    @include Vcenter;
+    @include VcenterC;
 
     position: absolute;
     right: 15px;
     width: auto;
     height: 40px;
     max-width: 120px;
-    gap: 15px;
+    gap: 5px;
     padding: 0px 10px;
     background: rgba(245, 245, 245, 0.3);
     border: rgba(120, 120, 120, 0.1) solid thin;
     border-radius: 50px;
+    flex-direction: column;
     transition:
         background 0.3s ease-out,
         transform 0.3s ease-in-out,
@@ -76,6 +95,10 @@ export default {
     backdrop-filter: blur(10px);
     box-shadow: 0px 0px 1px rgba(0, 0, 0, 0.1);
     z-index: 30;
+
+    &.template {
+        height: 50px;
+    }
 
     &:hover {
         max-width: 50%;
@@ -87,6 +110,17 @@ export default {
         transform: scale(0.99);
     }
 
+    .row-item {
+        @include nowrap;
+        @include Vcenter;
+
+        position: relative;
+        width: 100%;
+        gap: 15px;
+        height: auto;
+        flex-shrink: 0;
+    }
+
     .df-current-pipeline-title {
         @include nowrap;
         @include color-golden;
@@ -95,6 +129,14 @@ export default {
         font-weight: bold;
         color: #333;
         transition: all 0.3s;
+        user-select: none;
+    }
+
+    .df-current-sec-info {
+        @include nowrap;
+
+        font-size: 10px;
+        color: rgba(120, 120, 120, 1);
         user-select: none;
     }
 }

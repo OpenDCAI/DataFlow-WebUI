@@ -184,6 +184,28 @@ export const useDataflow = defineStore('useDataflow', () => {
         })
     }
 
+    const tasks = ref([])
+    const getTasks = async () => {
+        await proxy.$api.tasks.list_tasks().then((res) => {
+            if (res.code === 200) {
+                let _tasks = res.data
+                tasks.value = _tasks
+            }
+        })
+    }
+
+    const execution = ref({})
+    const getExecution = async (exec_id, task_id) => {
+        await proxy.$api.pipelines.get_execution_status(exec_id, task_id).then((res) => {
+            if (res.code === 200) {
+                execution.value = res.data
+            }
+        })
+    }
+    const clearExecution = () => {
+        execution.value = {}
+    }
+
     const isAutoConnection = ref(false)
 
     const switchAutoConnection = (val) => {
@@ -204,6 +226,11 @@ export const useDataflow = defineStore('useDataflow', () => {
         chooseServing,
         pipelines,
         getPipelines,
+        tasks,
+        getTasks,
+        execution,
+        getExecution,
+        clearExecution,
         isAutoConnection,
         switchAutoConnection
     }
