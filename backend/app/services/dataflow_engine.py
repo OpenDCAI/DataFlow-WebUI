@@ -159,6 +159,157 @@ class DataFlowEngine:
         }
         return db_manager_instance
 
+    @staticmethod
+    def decode_hashed_arguments(pipeline_config: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        解码哈希化的参数
+        """
+        dataflow_runtime = {
+            "storage": {},
+            "serving_map" : {},
+            "embedding_serving_map" : {},
+            "db_manager_map" : {},
+        }
+        try:
+            input_dataset = pipeline_config["input_dataset"]
+            if isinstance(input_dataset, dict):
+                input_dataset_id = input_dataset.get("id")
+            else:
+                input_dataset_id = input_dataset
+                
+            if not input_dataset_id:
+                raise DataFlowEngineError(
+                    "Pipeline配置缺少input_dataset",
+                    context={"pipeline_config": pipeline_config}
+                )
+            
+            dataset = container.dataset_registry.get(input_dataset_id)
+            if not dataset:
+                raise DataFlowEngineError(
+                    f"数据集未找到",
+                    context={"dataset_id": input_dataset_id}
+                )
+            
+            from app.core.config import settings
+            
+            cache_path = settings.CACHE_DIR
+            
+            # 确保 cache 目录存在
+            os.makedirs(cache_path, exist_ok=True)
+            logger.info(f"Cache directory: {cache_path}, exists: {os.path.exists(cache_path)}")
+            
+            dataflow_runtime["storage"] = {
+                "type": "file",
+                "first_entry_file_name": os.path.abspath(dataset['root']),
+                "cache_path": os.path.join(settings.BASE_DIR, "cache_local"),
+                "file_name_prefix": "dataflow_cache_step",
+                "cache_type": "jsonl",
+            }
+
+            logger.info(f"Storage initialized with dataset: {dataset['root']}")
+            
+        except DataFlowEngineError:
+            raise
+        except Exception as e:
+            raise DataFlowEngineError(
+                "初始化Storage失败",
+                context={
+                    "input_dataset": input_dataset_id if 'input_dataset_id' in locals() else None,
+                    "dataset": dataset if 'dataset' in locals() else None
+                },
+                original_error=e
+            )
+            
+        operators = pipeline_config.get("operators", [])
+
+        for op_idx, op in enumerate(operators):
+            op_name = op.get("name", f"Operator_{op_idx}")
+            logger.info(f"[{op_idx+1}/{len(operators)}] Initializing operator: {op_name}")                
+                # 处理 init 参数
+            for param in op.get("params", {}).get("init", []):
+                param_name = param.get("name")
+                param_value = param.get("value")
+                
+                try:
+                    if param_name == "llm_serving":
+                        serving_id = param_value
+                        logger.info(f"Operator {op_name}: initializing serving {serving_id}")
+                        if serving_id not in dataflow_runtime["serving_map"]:
+                            if serving_id is None:
+                                if settings.DEFAULT_SERVING_FILLING:
+                                    # Get The first serving in SERVING_REGISTRY
+                                    all_servings = container.serving_registry._get_all()
+                                    if not all_servings:
+                                        raise DataFlowEngineError(
+                                            f"没有可用的Serving配置",
+                                            context={"serving_id": serving_id}
+                                        )
+                                    first_serving_id = next(iter(all_servings))
+                                    serving_info = container.serving_registry._get(first_serving_id)
+                                    logger.info(f"Using default serving: {first_serving_id}", serving_info)
+                                else:
+                                    raise DataFlowEngineError(
+                                        f"Serving配置未找到",
+                                        context={"serving_id": serving_id}
+                                    )
+                            else:
+                                serving_info = container.serving_registry._get(serving_id)
+                            dataflow_runtime["serving_map"][serving_id] = serving_info
+
+                    elif param_name == "embedding_serving":
+                        serving_id = param_value
+                        logger.info(f"Operator {op_name}: initializing embedding serving {serving_id}")
+                        if serving_id not in dataflow_runtime["embedding_serving_map"]:
+                            if serving_id is None:
+                                if settings.DEFAULT_SERVING_FILLING:
+                                    # Get The first serving in SERVING_REGISTRY
+                                    all_servings = container.serving_registry._get_all()
+                                    if not all_servings:
+                                        raise DataFlowEngineError(
+                                            f"没有可用的Serving配置",
+                                            context={"serving_id": serving_id}
+                                        )
+                                    first_serving_id = list(all_servings.keys())[1]
+                                    serving_info = container.serving_registry._get(first_serving_id)
+                                    logger.info(f"Using default serving: {first_serving_id}", serving_info)
+                                else:
+                                    raise DataFlowEngineError(
+                                        f"Serving配置未找到",
+                                        context={"serving_id": serving_id}
+                                    )
+                            else:
+                                serving_info = container.serving_registry._get(serving_id)
+
+                            dataflow_runtime["embedding_serving_map"][serving_id] = serving_info
+
+                    elif param_name == "database_manager":
+                        dm_val = param_value
+                        if isinstance(dm_val, list) or dm_val is None:
+                            cache_key = tuple(dm_val) if isinstance(dm_val, list) else None
+                            if cache_key not in dataflow_runtime["db_manager_map"]:
+                                pass
+                                # dataflow_runtime["db_manager_map"][cache_key] = container.text2sql_database_registry.get_manager(dm_val)
+                        else:
+                            db_manager_id = dm_val
+                            if db_manager_id not in dataflow_runtime["db_manager_map"]:
+                                dataflow_runtime["db_manager_map"][db_manager_id] = container.text2sql_database_manager_registry._get(db_manager_id)
+                        
+                    
+                except DataFlowEngineError:
+                    raise
+                except Exception as e:
+                    raise DataFlowEngineError(
+                        f"处理参数失败: {param_name}",
+                        context={
+                            "operator": op_name,
+                            "operator_index": op_idx,
+                            "param_name": param_name,
+                            "param_value": str(param_value)[:100]  # 限制长度
+                        },
+                        original_error=e
+                    )
+        return dataflow_runtime
+                            
     
     def run(self, pipeline_config: Dict[str, Any], execution_id: str, execution_path: Optional[str] = None) -> Dict[str, Any]:
         """
@@ -555,269 +706,3 @@ class DataFlowEngine:
 dataflow_engine = DataFlowEngine()
 
 
-class RayPipelineExecutor:
-    """
-    基于 Ray 的异步 Pipeline 执行器
-    支持最大并行度为 1 的执行控制
-    """
-    
-    def __init__(self, max_concurrency: int = 1):
-        """
-        初始化 Ray 执行器
-        
-        Args:
-            max_concurrency: 最大并行度，默认为 1
-        """
-        self.max_concurrency = max_concurrency
-        self._initialized = False
-        self._semaphore = None
-        logger.info(f"RayPipelineExecutor initialized with max_concurrency={max_concurrency}")
-    
-    def _ensure_initialized(self):
-        """确保 Ray 已初始化"""
-        if not self._initialized:
-            if not ray.is_initialized():
-                from app.core.config import settings
-                
-                # 获取项目根目录
-                project_root = settings.BASE_DIR
-                
-                # 简化 Ray 初始化配置
-                ray.init(
-                    num_cpus=self.max_concurrency,
-                    ignore_reinit_error=True,
-                    log_to_driver=True,
-                    logging_level="info"
-                )
-                logger.info("Ray initialized successfully")
-                logger.info(f"Ray cluster resources: {ray.cluster_resources()}")
-                logger.info(f"Ray working directory: {project_root}")
-            self._initialized = True
-    
-    @staticmethod
-    @ray.remote
-    def _execute_pipeline_remote(
-        pipeline_config: Dict[str, Any],
-        execution_id: str,
-        pipeline_registry_path: str,
-        pipeline_execution_path: str
-    ) -> Dict[str, Any]:
-        """
-        Ray 远程执行函数
-        在独立的 Ray worker 中执行 Pipeline
-        
-        Args:
-            pipeline_config: Pipeline 配置
-            execution_id: 执行 ID
-            pipeline_registry_path: Pipeline 注册表路径
-            pipeline_execution_path: Pipeline 执行记录路径
-        
-        Returns:
-            执行结果字典
-        """
-        # 立即输出日志，确认 Ray worker 启动
-        print(f"[RAY WORKER] Starting execution: {execution_id}")
-        
-        try:
-            import json
-            import os
-            from datetime import datetime
-            from app.core.logger_setup import get_logger
-            from app.core.container import container
-            from app.core.config import settings
-            from app.services.dataflow_engine import DataFlowEngine
-            
-            # 设置环境变量，标识这是 Ray worker
-            os.environ["RAY_WORKER"] = "1"
-            
-            logger = get_logger(__name__)
-            logger.info(f"[Ray Worker] Starting pipeline execution: {execution_id}")
-            
-            # 切换到正确的工作目录（与主进程一致）
-            correct_dir = settings.BASE_DIR
-            os.chdir(correct_dir)
-            logger.info(f"[Ray Worker] Changed working directory to: {os.getcwd()}")
-            
-            logger.info(f"[Ray Worker] Starting pipeline execution: {execution_id}")
-            
-            logger.info(f"[Ray Worker] Current working directory: {os.getcwd()}")
-            logger.info(f"[Ray Worker] BASE_DIR: {settings.BASE_DIR}")
-            logger.info(f"[Ray Worker] CACHE_DIR: {settings.CACHE_DIR}")
-            logger.info(f"[Ray Worker] DATA_REGISTRY: {settings.DATA_REGISTRY}")
-            logger.info(f"[Ray Worker] DATAFLOW_CORE_DIR: {settings.DATAFLOW_CORE_DIR}")
-            logger.info(f"[Ray Worker] DATA_REGISTRY exists: {os.path.exists(settings.DATA_REGISTRY)}")
-            logger.info(f"[Ray Worker] DATAFLOW_CORE_DIR exists: {os.path.exists(settings.DATAFLOW_CORE_DIR)}")
-            logger.info(f"[Ray Worker] CACHE_DIR exists: {os.path.exists(settings.CACHE_DIR)}")
-            
-            # 列出当前目录下的文件
-            try:
-                logger.info(f"[Ray Worker] Files in current directory: {os.listdir('.')[:20]}")
-                if os.path.exists('data'):
-                    logger.info(f"[Ray Worker] Files in data directory: {os.listdir('data')[:20]}")
-                if os.path.exists(settings.CACHE_DIR):
-                    logger.info(f"[Ray Worker] Files in cache directory: {os.listdir(settings.CACHE_DIR)[:20]}")
-                else:
-                    logger.warning(f"[Ray Worker] Cache directory does not exist: {settings.CACHE_DIR}")
-            except Exception as e:
-                logger.error(f"[Ray Worker] Failed to list files: {e}")
-            
-            container.init()
-            logger.info(f"[Ray Worker] Container initialized, dataset_registry: {container.dataset_registry is not None}")
-            
-            # 检查数据集是否加载成功
-            try:
-                datasets = container.dataset_registry._read().get('datasets', {})
-                logger.info(f"[Ray Worker] Dataset count: {len(datasets)}")
-                logger.info(f"[Ray Worker] Dataset IDs (first 10): {list(datasets.keys())[:10]}")
-                if 'input_dataset_id' in locals():
-                    logger.info(f"[Ray Worker] Dataset {input_dataset_id} exists: {input_dataset_id in datasets}")
-            except Exception as e:
-                logger.error(f"[Ray Worker] Failed to read datasets: {e}")
-                import traceback
-                logger.error(traceback.format_exc())
-            logger.info(f"[Ray Worker] Dataset count: {len(container.dataset_registry._read().get('datasets', {}))}")
-            logger.info(f"[Ray Worker] Dataset IDs: {list(container.dataset_registry._read().get('datasets', {}).keys())[:10]}")
-            
-            # 更新状态为 running
-            try:
-                with open(pipeline_execution_path, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-                if execution_id in data.get("executions", {}):
-                    data["executions"][execution_id]["status"] = "running"
-                    data["executions"][execution_id]["started_at"] = datetime.now().isoformat()
-                    with open(pipeline_execution_path, "w", encoding="utf-8") as f:
-                        json.dump(data, f, indent=2)
-            except Exception as e:
-                logger.error(f"[Ray Worker] Failed to update execution status to running: {e}")
-            
-            # 在 Ray worker 中创建新的 DataFlowEngine 实例
-            worker_engine = DataFlowEngine()
-            
-            # 执行 Pipeline（传入 execution_path 以支持实时状态更新）
-            result = worker_engine.run(pipeline_config, execution_id, execution_path=pipeline_execution_path)
-            
-            # 更新执行记录
-            try:
-                with open(pipeline_execution_path, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-                if execution_id in data.get("executions", {}):
-                    data["executions"][execution_id].update(result)
-                    with open(pipeline_execution_path, "w", encoding="utf-8") as f:
-                        json.dump(data, f, indent=2)
-            except Exception as e:
-                logger.error(f"[Ray Worker] Failed to update execution result: {e}")
-            
-            logger.info(f"[Ray Worker] Pipeline execution completed: {execution_id}")
-            return result
-            
-        except Exception as e:
-            import traceback
-            logger.error(f"[Ray Worker] Pipeline execution failed: {e}")
-            logger.error(traceback.format_exc())
-            
-            # 返回失败结果
-            return {
-                "execution_id": execution_id,
-                "status": "failed",
-                "output": {
-                    "error": str(e),
-                    "traceback": traceback.format_exc()
-                },
-                "logs": [f"ERROR: {str(e)}"],
-                "started_at": datetime.now().isoformat(),
-                "completed_at": datetime.now().isoformat()
-            }
-    
-    async def submit_execution(
-        self,
-        pipeline_config: Dict[str, Any],
-        execution_id: str,
-        pipeline_registry_path: str,
-        pipeline_execution_path: str
-    ) -> str:
-        """
-        提交 Pipeline 执行任务到 Ray
-        
-        Args:
-            pipeline_config: Pipeline 配置
-            execution_id: 执行 ID
-            pipeline_registry_path: Pipeline 注册表路径
-            pipeline_execution_path: Pipeline 执行记录路径
-        
-        Returns:
-            execution_id
-        """
-        self._ensure_initialized()
-        
-        logger.info(f"Submitting pipeline execution to Ray: {execution_id}")
-        logger.info(f"Ray is initialized: {ray.is_initialized()}")
-        
-        # 提交远程任务
-        try:
-            future = self._execute_pipeline_remote.remote(
-                pipeline_config,
-                execution_id,
-                pipeline_registry_path,
-                pipeline_execution_path
-            )
-            
-            logger.info(f"Pipeline execution submitted: {execution_id}, future: {future}")
-            logger.info(f"Ray cluster resources: {ray.cluster_resources()}")
-            logger.info(f"Ray available resources: {ray.available_resources()}")
-            
-            # 检查任务是否在队列中
-            logger.info(f"Checking task status...")
-            try:
-                task_status = ray.get(future, timeout=1)
-                logger.info(f"Task completed immediately: {task_status}")
-            except Exception as e:
-                logger.info(f"Task is still running: {e}")
-            
-            # 等待任务开始执行（最多等待 10 秒）
-            logger.info(f"Waiting for Ray worker to start...")
-            for i in range(10):
-                await asyncio.sleep(1)
-                logger.info(f"Waiting for Ray worker... {i+1}/10")
-            
-            return execution_id
-            
-        except Exception as e:
-            logger.error(f"Failed to submit pipeline execution: {e}")
-            import traceback
-            logger.error(traceback.format_exc())
-            raise
-    
-    async def get_execution_status(
-        self,
-        execution_id: str,
-        pipeline_execution_path: str
-    ) -> Optional[Dict[str, Any]]:
-        """
-        获取执行状态
-        
-        Args:
-            execution_id: 执行 ID
-            pipeline_execution_path: Pipeline 执行记录路径
-        
-        Returns:
-            执行状态字典，如果不存在则返回 None
-        """
-        try:
-            import json
-            with open(pipeline_execution_path, "r", encoding="utf-8") as f:
-                data = json.load(f)
-            return data.get("executions", {}).get(execution_id)
-        except Exception as e:
-            logger.error(f"Failed to get execution status for {execution_id}: {e}")
-            return None
-    
-    def shutdown(self):
-        """关闭 Ray"""
-        if ray.is_initialized():
-            ray.shutdown()
-            self._initialized = False
-            logger.info("Ray shutdown completed")
-
-
-# 创建全局 Ray 执行器实例
-ray_executor = RayPipelineExecutor(max_concurrency=1)

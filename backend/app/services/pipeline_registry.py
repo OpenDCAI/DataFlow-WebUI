@@ -11,7 +11,7 @@ from app.core.config import settings
 # from app.services.operator_registry import _op_registry
 from app.core.container import container
 from app.schemas.pipelines import PipelineOperator
-from app.services.dataflow_engine import dataflow_engine
+from app.services.dataflow_engine import DataFlowEngine
 logger = get_logger(__name__)
 
 from dataclasses import dataclass
@@ -907,7 +907,7 @@ class PipelineRegistry:
         Returns:
             包含 task_id 和 execution_id 的字典
         """
-        from app.services.dataflow_engine import ray_executor
+        from app.services.ray_pipeline_executor import ray_executor
         
         # 获取Pipeline配置
         if pipeline_id:
@@ -956,10 +956,12 @@ class PipelineRegistry:
         data = self._read_execution()
         data["executions"][execution_id] = initial_result
         self._write_execution(data)
+        dataflow_runtime = DataFlowEngine.decode_hashed_arguments(pipeline_config)
         
         # 提交到 Ray 异步执行
         await ray_executor.submit_execution(
             pipeline_config=pipeline_config,
+            dataflow_runtime=dataflow_runtime,
             execution_id=execution_id,
             pipeline_registry_path=self.path,
             pipeline_execution_path=self.execution_path
