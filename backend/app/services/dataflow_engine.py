@@ -311,7 +311,7 @@ class DataFlowEngine:
         return dataflow_runtime
                             
     
-    def run(self, pipeline_config: Dict[str, Any], task_id: str, execution_path: Optional[str] = None, cache_path: Optional[str] = None) -> Dict[str, Any]:
+    def run(self, pipeline_config: Dict[str, Any], task_id: str, execution_path: Optional[str] = None) -> Dict[str, Any]:
         """
         执行 Pipeline
         
@@ -319,7 +319,6 @@ class DataFlowEngine:
             pipeline_config: Pipeline 配置
             task_id: 任务 ID
             execution_path: 执行记录文件路径（可选，用于实时更新状态）
-            cache_path: 缓存文件路径 (可选，用于存储中间结果, 默认由task_id划分)
         
         Returns:
             Dict: 符合 PipelineExecutionResult 格式的执行结果
@@ -408,15 +407,15 @@ class DataFlowEngine:
                 
                 from app.core.config import settings
                 
-                cache_path = cache_path or os.path.join(settings.CACHE_DIR, task_id)
+                cache_path_output = os.path.join(settings.CACHE_DIR, f"{task_id}_output")
                 
                 # 确保 cache 目录存在
-                os.makedirs(cache_path, exist_ok=True)
-                logger.info(f"Cache directory: {cache_path}, exists: {os.path.exists(cache_path)}")
+                os.makedirs(cache_path_output, exist_ok=True)
+                logger.info(f"Cache directory: {cache_path_output}, exists: {os.path.exists(cache_path_output)}")
                 
                 storage = FileStorage(
                     first_entry_file_name=os.path.abspath(dataset['root']),
-                    cache_path=os.path.join(settings.BASE_DIR, "cache_local"),
+                    cache_path=cache_path_output,
                     file_name_prefix="dataflow_cache_step",
                     cache_type="jsonl",
                 )

@@ -107,7 +107,7 @@ class PipelineExecutionRequest(BaseModel):
 
 class PipelineExecutionResult(BaseModel):
     """Pipeline执行结果模型"""
-    execution_id: str = Field(..., description="执行会话唯一标识符")
+    task_id: str = Field(..., description="执行会话唯一标识符")
     status: ExecutionStatus = Field(..., description="执行状态")
     output: Dict[str, Any] = Field(default_factory=dict, description="执行输出结果")
     logs: List[str] = Field(default_factory=list, description="执行日志列表")

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import FileResponse
 from typing import List, Dict
 from app.schemas.pipelines import (
@@ -10,7 +10,11 @@ from app.api.v1.envelope import ApiResponse
 from app.api.v1.resp import ok
 from app.api.v1.errors import *
 from datetime import datetime
+from app.core.logger_setup import get_logger
 import os
+
+# 配置日志
+logger = get_logger(__name__)
 
 router = APIRouter(tags=["tasks"])
 

@@ -2,8 +2,14 @@ import json
 import os
 import hashlib
 import pandas
-from typing import Dict, List, Optional
+import datetime
+from typing import Dict, List, Optional, Any, Tuple
+from app.core.container import container
 from app.core.config import settings
+from app.services.dataflow_engine import DataFlowEngine
+from app.core.logger_setup import get_logger
+
+logger = get_logger(__name__)
 
 class TaskRegistry:
     """任务注册表，用于管理运行任务的生命周期"""
@@ -15,6 +21,8 @@ class TaskRegistry:
     def _ensure(self):
         """确保注册表文件存在"""
         os.makedirs(os.path.dirname(self.path), exist_ok=True)
+        initial_data = {"tasks": {}}
+        self._write(initial_data)   
     
     def _read(self) -> Dict:
         """读取注册表"""
@@ -178,6 +186,9 @@ class TaskRegistry:
         
         return stats
 
+    def get_current_time(self):
+        """获取当前时间的ISO格式字符串"""
+        return datetime.datetime.now().isoformat()
 
     def start_execution(self, pipeline_id: Optional[str] = None, config: Optional[Dict[str, Any]] = None) -> Tuple[str, Dict[str, Any], Dict[str, Any]]:
         """开始执行Pipeline"""
@@ -195,7 +206,7 @@ class TaskRegistry:
             logger.info("Executing pipeline with provided config")
         
         # 生成执行ID
-        task_id = str(uuid.uuid4())
+        task_id = self._generate_task_id()
         
         # 创建初始结果记录
         initial_result = {
