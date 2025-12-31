@@ -1,156 +1,266 @@
 from fastapi import APIRouter, HTTPException, Query
-from typing import Optional, List, Dict
-from app.schemas.task import TaskCreate, TaskUpdate, TaskOut
+from fastapi.responses import FileResponse
+from typing import List, Dict
+from app.schemas.pipelines import (
+    PipelineExecutionResult
+)
+from app.services.dataflow_engine import dataflow_engine
 from app.core.container import container
 from app.api.v1.envelope import ApiResponse
-from app.api.v1.resp import ok, created
+from app.api.v1.resp import ok
 from app.api.v1.errors import *
+from datetime import datetime
+import os
 
 router = APIRouter(tags=["tasks"])
 
 
-@router.get("/", response_model=ApiResponse[List[TaskOut]], operation_id="list_tasks", summary="列出所有任务，支持按状态和执行器类型过滤")
-def list_tasks(
-    status: Optional[str] = Query(None, description="过滤状态: pending/running/success/failed/cancelled"),
-    executor_type: Optional[str] = Query(None, description="过滤执行器类型: operator/pipeline")
-):
-    """
-    列出所有任务，支持按状态和执行器类型过滤
-    """
-    tasks = container.task_registry.list(status=status, executor_type=executor_type)
-    return ok(tasks)
+# CRUD操作API
+@router.get("/executions", response_model=ApiResponse[List[PipelineExecutionResult]], operation_id="list_executions", summary="列出所有Pipeline执行记录")
+def list_executions():
+    try:
+        executions = container.task_registry.list_executions()
+        return ok(executions)
+    except Exception as e:
+        logger.error(f"Failed to list executions: {e}")
+        raise HTTPException(500, f"Failed to list executions: {e}")
 
-
-@router.post("/", response_model=ApiResponse[TaskOut], operation_id="create_task", summary="创建新任务")
-def create_task(payload: TaskCreate):
+@router.get("/execution/{task_id}/status", response_model=ApiResponse[Dict], operation_id="get_execution_status", summary="查询Pipeline执行状态（算子粒度）")
+def get_execution_status(task_id: str):
     """
-    创建新任务
+    查询任务执行状态（包含算子粒度）
+    
+    Args:
+        task_id: 任务 ID
+    
+    Returns:
+        执行状态字典，包含每个算子的执行状态
     """
     try:
-        task = container.task_registry.create(payload.model_dump(mode="json"))
-        return created(task)
+        logger.info(f"Request: GET /execution/{task_id}/status")
+        
+        status = container.task_registry.get_execution_status(task_id)
+        if not status:
+            raise HTTPException(404, f"Task with id {task_id} not found")
+        
+        return ok(status)
+        
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(400, f"Failed to create task: {e}")
+        logger.error(f"Failed to get task status: {e}")
+        raise HTTPException(500, f"Failed to get task status: {str(e)}")
 
-
-@router.get("/statistics", response_model=ApiResponse[Dict], operation_id="get_task_statistics", summary="获取任务统计信息")
-def get_task_statistics():
+@router.get("/execution/{task_id}/result", response_model=ApiResponse[Dict], operation_id="get_task_result", summary="查询任务执行结果")
+def get_task_result(task_id: str, step: int = None, limit: int = 5):
     """
-    获取任务统计信息
-    """
-    stats = container.task_registry.get_statistics()
-    return ok(stats)
-
-
-@router.get("/{task_id}", response_model=ApiResponse[TaskOut], operation_id="get_task", summary="获取指定任务详情")
-def get_task(task_id: str):
-    """
-    获取指定任务详情
-    """
-    task = container.task_registry.get(task_id)
-    if not task:
-        raise HTTPException(404, f"Task {task_id} not found")
-    return ok(task)
-
-
-@router.patch("/{task_id}", response_model=ApiResponse[TaskOut], operation_id="update_task", summary="更新任务状态和信息")
-def update_task(task_id: str, payload: TaskUpdate):
-    """
-    更新任务状态和信息
-    """
-    # 过滤掉None值
-    updates = {k: v for k, v in payload.model_dump(mode="json").items() if v is not None}
+    查询任务执行结果
     
-    if not updates:
-        raise HTTPException(400, "No updates provided")
+    Args:
+        task_id: 任务 ID
+        step: 步骤索引（可选，None 表示返回最后一个步骤的输出）
+        limit: 返回的数据条数（默认5条）
     
-    task = container.task_registry.update(task_id, updates)
-    if not task:
-        raise HTTPException(404, f"Task {task_id} not found")
-    
-    return ok(task)
-
-
-@router.delete("/{task_id}", response_model=ApiResponse[Dict], operation_id="delete_task", summary="删除任务")
-def delete_task(task_id: str):
+    Returns:
+        执行结果字典
     """
-    删除任务
+    try:
+        logger.info(f"Request: GET /execution/{task_id}/result, step={step}, limit={limit}")
+        
+        result = container.task_registry.get_execution_result(task_id, step, limit)
+        if not result:
+            raise HTTPException(404, f"Task with id {task_id} not found")
+        
+        return ok(result)
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get task result: {e}")
+        raise HTTPException(500, f"Failed to get task result: {str(e)}")
+
+
+@router.get("/execution/{task_id}/download", operation_id="download_task_result", summary="下载任务执行结果文件")
+def download_task_result(task_id: str, step: int = None):
     """
-    success = container.task_registry.delete(task_id)
-    if not success:
-        raise HTTPException(404, f"Task {task_id} not found")
-    return ok({"detail": f"Task {task_id} deleted successfully"})
-
-
-@router.post("/{task_id}/start", response_model=ApiResponse[TaskOut], operation_id="start_task", summary="启动任务（将状态设为running）")
-def start_task(task_id: str):
+    下载任务执行结果文件
+    
+    Args:
+        task_id: 任务 ID
+        step: 步骤索引（可选，None 表示下载最后一个已完成的步骤）
+    
+    Returns:
+        文件下载响应
     """
-    启动任务（将状态设为running）
+    try:
+        logger.info(f"Request: GET /execution/{task_id}/download, step={step}")
+        
+        # 获取执行记录
+        data = container.task_registry._read()
+        execution_data = data.get("tasks", {}).get(task_id)
+        
+        if not execution_data:
+            raise HTTPException(404, f"Task with id {task_id} not found")
+        
+        # 获取执行结果
+        output = execution_data.get("output", {})
+        execution_results = output.get("execution_results", [])
+        
+        # 确定要下载的步骤索引
+        if step is None:
+            # 默认下载最后一个已完成的步骤
+            if execution_results:
+                step = execution_results[-1].get("index", 0)
+            else:
+                raise HTTPException(400, "No completed operators found")
+        
+        # 检查步骤是否有效
+        if step < 0 or step >= len(execution_results):
+            raise HTTPException(400, f"Invalid step index: {step}. Valid range: 0-{len(execution_results)-1}")
+        
+        # 获取算子信息
+        operator_info = execution_results[step]
+        operator_name = operator_info.get("operator", f"step_{step}")
+        
+        # 构建缓存文件路径（使用绝对路径）
+        from app.core.config import settings
+        cache_path = settings.CACHE_DIR
+        cache_file_prefix = "dataflow_cache_step"
+        cache_file = os.path.join(cache_path, f"{cache_file_prefix}_step{step}.jsonl")
+        
+        # 检查文件是否存在
+        if not os.path.exists(cache_file):
+            raise HTTPException(404, f"Result file not found for step {step}: {cache_file}")
+        
+        # 返回文件下载
+        filename = f"{task_id}_{operator_name}_step{step}.jsonl"
+        logger.info(f"Downloading file: {cache_file} as {filename}")
+        
+        return FileResponse(
+            path=cache_file,
+            filename=filename,
+            media_type="application/jsonl",
+            headers={
+                "Content-Disposition": f"attachment; filename=\"{filename}\""
+            }
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to download execution result: {e}")
+        raise HTTPException(500, f"Failed to download execution result: {str(e)}")
+
+
+# Pipeline执行API
+@router.post("/execute", response_model=ApiResponse[PipelineExecutionResult], operation_id="execute_pipeline", summary="执行Pipeline")
+async def execute_pipeline(request: Request, pipeline_id):
+    task_id = None
+    try:
+        logger.info(f"Request: {request.method} {request.url.path}")
+        
+        pipeline_config = container.pipeline_registry.get_pipeline(pipeline_id)
+        if not pipeline_config:
+            raise HTTPException(404, f"Pipeline {pipeline_id} not found")
+
+        # 调用服务层开始执行
+        task_id, _, initial_result = container.task_registry.start_execution(
+            pipeline_id=pipeline_id, 
+            config=pipeline_config
+        )
+        logger.info(f"Execution ID: {task_id}")
+        
+        # 执行 pipeline (run 方法内部已经处理所有异常，总是返回结果)
+        result = dataflow_engine.run(pipeline_config["config"], task_id, execution_path=container.task_registry.path)
+        
+        # 更新执行记录到 registry
+        data = container.task_registry._read()
+        if task_id in data.get("tasks", {}):
+            data["tasks"][task_id].update(result)
+            container.task_registry._write(data)
+        
+        return ok(result, message=f"Pipeline execution {result['status']}")
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        # 导入 DataFlowEngineError 来检查异常类型
+        from app.services.dataflow_engine import DataFlowEngineError
+        
+        if isinstance(e, DataFlowEngineError):
+            # 详细的错误信息
+            error_detail = e.to_dict()
+            logger.error(f"Pipeline execution failed: {e.message}")
+            logger.error(f"Context: {e.context}")
+            if e.traceback_str:
+                logger.error(f"Traceback: {e.traceback_str}")
+            
+            # 如果有 task_id，更新执行状态为 failed
+            if task_id:
+                try:
+                    data = container.task_registry._read()
+                    if task_id in data.get("tasks", {}):
+                        data["tasks"][task_id].update({
+                            "status": "failed",
+                            "output": {
+                                "error": e.message,
+                                "context": e.context,
+                                "original_error": str(e.original_error) if e.original_error else None
+                            },
+                            "completed_at": datetime.now().isoformat()
+                        })
+                        container.pipeline_registry._write(data)
+                except Exception as update_error:
+                    logger.error(f"Failed to update execution status: {update_error}")
+            
+            # 返回详细的错误信息给客户端
+            raise HTTPException(
+                status_code=500,
+                detail={
+                    "message": f"Pipeline执行失败: {e.message}",
+                    "error_details": error_detail
+                }
+            )
+        else:
+            # 普通异常
+            logger.error(f"Failed to execute pipeline {pipeline_id}: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
+            raise HTTPException(500, f"Failed to execute pipeline: {str(e)}")
+
+
+@router.post("/execute-async", response_model=ApiResponse[Dict], operation_id="execute_pipeline_async", summary="异步执行Pipeline（使用Ray）")
+async def execute_pipeline_async(request: Request, pipeline_id: str):
     """
-    task = container.task_registry.get(task_id)
-    if not task:
-        raise HTTPException(404, f"Task {task_id} not found")
+    异步执行 Pipeline
     
-    if task["status"] != "pending":
-        raise HTTPException(400, f"Task {task_id} is not in pending state (current: {task['status']})")
-    
-    updated_task = container.task_registry.update(task_id, {"status": "running"})
-    return ok(updated_task)
-
-
-@router.post("/{task_id}/complete", response_model=ApiResponse[TaskOut], operation_id="complete_task", summary="完成任务（将状态设为success）")
-def complete_task(task_id: str, output_id: Optional[str] = None):
+    使用 Ray 进行异步执行，立即返回 task_id 和 task_id
+    客户端可以通过 GET /execution/{task_id}/status 轮询执行状态
     """
-    完成任务（将状态设为success）
-    """
-    task = container.task_registry.get(task_id)
-    if not task:
-        raise HTTPException(404, f"Task {task_id} not found")
-    
-    if task["status"] not in ["pending", "running"]:
-        raise HTTPException(400, f"Cannot complete task in {task['status']} state")
-    
-    updates = {"status": "success"}
-    if output_id:
-        updates["output_id"] = output_id
-    
-    updated_task = container.task_registry.update(task_id, updates)
-    return ok(updated_task)
+    try:
+        logger.info(f"Request: {request.method} {request.url.path}")
+        
+        pipeline_config = container.pipeline_registry.get_pipeline(pipeline_id)
+        if not pipeline_config:
+            raise HTTPException(404, f"Pipeline {pipeline_id} not found")
 
-
-@router.post("/{task_id}/fail", response_model=ApiResponse[TaskOut], operation_id="fail_task", summary="标记任务失败")
-def fail_task(task_id: str, error_message: Optional[str] = None):
-    """
-    标记任务失败
-    """
-    task = container.task_registry.get(task_id)
-    if not task:
-        raise HTTPException(404, f"Task {task_id} not found")
-    
-    if task["status"] not in ["pending", "running"]:
-        raise HTTPException(400, f"Cannot fail task in {task['status']} state")
-    
-    updates = {"status": "failed"}
-    if error_message:
-        updates["error_message"] = error_message
-    
-    updated_task = container.task_registry.update(task_id, updates)
-    return ok(updated_task)
-
-
-@router.post("/{task_id}/cancel", response_model=ApiResponse[TaskOut], operation_id="cancel_task", summary="取消任务")
-def cancel_task(task_id: str):
-    """
-    取消任务
-    """
-    task = container.task_registry.get(task_id)
-    if not task:
-        raise HTTPException(404, f"Task {task_id} not found")
-    
-    if task["status"] not in ["pending", "running"]:
-        raise HTTPException(400, f"Cannot cancel task in {task['status']} state")
-    
-    updated_task = container.task_registry.update(task_id, {"status": "cancelled"})
-    return ok(updated_task)
-
-
+        # 调用服务层开始异步执行
+        result = await container.task_registry.start_execution_async(
+            pipeline_id=pipeline_id
+        )
+        task_id = result["task_id"]
+        logger.info(f"Async Execution ID: {task_id}, Task ID: {task_id}")
+        
+        return ok({
+            "task_id": task_id,
+            "status": "queued",
+            "message": "Pipeline execution submitted to Ray"
+        })
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to submit pipeline execution: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        raise HTTPException(500, f"Failed to submit pipeline execution: {str(e)}")

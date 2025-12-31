@@ -19,7 +19,7 @@ class Settings(BaseSettings):
     BASE_DIR: str = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     
     DATA_REGISTRY: str = os.path.join(BASE_DIR, "data", "data_registry.yaml") #
-    TASK_REGISTRY: str = os.path.join(BASE_DIR, "data", "task_registry.yaml")
+    TASK_REGISTRY: str = os.path.join(BASE_DIR, "data", "task_registry.json")
     PIPELINE_REGISTRY: str = os.path.join(BASE_DIR, "data", "pipeline_registry.json")
     SERVING_REGISTRY: str = os.path.join(BASE_DIR, "data", "serving_registry.yaml")
     TEXT2SQL_DATABASE_REGISTRY: str = os.path.join(BASE_DIR, "data", "text2sql_database_registry.yaml") # text2sql database config
@@ -27,7 +27,6 @@ class Settings(BaseSettings):
     DATAFLOW_CORE_DIR: str = os.path.join(BASE_DIR, "data", "dataflow_core")
     OPS_JSON_PATH: str = os.path.join(BASE_DIR, "data", "ops.json")  # op information cache
     SQLITE_DB_DIR: str = os.path.join(BASE_DIR, "data", "text2sql_dbs") # where sqlite database files are stored
-    PIPELINE_EXECUTION_PATH: str = os.path.join(BASE_DIR, "data", "pipeline_execution.json")
     CACHE_DIR: str = os.path.join(BASE_DIR, "cache_local") # cache directory for pipeline execution
     DEFAULT_SERVING_FILLING: bool = False
 
