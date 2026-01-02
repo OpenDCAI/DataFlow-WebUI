@@ -403,7 +403,7 @@ class TaskRegistry:
         
         # 获取Pipeline配置
         if pipeline_id:
-            pipeline = self.get_pipeline(pipeline_id)
+            pipeline = container.pipeline_registry.get_pipeline(pipeline_id)
             if not pipeline:
                 raise ValueError(f"Pipeline with id {pipeline_id} not found")
             pipeline_config = pipeline.get("config", {})
