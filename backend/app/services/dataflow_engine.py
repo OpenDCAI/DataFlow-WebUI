@@ -311,18 +311,18 @@ class DataFlowEngine:
         return dataflow_runtime
                             
     
-    def run(self, pipeline_config: Dict[str, Any], execution_id: str, execution_path: Optional[str] = None) -> Dict[str, Any]:
+    def run(self, pipeline_config: Dict[str, Any], task_id: str, execution_path: Optional[str] = None) -> Dict[str, Any]:
         """
         执行 Pipeline
         
         Args:
             pipeline_config: Pipeline 配置
-            execution_id: 执行 ID
+            task_id: 任务 ID
             execution_path: 执行记录文件路径（可选，用于实时更新状态）
         
         Returns:
             Dict: 符合 PipelineExecutionResult 格式的执行结果
-                - execution_id: str
+                - task_id: str
                 - status: str (queued/running/completed/failed)
                 - output: Dict[str, Any]
                 - logs: List[str]
@@ -355,15 +355,15 @@ class DataFlowEngine:
                 import json
                 with open(execution_path, "r", encoding="utf-8") as f:
                     data = json.load(f)
-                if execution_id in data.get("executions", {}):
+                if task_id in data.get("tasks", {}):
                     if status:
-                        data["executions"][execution_id]["status"] = status
+                        data["tasks"][task_id]["status"] = status
                     if partial_output:
                         # 更新 output 中的内容
-                        data["executions"][execution_id]["output"].update(partial_output)
+                        data["tasks"][task_id]["output"].update(partial_output)
                         # 同时更新顶层的 operator_progress 字段（用于 get_execution_status 查询）
                         if "operator_progress" in partial_output:
-                            data["executions"][execution_id]["operator_progress"] = partial_output["operator_progress"]
+                            data["tasks"][task_id]["operator_progress"] = partial_output["operator_progress"]
                     with open(execution_path, "w", encoding="utf-8") as f:
                         json.dump(data, f, indent=2)
             except Exception as e:
@@ -376,9 +376,9 @@ class DataFlowEngine:
             logs.append(ts_msg)
             stage_operator_logs.setdefault(stage, {}).setdefault(op_name, []).append(ts_msg)
         
-        add_log("global", f"[{started_at}] Starting pipeline execution: {execution_id}")
-        logs.append(f"[{started_at}] Starting pipeline execution: {execution_id}")
-        logger.info(f"Starting pipeline execution: {execution_id}")
+        add_log("global", f"[{started_at}] Starting pipeline execution: {task_id}")
+        logs.append(f"[{started_at}] Starting pipeline execution: {task_id}")
+        logger.info(f"Starting pipeline execution: {task_id}")
         
         try:
             # Step 1: 初始化 Storage
@@ -407,15 +407,15 @@ class DataFlowEngine:
                 
                 from app.core.config import settings
                 
-                cache_path = settings.CACHE_DIR
+                cache_path_output = os.path.join(settings.CACHE_DIR, f"{task_id}_output")
                 
                 # 确保 cache 目录存在
-                os.makedirs(cache_path, exist_ok=True)
-                logger.info(f"Cache directory: {cache_path}, exists: {os.path.exists(cache_path)}")
+                os.makedirs(cache_path_output, exist_ok=True)
+                logger.info(f"Cache directory: {cache_path_output}, exists: {os.path.exists(cache_path_output)}")
                 
                 storage = FileStorage(
                     first_entry_file_name=os.path.abspath(dataset['root']),
-                    cache_path=os.path.join(settings.BASE_DIR, "cache_local"),
+                    cache_path=cache_path_output,
                     file_name_prefix="dataflow_cache_step",
                     cache_type="jsonl",
                 )
@@ -632,7 +632,7 @@ class DataFlowEngine:
             completed_at = datetime.now().isoformat()
             add_log("run", f"[{completed_at}] Pipeline execution completed successfully")
             logs.append(f"[{completed_at}] Pipeline execution completed successfully")
-            logger.info(f"Pipeline execution completed successfully: {execution_id}")
+            logger.info(f"Pipeline execution completed successfully: {task_id}")
             
             output["operators_executed"] = len(run_op)
             output["stage_operator_logs"] = stage_operator_logs
@@ -641,7 +641,7 @@ class DataFlowEngine:
             output["success"] = True
             
             return {
-                "execution_id": execution_id,
+                "task_id": task_id,
                 "status": "completed",
                 "output": output,
                 "logs": logs,
@@ -673,7 +673,7 @@ class DataFlowEngine:
 
             
             return {
-                "execution_id": execution_id,
+                "task_id": task_id,
                 "status": "failed",
                 "output": output,
                 "logs": logs,
@@ -695,7 +695,7 @@ class DataFlowEngine:
             output["stage_operator_logs"] = stage_operator_logs
             
             return {
-                "execution_id": execution_id,
+                "task_id": task_id,
                 "status": "failed",
                 "output": output,
                 "logs": logs,

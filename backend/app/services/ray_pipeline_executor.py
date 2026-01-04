@@ -55,14 +55,14 @@ def extract_class_name(value: Any) -> Any:
     return value
 
 
-def dataflow_pipeline_execute(pipeline_config: Dict[str, Any], dataflow_runtime: Dict[str, Any], execution_id: str, execution_path: str):
+def dataflow_pipeline_execute(pipeline_config: Dict[str, Any], dataflow_runtime: Dict[str, Any], task_id: str, execution_path: str):
     """
     Execute a DataFlow pipeline
     
     Args:
         pipeline_config: Pipeline configuration
         dataflow_runtime: DataFlow runtime configuration
-        execution_id: Execution ID
+        task_id: Execution ID
         execution_path: Execution path
     """
     started_at = datetime.now().isoformat()
@@ -92,15 +92,15 @@ def dataflow_pipeline_execute(pipeline_config: Dict[str, Any], dataflow_runtime:
             import json
             with open(execution_path, "r", encoding="utf-8") as f:
                 data = json.load(f)
-            if execution_id in data.get("executions", {}):
+            if task_id in data.get("tasks", {}):
                 if status:
-                    data["executions"][execution_id]["status"] = status
+                    data["tasks"][task_id]["status"] = status
                 if partial_output:
                     # 更新 output 中的内容
-                    data["executions"][execution_id]["output"].update(partial_output)
+                    data["tasks"][task_id]["output"].update(partial_output)
                     # 同时更新顶层的 operator_progress 字段（用于 get_execution_status 查询）
                     if "operator_progress" in partial_output:
-                        data["executions"][execution_id]["operator_progress"] = partial_output["operator_progress"]
+                        data["tasks"][task_id]["operator_progress"] = partial_output["operator_progress"]
                 with open(execution_path, "w", encoding="utf-8") as f:
                     json.dump(data, f, indent=2)
         except Exception as e:
@@ -116,9 +116,9 @@ def dataflow_pipeline_execute(pipeline_config: Dict[str, Any], dataflow_runtime:
     logger.success(f"Input dataflow runtime: {dataflow_runtime}")
     
     
-    add_log("global", f"[{started_at}] Starting pipeline execution: {execution_id}")
-    logs.append(f"[{started_at}] Starting pipeline execution: {execution_id}")
-    logger.info(f"Starting pipeline execution: {execution_id}")
+    add_log("global", f"[{started_at}] Starting pipeline execution: {task_id}")
+    logs.append(f"[{started_at}] Starting pipeline execution: {task_id}")
+    logger.info(f"Starting pipeline execution: {task_id}")
     try:
         # Step 1: 初始化 Storage
         add_log("init", f"[{datetime.now().isoformat()}] Step 1: Initializing storage...")
@@ -416,7 +416,7 @@ def dataflow_pipeline_execute(pipeline_config: Dict[str, Any], dataflow_runtime:
         completed_at = datetime.now().isoformat()
         add_log("run", f"[{completed_at}] Pipeline execution completed successfully")
         logs.append(f"[{completed_at}] Pipeline execution completed successfully")
-        logger.info(f"Pipeline execution completed successfully: {execution_id}")
+        logger.info(f"Pipeline execution completed successfully: {task_id}")
         
         output["operators_executed"] = len(run_op)
         output["stage_operator_logs"] = stage_operator_logs
@@ -425,7 +425,7 @@ def dataflow_pipeline_execute(pipeline_config: Dict[str, Any], dataflow_runtime:
         output["success"] = True
         
         return {
-            "execution_id": execution_id,
+            "task_id": task_id,
             "status": "completed",
             "output": output,
             "logs": logs,
@@ -457,7 +457,7 @@ def dataflow_pipeline_execute(pipeline_config: Dict[str, Any], dataflow_runtime:
 
         
         return {
-            "execution_id": execution_id,
+            "task_id": task_id,
             "status": "failed",
             "output": output,
             "logs": logs,
@@ -479,7 +479,7 @@ def dataflow_pipeline_execute(pipeline_config: Dict[str, Any], dataflow_runtime:
         output["stage_operator_logs"] = stage_operator_logs
         
         return {
-            "execution_id": execution_id,
+            "task_id": task_id,
             "status": "failed",
             "output": output,
             "logs": logs,
@@ -531,7 +531,7 @@ class RayPipelineExecutor:
     def _execute_pipeline_remote(
         pipeline_config: Dict[str, Any],
         dataflow_runtime: Dict[str, Any],
-        execution_id: str,
+        task_id: str,
         pipeline_registry_path: str,
         pipeline_execution_path: str
     ) -> Dict[str, Any]:
@@ -542,7 +542,7 @@ class RayPipelineExecutor:
         Args:
             pipeline_config: Pipeline 配置
             dataflow_runtime: Dataflow 运行时
-            execution_id: 执行 ID
+            task_id: 执行 ID
             pipeline_registry_path: Pipeline 注册表路径
             pipeline_execution_path: Pipeline 执行记录路径
         
@@ -550,7 +550,7 @@ class RayPipelineExecutor:
             执行结果字典
         """
         # 立即输出日志，确认 Ray worker 启动
-        print(f"[RAY WORKER] Starting execution: {execution_id}")
+        print(f"[RAY WORKER] Starting execution: {task_id}")
         
         try:
             import json
@@ -564,14 +564,14 @@ class RayPipelineExecutor:
             os.environ["RAY_WORKER"] = "1"
             
             logger = get_logger(__name__)
-            logger.info(f"[Ray Worker] Starting pipeline execution: {execution_id}")
+            logger.info(f"[Ray Worker] Starting pipeline execution: {task_id}")
             
             # 切换到正确的工作目录（与主进程一致）
             correct_dir = settings.BASE_DIR
             os.chdir(correct_dir)
             logger.info(f"[Ray Worker] Changed working directory to: {os.getcwd()}")
             
-            logger.info(f"[Ray Worker] Starting pipeline execution: {execution_id}")
+            logger.info(f"[Ray Worker] Starting pipeline execution: {task_id}")
             
             logger.info(f"[Ray Worker] Current working directory: {os.getcwd()}")
             logger.info(f"[Ray Worker] BASE_DIR: {settings.BASE_DIR}")
@@ -600,29 +600,29 @@ class RayPipelineExecutor:
             try:
                 with open(pipeline_execution_path, "r", encoding="utf-8") as f:
                     data = json.load(f)
-                if execution_id in data.get("executions", {}):
-                    data["executions"][execution_id]["status"] = "running"
-                    data["executions"][execution_id]["started_at"] = datetime.now().isoformat()
+                if task_id in data.get("tasks", {}):
+                    data["tasks"][task_id]["status"] = "running"
+                    data["tasks"][task_id]["started_at"] = datetime.now().isoformat()
                     with open(pipeline_execution_path, "w", encoding="utf-8") as f:
                         json.dump(data, f, indent=2)
             except Exception as e:
                 logger.error(f"[Ray Worker] Failed to update execution status to running: {e}")
                         
             # 执行 Pipeline（传入 execution_path 以支持实时状态更新）
-            result = dataflow_pipeline_execute(pipeline_config, dataflow_runtime, execution_id, execution_path=pipeline_execution_path)
+            result = dataflow_pipeline_execute(pipeline_config, dataflow_runtime, task_id, execution_path=pipeline_execution_path)
             
             # 更新执行记录
             try:
                 with open(pipeline_execution_path, "r", encoding="utf-8") as f:
                     data = json.load(f)
-                if execution_id in data.get("executions", {}):
-                    data["executions"][execution_id].update(result)
+                if task_id in data.get("tasks", {}):
+                    data["tasks"][task_id].update(result)
                     with open(pipeline_execution_path, "w", encoding="utf-8") as f:
                         json.dump(data, f, indent=2)
             except Exception as e:
                 logger.error(f"[Ray Worker] Failed to update execution result: {e}")
             
-            logger.info(f"[Ray Worker] Pipeline execution completed: {execution_id}")
+            logger.info(f"[Ray Worker] Pipeline execution completed: {task_id}")
             return result
             
         except Exception as e:
@@ -632,7 +632,7 @@ class RayPipelineExecutor:
             
             # 返回失败结果
             return {
-                "execution_id": execution_id,
+                "task_id": task_id,
                 "status": "failed",
                 "output": {
                     "error": str(e),
@@ -647,7 +647,7 @@ class RayPipelineExecutor:
         self,
         pipeline_config: Dict[str, Any],
         dataflow_runtime: Dict[str, Any],
-        execution_id: str,
+        task_id: str,
         pipeline_registry_path: str,
         pipeline_execution_path: str
     ) -> str:
@@ -656,16 +656,16 @@ class RayPipelineExecutor:
         
         Args:
             pipeline_config: Pipeline 配置
-            execution_id: 执行 ID
+            task_id: 执行 ID
             pipeline_registry_path: Pipeline 注册表路径
             pipeline_execution_path: Pipeline 执行记录路径
         
         Returns:
-            execution_id
+            task_id
         """
         self._ensure_initialized()
         
-        logger.info(f"Submitting pipeline execution to Ray: {execution_id}")
+        logger.info(f"Submitting pipeline execution to Ray: {task_id}")
         logger.info(f"Ray is initialized: {ray.is_initialized()}")
         
         # 提交远程任务
@@ -673,17 +673,17 @@ class RayPipelineExecutor:
             future = self._execute_pipeline_remote.remote(
                 pipeline_config,
                 dataflow_runtime,
-                execution_id,
+                task_id,
                 pipeline_registry_path,
                 pipeline_execution_path
             )
             
-            logger.info(f"Pipeline execution submitted: {execution_id}, future: {future}")
+            logger.info(f"Pipeline execution submitted: {task_id}, future: {future}")
             logger.info(f"Ray cluster resources: {ray.cluster_resources()}")
             logger.info(f"Ray available resources: {ray.available_resources()}")
             
             # 异步接口，立即返回，不等待任务开始执行
-            return execution_id
+            return task_id
             
         except Exception as e:
             logger.error(f"Failed to submit pipeline execution: {e}")
@@ -693,14 +693,14 @@ class RayPipelineExecutor:
     
     async def get_execution_status(
         self,
-        execution_id: str,
+        task_id: str,
         pipeline_execution_path: str
     ) -> Optional[Dict[str, Any]]:
         """
         获取执行状态
         
         Args:
-            execution_id: 执行 ID
+            task_id: 执行 ID
             pipeline_execution_path: Pipeline 执行记录路径
         
         Returns:
@@ -710,9 +710,9 @@ class RayPipelineExecutor:
             import json
             with open(pipeline_execution_path, "r", encoding="utf-8") as f:
                 data = json.load(f)
-            return data.get("executions", {}).get(execution_id)
+            return data.get("tasks", {}).get(task_id)
         except Exception as e:
-            logger.error(f"Failed to get execution status for {execution_id}: {e}")
+            logger.error(f"Failed to get execution status for {task_id}: {e}")
             return None
     
     def shutdown(self):
