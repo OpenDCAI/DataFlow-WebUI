@@ -417,11 +417,11 @@ class TaskRegistry:
             logger.info("Executing pipeline with provided config asynchronously")
         
         # 生成执行ID
-        task_id = str(uuid.uuid4())
+        task_id = self._generate_task_id()
         
         # 创建 Task
         task_data = {
-            "dataset_id": pipeline_config.get("input_dataset", {}).get("id", ""),
+            "dataset_id": pipeline_config.get("input_dataset", ""),
             "executor_name": pipeline_name,
             "executor_type": "pipeline",
             "meta": {
@@ -455,7 +455,7 @@ class TaskRegistry:
             dataflow_runtime=dataflow_runtime,
             task_id=task_id,
             pipeline_registry_path=self.path,
-            pipeline_execution_path=self.execution_path
+            pipeline_execution_path=self.path
         )
         
         logger.info(f"Pipeline execution submitted to Ray: {task_id}")
