@@ -211,6 +211,8 @@ class TaskRegistry:
         # 创建初始结果记录
         initial_result = {
             "task_id": task_id,
+            "pipeline_id": pipeline_id,
+            "pipeline_config": pipeline_config,
             "status": "queued",
             "output": {},
             "logs": [f"[{self.get_current_time()}] Pipeline execution queued"]
