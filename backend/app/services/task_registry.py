@@ -261,6 +261,8 @@ class TaskRegistry:
         
         return {
             "task_id": task_id,
+            "pipeline_id": execution_data.get("pipeline_id"),
+            "pipeline_config": execution_data.get("pipeline_config"),
             "status": execution_data.get("status"),
             "operator_progress": execution_data.get("operator_progress", {}),
             "logs": execution_data.get("logs", []),
@@ -372,6 +374,8 @@ class TaskRegistry:
         
         return {
             "task_id": task_id,
+            "pipeline_id": execution_data.get("pipeline_id"),
+            "pipeline_config": execution_data.get("pipeline_config"),
             "status": execution_data.get("status"),
             "step": step,
             "operator_name": operator_name,
@@ -439,6 +443,8 @@ class TaskRegistry:
         # 创建初始结果
         initial_result = {
             "task_id": task_id,
+            "pipeline_id": pipeline_id,
+            "pipeline_config": pipeline_config,
             "status": "queued",
             "output": {},
             "logs": [f"[{self.get_current_time()}] Pipeline execution queued"],
