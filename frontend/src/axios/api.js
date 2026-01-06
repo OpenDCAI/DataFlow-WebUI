@@ -670,604 +670,6 @@ operators.get_operator_detail_by_name.path=`/api/v1/operators/details/{op_name}`
 export class tasks {
  
   /**
-  * @summary 列出所有任务，支持按状态和执行器类型过滤
-  * @param {undefined} [status] 过滤状态: pending/running/success/failed/cancelled
-  * @param {undefined} [executor_type] 过滤执行器类型: operator/pipeline
-  * @param {CancelTokenSource} [cancelSource] Axios Cancel Source 对象，可以取消该请求
-  * @param {Function} [uploadProgress] 上传回调函数
-  * @param {Function} [downloadProgress] 下载回调函数
-  */
-  static async list_tasks(status,executor_type,cancelSource,uploadProgress,downloadProgress){
-    return await new Promise((resolve,reject)=>{
-      let responseType = "json";
-      let options = {
-        method:'get',
-        url:'/api/v1/tasks/',
-        data:{},
-        params:{status,executor_type},
-        headers:{
-          "Content-Type":""
-        },
-        onUploadProgress:uploadProgress,
-        onDownloadProgress:downloadProgress
-      }
-      // support wechat mini program
-      if (cancelSource!=undefined){
-        options.cancelToken = cancelSource.token
-      }
-      if (responseType != "json"){
-        options.responseType = responseType;
-      }
-      axios(options)
-      .then(res=>{
-        if (res.config.responseType=="blob"){
-          resolve(new Blob([res.data],{
-            type: res.headers["content-type"].split(";")[0]
-          }))
-        }else{
-          resolve(res.data);
-          return res.data
-        }
-      }).catch(err=>{
-        if (err.response){
-          if (err.response.data)
-            reject(err.response.data)
-          else
-            reject(err.response);
-        }else{
-          reject(err)
-        }
-      })
-    })
-  }
- 
-  /**
-  * @summary 创建新任务
-  * @param {UserModel.TaskCreate} [taskcreate] 
-  * @param {CancelTokenSource} [cancelSource] Axios Cancel Source 对象，可以取消该请求
-  * @param {Function} [uploadProgress] 上传回调函数
-  * @param {Function} [downloadProgress] 下载回调函数
-  */
-  static async create_task(taskcreate,cancelSource,uploadProgress,downloadProgress){
-    return await new Promise((resolve,reject)=>{
-      let responseType = "json";
-      let options = {
-        method:'post',
-        url:'/api/v1/tasks/',
-        data:taskcreate,
-        params:{},
-        headers:{
-          "Content-Type":"application/json"
-        },
-        onUploadProgress:uploadProgress,
-        onDownloadProgress:downloadProgress
-      }
-      // support wechat mini program
-      if (cancelSource!=undefined){
-        options.cancelToken = cancelSource.token
-      }
-      if (responseType != "json"){
-        options.responseType = responseType;
-      }
-      axios(options)
-      .then(res=>{
-        if (res.config.responseType=="blob"){
-          resolve(new Blob([res.data],{
-            type: res.headers["content-type"].split(";")[0]
-          }))
-        }else{
-          resolve(res.data);
-          return res.data
-        }
-      }).catch(err=>{
-        if (err.response){
-          if (err.response.data)
-            reject(err.response.data)
-          else
-            reject(err.response);
-        }else{
-          reject(err)
-        }
-      })
-    })
-  }
- 
-  /**
-  * @summary 获取任务统计信息
-  * @param {CancelTokenSource} [cancelSource] Axios Cancel Source 对象，可以取消该请求
-  * @param {Function} [uploadProgress] 上传回调函数
-  * @param {Function} [downloadProgress] 下载回调函数
-  */
-  static async get_task_statistics(cancelSource,uploadProgress,downloadProgress){
-    return await new Promise((resolve,reject)=>{
-      let responseType = "json";
-      let options = {
-        method:'get',
-        url:'/api/v1/tasks/statistics',
-        data:{},
-        params:{},
-        headers:{
-          "Content-Type":""
-        },
-        onUploadProgress:uploadProgress,
-        onDownloadProgress:downloadProgress
-      }
-      // support wechat mini program
-      if (cancelSource!=undefined){
-        options.cancelToken = cancelSource.token
-      }
-      if (responseType != "json"){
-        options.responseType = responseType;
-      }
-      axios(options)
-      .then(res=>{
-        if (res.config.responseType=="blob"){
-          resolve(new Blob([res.data],{
-            type: res.headers["content-type"].split(";")[0]
-          }))
-        }else{
-          resolve(res.data);
-          return res.data
-        }
-      }).catch(err=>{
-        if (err.response){
-          if (err.response.data)
-            reject(err.response.data)
-          else
-            reject(err.response);
-        }else{
-          reject(err)
-        }
-      })
-    })
-  }
- 
-  /**
-  * @summary 获取指定任务详情
-  * @param {String} [pathtask_id] 
-  * @param {CancelTokenSource} [cancelSource] Axios Cancel Source 对象，可以取消该请求
-  * @param {Function} [uploadProgress] 上传回调函数
-  * @param {Function} [downloadProgress] 下载回调函数
-  */
-  static async get_task(pathtask_id,cancelSource,uploadProgress,downloadProgress){
-    return await new Promise((resolve,reject)=>{
-      let responseType = "json";
-      let options = {
-        method:'get',
-        url:'/api/v1/tasks/'+pathtask_id+'',
-        data:{},
-        params:{},
-        headers:{
-          "Content-Type":""
-        },
-        onUploadProgress:uploadProgress,
-        onDownloadProgress:downloadProgress
-      }
-      // support wechat mini program
-      if (cancelSource!=undefined){
-        options.cancelToken = cancelSource.token
-      }
-      if (responseType != "json"){
-        options.responseType = responseType;
-      }
-      axios(options)
-      .then(res=>{
-        if (res.config.responseType=="blob"){
-          resolve(new Blob([res.data],{
-            type: res.headers["content-type"].split(";")[0]
-          }))
-        }else{
-          resolve(res.data);
-          return res.data
-        }
-      }).catch(err=>{
-        if (err.response){
-          if (err.response.data)
-            reject(err.response.data)
-          else
-            reject(err.response);
-        }else{
-          reject(err)
-        }
-      })
-    })
-  }
- 
-  /**
-  * @summary 更新任务状态和信息
-  * @param {String} [pathtask_id] 
-  * @param {UserModel.TaskUpdate} [taskupdate] 
-  * @param {CancelTokenSource} [cancelSource] Axios Cancel Source 对象，可以取消该请求
-  * @param {Function} [uploadProgress] 上传回调函数
-  * @param {Function} [downloadProgress] 下载回调函数
-  */
-  static async update_task(pathtask_id,taskupdate,cancelSource,uploadProgress,downloadProgress){
-    return await new Promise((resolve,reject)=>{
-      let responseType = "json";
-      let options = {
-        method:'patch',
-        url:'/api/v1/tasks/'+pathtask_id+'',
-        data:taskupdate,
-        params:{},
-        headers:{
-          "Content-Type":"application/json"
-        },
-        onUploadProgress:uploadProgress,
-        onDownloadProgress:downloadProgress
-      }
-      // support wechat mini program
-      if (cancelSource!=undefined){
-        options.cancelToken = cancelSource.token
-      }
-      if (responseType != "json"){
-        options.responseType = responseType;
-      }
-      axios(options)
-      .then(res=>{
-        if (res.config.responseType=="blob"){
-          resolve(new Blob([res.data],{
-            type: res.headers["content-type"].split(";")[0]
-          }))
-        }else{
-          resolve(res.data);
-          return res.data
-        }
-      }).catch(err=>{
-        if (err.response){
-          if (err.response.data)
-            reject(err.response.data)
-          else
-            reject(err.response);
-        }else{
-          reject(err)
-        }
-      })
-    })
-  }
- 
-  /**
-  * @summary 删除任务
-  * @param {String} [pathtask_id] 
-  * @param {CancelTokenSource} [cancelSource] Axios Cancel Source 对象，可以取消该请求
-  * @param {Function} [uploadProgress] 上传回调函数
-  * @param {Function} [downloadProgress] 下载回调函数
-  */
-  static async delete_task(pathtask_id,cancelSource,uploadProgress,downloadProgress){
-    return await new Promise((resolve,reject)=>{
-      let responseType = "json";
-      let options = {
-        method:'delete',
-        url:'/api/v1/tasks/'+pathtask_id+'',
-        data:{},
-        params:{},
-        headers:{
-          "Content-Type":""
-        },
-        onUploadProgress:uploadProgress,
-        onDownloadProgress:downloadProgress
-      }
-      // support wechat mini program
-      if (cancelSource!=undefined){
-        options.cancelToken = cancelSource.token
-      }
-      if (responseType != "json"){
-        options.responseType = responseType;
-      }
-      axios(options)
-      .then(res=>{
-        if (res.config.responseType=="blob"){
-          resolve(new Blob([res.data],{
-            type: res.headers["content-type"].split(";")[0]
-          }))
-        }else{
-          resolve(res.data);
-          return res.data
-        }
-      }).catch(err=>{
-        if (err.response){
-          if (err.response.data)
-            reject(err.response.data)
-          else
-            reject(err.response);
-        }else{
-          reject(err)
-        }
-      })
-    })
-  }
- 
-  /**
-  * @summary 启动任务（将状态设为running）
-  * @param {String} [pathtask_id] 
-  * @param {CancelTokenSource} [cancelSource] Axios Cancel Source 对象，可以取消该请求
-  * @param {Function} [uploadProgress] 上传回调函数
-  * @param {Function} [downloadProgress] 下载回调函数
-  */
-  static async start_task(pathtask_id,cancelSource,uploadProgress,downloadProgress){
-    return await new Promise((resolve,reject)=>{
-      let responseType = "json";
-      let options = {
-        method:'post',
-        url:'/api/v1/tasks/'+pathtask_id+'/start',
-        data:{},
-        params:{},
-        headers:{
-          "Content-Type":""
-        },
-        onUploadProgress:uploadProgress,
-        onDownloadProgress:downloadProgress
-      }
-      // support wechat mini program
-      if (cancelSource!=undefined){
-        options.cancelToken = cancelSource.token
-      }
-      if (responseType != "json"){
-        options.responseType = responseType;
-      }
-      axios(options)
-      .then(res=>{
-        if (res.config.responseType=="blob"){
-          resolve(new Blob([res.data],{
-            type: res.headers["content-type"].split(";")[0]
-          }))
-        }else{
-          resolve(res.data);
-          return res.data
-        }
-      }).catch(err=>{
-        if (err.response){
-          if (err.response.data)
-            reject(err.response.data)
-          else
-            reject(err.response);
-        }else{
-          reject(err)
-        }
-      })
-    })
-  }
- 
-  /**
-  * @summary 完成任务（将状态设为success）
-  * @param {String} [pathtask_id] 
-  * @param {undefined} [output_id] 
-  * @param {CancelTokenSource} [cancelSource] Axios Cancel Source 对象，可以取消该请求
-  * @param {Function} [uploadProgress] 上传回调函数
-  * @param {Function} [downloadProgress] 下载回调函数
-  */
-  static async complete_task(pathtask_id,output_id,cancelSource,uploadProgress,downloadProgress){
-    return await new Promise((resolve,reject)=>{
-      let responseType = "json";
-      let options = {
-        method:'post',
-        url:'/api/v1/tasks/'+pathtask_id+'/complete',
-        data:{},
-        params:{output_id},
-        headers:{
-          "Content-Type":""
-        },
-        onUploadProgress:uploadProgress,
-        onDownloadProgress:downloadProgress
-      }
-      // support wechat mini program
-      if (cancelSource!=undefined){
-        options.cancelToken = cancelSource.token
-      }
-      if (responseType != "json"){
-        options.responseType = responseType;
-      }
-      axios(options)
-      .then(res=>{
-        if (res.config.responseType=="blob"){
-          resolve(new Blob([res.data],{
-            type: res.headers["content-type"].split(";")[0]
-          }))
-        }else{
-          resolve(res.data);
-          return res.data
-        }
-      }).catch(err=>{
-        if (err.response){
-          if (err.response.data)
-            reject(err.response.data)
-          else
-            reject(err.response);
-        }else{
-          reject(err)
-        }
-      })
-    })
-  }
- 
-  /**
-  * @summary 标记任务失败
-  * @param {String} [pathtask_id] 
-  * @param {undefined} [error_message] 
-  * @param {CancelTokenSource} [cancelSource] Axios Cancel Source 对象，可以取消该请求
-  * @param {Function} [uploadProgress] 上传回调函数
-  * @param {Function} [downloadProgress] 下载回调函数
-  */
-  static async fail_task(pathtask_id,error_message,cancelSource,uploadProgress,downloadProgress){
-    return await new Promise((resolve,reject)=>{
-      let responseType = "json";
-      let options = {
-        method:'post',
-        url:'/api/v1/tasks/'+pathtask_id+'/fail',
-        data:{},
-        params:{error_message},
-        headers:{
-          "Content-Type":""
-        },
-        onUploadProgress:uploadProgress,
-        onDownloadProgress:downloadProgress
-      }
-      // support wechat mini program
-      if (cancelSource!=undefined){
-        options.cancelToken = cancelSource.token
-      }
-      if (responseType != "json"){
-        options.responseType = responseType;
-      }
-      axios(options)
-      .then(res=>{
-        if (res.config.responseType=="blob"){
-          resolve(new Blob([res.data],{
-            type: res.headers["content-type"].split(";")[0]
-          }))
-        }else{
-          resolve(res.data);
-          return res.data
-        }
-      }).catch(err=>{
-        if (err.response){
-          if (err.response.data)
-            reject(err.response.data)
-          else
-            reject(err.response);
-        }else{
-          reject(err)
-        }
-      })
-    })
-  }
- 
-  /**
-  * @summary 取消任务
-  * @param {String} [pathtask_id] 
-  * @param {CancelTokenSource} [cancelSource] Axios Cancel Source 对象，可以取消该请求
-  * @param {Function} [uploadProgress] 上传回调函数
-  * @param {Function} [downloadProgress] 下载回调函数
-  */
-  static async cancel_task(pathtask_id,cancelSource,uploadProgress,downloadProgress){
-    return await new Promise((resolve,reject)=>{
-      let responseType = "json";
-      let options = {
-        method:'post',
-        url:'/api/v1/tasks/'+pathtask_id+'/cancel',
-        data:{},
-        params:{},
-        headers:{
-          "Content-Type":""
-        },
-        onUploadProgress:uploadProgress,
-        onDownloadProgress:downloadProgress
-      }
-      // support wechat mini program
-      if (cancelSource!=undefined){
-        options.cancelToken = cancelSource.token
-      }
-      if (responseType != "json"){
-        options.responseType = responseType;
-      }
-      axios(options)
-      .then(res=>{
-        if (res.config.responseType=="blob"){
-          resolve(new Blob([res.data],{
-            type: res.headers["content-type"].split(";")[0]
-          }))
-        }else{
-          resolve(res.data);
-          return res.data
-        }
-      }).catch(err=>{
-        if (err.response){
-          if (err.response.data)
-            reject(err.response.data)
-          else
-            reject(err.response);
-        }else{
-          reject(err)
-        }
-      })
-    })
-  }
-}
-
-// class tasks static method properties bind
-/**
-* @description list_tasks url链接，包含baseURL
-*/
-tasks.list_tasks.fullPath=`${axios.defaults.baseURL}/api/v1/tasks/`
-/**
-* @description list_tasks url链接，不包含baseURL
-*/
-tasks.list_tasks.path=`/api/v1/tasks/`
-/**
-* @description create_task url链接，包含baseURL
-*/
-tasks.create_task.fullPath=`${axios.defaults.baseURL}/api/v1/tasks/`
-/**
-* @description create_task url链接，不包含baseURL
-*/
-tasks.create_task.path=`/api/v1/tasks/`
-/**
-* @description get_task_statistics url链接，包含baseURL
-*/
-tasks.get_task_statistics.fullPath=`${axios.defaults.baseURL}/api/v1/tasks/statistics`
-/**
-* @description get_task_statistics url链接，不包含baseURL
-*/
-tasks.get_task_statistics.path=`/api/v1/tasks/statistics`
-/**
-* @description get_task url链接，包含baseURL
-*/
-tasks.get_task.fullPath=`${axios.defaults.baseURL}/api/v1/tasks/{task_id}`
-/**
-* @description get_task url链接，不包含baseURL
-*/
-tasks.get_task.path=`/api/v1/tasks/{task_id}`
-/**
-* @description update_task url链接，包含baseURL
-*/
-tasks.update_task.fullPath=`${axios.defaults.baseURL}/api/v1/tasks/{task_id}`
-/**
-* @description update_task url链接，不包含baseURL
-*/
-tasks.update_task.path=`/api/v1/tasks/{task_id}`
-/**
-* @description delete_task url链接，包含baseURL
-*/
-tasks.delete_task.fullPath=`${axios.defaults.baseURL}/api/v1/tasks/{task_id}`
-/**
-* @description delete_task url链接，不包含baseURL
-*/
-tasks.delete_task.path=`/api/v1/tasks/{task_id}`
-/**
-* @description start_task url链接，包含baseURL
-*/
-tasks.start_task.fullPath=`${axios.defaults.baseURL}/api/v1/tasks/{task_id}/start`
-/**
-* @description start_task url链接，不包含baseURL
-*/
-tasks.start_task.path=`/api/v1/tasks/{task_id}/start`
-/**
-* @description complete_task url链接，包含baseURL
-*/
-tasks.complete_task.fullPath=`${axios.defaults.baseURL}/api/v1/tasks/{task_id}/complete`
-/**
-* @description complete_task url链接，不包含baseURL
-*/
-tasks.complete_task.path=`/api/v1/tasks/{task_id}/complete`
-/**
-* @description fail_task url链接，包含baseURL
-*/
-tasks.fail_task.fullPath=`${axios.defaults.baseURL}/api/v1/tasks/{task_id}/fail`
-/**
-* @description fail_task url链接，不包含baseURL
-*/
-tasks.fail_task.path=`/api/v1/tasks/{task_id}/fail`
-/**
-* @description cancel_task url链接，包含baseURL
-*/
-tasks.cancel_task.fullPath=`${axios.defaults.baseURL}/api/v1/tasks/{task_id}/cancel`
-/**
-* @description cancel_task url链接，不包含baseURL
-*/
-tasks.cancel_task.path=`/api/v1/tasks/{task_id}/cancel`
-
-export class pipelines {
- 
-  /**
   * @summary 列出所有Pipeline执行记录
   * @param {CancelTokenSource} [cancelSource] Axios Cancel Source 对象，可以取消该请求
   * @param {Function} [uploadProgress] 上传回调函数
@@ -1278,7 +680,7 @@ export class pipelines {
       let responseType = "json";
       let options = {
         method:'get',
-        url:'/api/v1/pipelines/executions',
+        url:'/api/v1/tasks/executions',
         data:{},
         params:{},
         headers:{
@@ -1319,20 +721,19 @@ export class pipelines {
  
   /**
   * @summary 查询Pipeline执行状态（算子粒度）
-  * @param {String} [pathexecution_id] 
-  * @param {String} [task_id] 
+  * @param {String} [pathtask_id] 
   * @param {CancelTokenSource} [cancelSource] Axios Cancel Source 对象，可以取消该请求
   * @param {Function} [uploadProgress] 上传回调函数
   * @param {Function} [downloadProgress] 下载回调函数
   */
-  static async get_execution_status(pathexecution_id,task_id,cancelSource,uploadProgress,downloadProgress){
+  static async get_execution_status(pathtask_id,cancelSource,uploadProgress,downloadProgress){
     return await new Promise((resolve,reject)=>{
       let responseType = "json";
       let options = {
         method:'get',
-        url:'/api/v1/pipelines/execution/'+pathexecution_id+'/status',
+        url:'/api/v1/tasks/execution/'+pathtask_id+'/status',
         data:{},
-        params:{task_id},
+        params:{},
         headers:{
           "Content-Type":""
         },
@@ -1370,20 +771,20 @@ export class pipelines {
   }
  
   /**
-  * @summary 查询Pipeline执行结果
-  * @param {String} [pathexecution_id] 
+  * @summary 查询任务执行结果
+  * @param {String} [pathtask_id] 
   * @param {Number} [step] 
   * @param {Number} [limit] 
   * @param {CancelTokenSource} [cancelSource] Axios Cancel Source 对象，可以取消该请求
   * @param {Function} [uploadProgress] 上传回调函数
   * @param {Function} [downloadProgress] 下载回调函数
   */
-  static async get_execution_result(pathexecution_id,step,limit,cancelSource,uploadProgress,downloadProgress){
+  static async get_task_result(pathtask_id,step,limit,cancelSource,uploadProgress,downloadProgress){
     return await new Promise((resolve,reject)=>{
       let responseType = "json";
       let options = {
         method:'get',
-        url:'/api/v1/pipelines/execution/'+pathexecution_id+'/result',
+        url:'/api/v1/tasks/execution/'+pathtask_id+'/result',
         data:{},
         params:{step,limit},
         headers:{
@@ -1423,19 +824,19 @@ export class pipelines {
   }
  
   /**
-  * @summary 下载Pipeline执行结果文件
-  * @param {String} [pathexecution_id] 
+  * @summary 下载任务执行结果文件
+  * @param {String} [pathtask_id] 
   * @param {Number} [step] 
   * @param {CancelTokenSource} [cancelSource] Axios Cancel Source 对象，可以取消该请求
   * @param {Function} [uploadProgress] 上传回调函数
   * @param {Function} [downloadProgress] 下载回调函数
   */
-  static async download_execution_result(pathexecution_id,step,cancelSource,uploadProgress,downloadProgress){
+  static async download_task_result(pathtask_id,step,cancelSource,uploadProgress,downloadProgress){
     return await new Promise((resolve,reject)=>{
       let responseType = "json";
       let options = {
         method:'get',
-        url:'/api/v1/pipelines/execution/'+pathexecution_id+'/download',
+        url:'/api/v1/tasks/execution/'+pathtask_id+'/download',
         data:{},
         params:{step},
         headers:{
@@ -1473,6 +874,161 @@ export class pipelines {
       })
     })
   }
+ 
+  /**
+  * @summary 执行Pipeline
+  * @param {undefined} [pipeline_id] 
+  * @param {CancelTokenSource} [cancelSource] Axios Cancel Source 对象，可以取消该请求
+  * @param {Function} [uploadProgress] 上传回调函数
+  * @param {Function} [downloadProgress] 下载回调函数
+  */
+  static async execute_pipeline(pipeline_id,cancelSource,uploadProgress,downloadProgress){
+    return await new Promise((resolve,reject)=>{
+      let responseType = "json";
+      let options = {
+        method:'post',
+        url:'/api/v1/tasks/execute',
+        data:{},
+        params:{pipeline_id},
+        headers:{
+          "Content-Type":""
+        },
+        onUploadProgress:uploadProgress,
+        onDownloadProgress:downloadProgress
+      }
+      // support wechat mini program
+      if (cancelSource!=undefined){
+        options.cancelToken = cancelSource.token
+      }
+      if (responseType != "json"){
+        options.responseType = responseType;
+      }
+      axios(options)
+      .then(res=>{
+        if (res.config.responseType=="blob"){
+          resolve(new Blob([res.data],{
+            type: res.headers["content-type"].split(";")[0]
+          }))
+        }else{
+          resolve(res.data);
+          return res.data
+        }
+      }).catch(err=>{
+        if (err.response){
+          if (err.response.data)
+            reject(err.response.data)
+          else
+            reject(err.response);
+        }else{
+          reject(err)
+        }
+      })
+    })
+  }
+ 
+  /**
+  * @summary 异步执行Pipeline（使用Ray）
+  * @param {String} [pipeline_id] 
+  * @param {CancelTokenSource} [cancelSource] Axios Cancel Source 对象，可以取消该请求
+  * @param {Function} [uploadProgress] 上传回调函数
+  * @param {Function} [downloadProgress] 下载回调函数
+  */
+  static async execute_pipeline_async(pipeline_id,cancelSource,uploadProgress,downloadProgress){
+    return await new Promise((resolve,reject)=>{
+      let responseType = "json";
+      let options = {
+        method:'post',
+        url:'/api/v1/tasks/execute-async',
+        data:{},
+        params:{pipeline_id},
+        headers:{
+          "Content-Type":""
+        },
+        onUploadProgress:uploadProgress,
+        onDownloadProgress:downloadProgress
+      }
+      // support wechat mini program
+      if (cancelSource!=undefined){
+        options.cancelToken = cancelSource.token
+      }
+      if (responseType != "json"){
+        options.responseType = responseType;
+      }
+      axios(options)
+      .then(res=>{
+        if (res.config.responseType=="blob"){
+          resolve(new Blob([res.data],{
+            type: res.headers["content-type"].split(";")[0]
+          }))
+        }else{
+          resolve(res.data);
+          return res.data
+        }
+      }).catch(err=>{
+        if (err.response){
+          if (err.response.data)
+            reject(err.response.data)
+          else
+            reject(err.response);
+        }else{
+          reject(err)
+        }
+      })
+    })
+  }
+}
+
+// class tasks static method properties bind
+/**
+* @description list_executions url链接，包含baseURL
+*/
+tasks.list_executions.fullPath=`${axios.defaults.baseURL}/api/v1/tasks/executions`
+/**
+* @description list_executions url链接，不包含baseURL
+*/
+tasks.list_executions.path=`/api/v1/tasks/executions`
+/**
+* @description get_execution_status url链接，包含baseURL
+*/
+tasks.get_execution_status.fullPath=`${axios.defaults.baseURL}/api/v1/tasks/execution/{task_id}/status`
+/**
+* @description get_execution_status url链接，不包含baseURL
+*/
+tasks.get_execution_status.path=`/api/v1/tasks/execution/{task_id}/status`
+/**
+* @description get_task_result url链接，包含baseURL
+*/
+tasks.get_task_result.fullPath=`${axios.defaults.baseURL}/api/v1/tasks/execution/{task_id}/result`
+/**
+* @description get_task_result url链接，不包含baseURL
+*/
+tasks.get_task_result.path=`/api/v1/tasks/execution/{task_id}/result`
+/**
+* @description download_task_result url链接，包含baseURL
+*/
+tasks.download_task_result.fullPath=`${axios.defaults.baseURL}/api/v1/tasks/execution/{task_id}/download`
+/**
+* @description download_task_result url链接，不包含baseURL
+*/
+tasks.download_task_result.path=`/api/v1/tasks/execution/{task_id}/download`
+/**
+* @description execute_pipeline url链接，包含baseURL
+*/
+tasks.execute_pipeline.fullPath=`${axios.defaults.baseURL}/api/v1/tasks/execute`
+/**
+* @description execute_pipeline url链接，不包含baseURL
+*/
+tasks.execute_pipeline.path=`/api/v1/tasks/execute`
+/**
+* @description execute_pipeline_async url链接，包含baseURL
+*/
+tasks.execute_pipeline_async.fullPath=`${axios.defaults.baseURL}/api/v1/tasks/execute-async`
+/**
+* @description execute_pipeline_async url链接，不包含baseURL
+*/
+tasks.execute_pipeline_async.path=`/api/v1/tasks/execute-async`
+
+export class pipelines {
  
   /**
   * @summary 返回所有注册的Pipeline列表
@@ -1778,143 +1334,9 @@ export class pipelines {
       })
     })
   }
- 
-  /**
-  * @summary 执行Pipeline
-  * @param {undefined} [pipeline_id] 
-  * @param {CancelTokenSource} [cancelSource] Axios Cancel Source 对象，可以取消该请求
-  * @param {Function} [uploadProgress] 上传回调函数
-  * @param {Function} [downloadProgress] 下载回调函数
-  */
-  static async execute_pipeline(pipeline_id,cancelSource,uploadProgress,downloadProgress){
-    return await new Promise((resolve,reject)=>{
-      let responseType = "json";
-      let options = {
-        method:'post',
-        url:'/api/v1/pipelines/execute',
-        data:{},
-        params:{pipeline_id},
-        headers:{
-          "Content-Type":""
-        },
-        onUploadProgress:uploadProgress,
-        onDownloadProgress:downloadProgress
-      }
-      // support wechat mini program
-      if (cancelSource!=undefined){
-        options.cancelToken = cancelSource.token
-      }
-      if (responseType != "json"){
-        options.responseType = responseType;
-      }
-      axios(options)
-      .then(res=>{
-        if (res.config.responseType=="blob"){
-          resolve(new Blob([res.data],{
-            type: res.headers["content-type"].split(";")[0]
-          }))
-        }else{
-          resolve(res.data);
-          return res.data
-        }
-      }).catch(err=>{
-        if (err.response){
-          if (err.response.data)
-            reject(err.response.data)
-          else
-            reject(err.response);
-        }else{
-          reject(err)
-        }
-      })
-    })
-  }
- 
-  /**
-  * @summary 异步执行Pipeline（使用Ray）
-  * @param {String} [pipeline_id] 
-  * @param {CancelTokenSource} [cancelSource] Axios Cancel Source 对象，可以取消该请求
-  * @param {Function} [uploadProgress] 上传回调函数
-  * @param {Function} [downloadProgress] 下载回调函数
-  */
-  static async execute_pipeline_async(pipeline_id,cancelSource,uploadProgress,downloadProgress){
-    return await new Promise((resolve,reject)=>{
-      let responseType = "json";
-      let options = {
-        method:'post',
-        url:'/api/v1/pipelines/execute-async',
-        data:{},
-        params:{pipeline_id},
-        headers:{
-          "Content-Type":""
-        },
-        onUploadProgress:uploadProgress,
-        onDownloadProgress:downloadProgress
-      }
-      // support wechat mini program
-      if (cancelSource!=undefined){
-        options.cancelToken = cancelSource.token
-      }
-      if (responseType != "json"){
-        options.responseType = responseType;
-      }
-      axios(options)
-      .then(res=>{
-        if (res.config.responseType=="blob"){
-          resolve(new Blob([res.data],{
-            type: res.headers["content-type"].split(";")[0]
-          }))
-        }else{
-          resolve(res.data);
-          return res.data
-        }
-      }).catch(err=>{
-        if (err.response){
-          if (err.response.data)
-            reject(err.response.data)
-          else
-            reject(err.response);
-        }else{
-          reject(err)
-        }
-      })
-    })
-  }
 }
 
 // class pipelines static method properties bind
-/**
-* @description list_executions url链接，包含baseURL
-*/
-pipelines.list_executions.fullPath=`${axios.defaults.baseURL}/api/v1/pipelines/executions`
-/**
-* @description list_executions url链接，不包含baseURL
-*/
-pipelines.list_executions.path=`/api/v1/pipelines/executions`
-/**
-* @description get_execution_status url链接，包含baseURL
-*/
-pipelines.get_execution_status.fullPath=`${axios.defaults.baseURL}/api/v1/pipelines/execution/{execution_id}/status`
-/**
-* @description get_execution_status url链接，不包含baseURL
-*/
-pipelines.get_execution_status.path=`/api/v1/pipelines/execution/{execution_id}/status`
-/**
-* @description get_execution_result url链接，包含baseURL
-*/
-pipelines.get_execution_result.fullPath=`${axios.defaults.baseURL}/api/v1/pipelines/execution/{execution_id}/result`
-/**
-* @description get_execution_result url链接，不包含baseURL
-*/
-pipelines.get_execution_result.path=`/api/v1/pipelines/execution/{execution_id}/result`
-/**
-* @description download_execution_result url链接，包含baseURL
-*/
-pipelines.download_execution_result.fullPath=`${axios.defaults.baseURL}/api/v1/pipelines/execution/{execution_id}/download`
-/**
-* @description download_execution_result url链接，不包含baseURL
-*/
-pipelines.download_execution_result.path=`/api/v1/pipelines/execution/{execution_id}/download`
 /**
 * @description list_pipelines url链接，包含baseURL
 */
@@ -1963,22 +1385,6 @@ pipelines.delete_pipeline.fullPath=`${axios.defaults.baseURL}/api/v1/pipelines/{
 * @description delete_pipeline url链接，不包含baseURL
 */
 pipelines.delete_pipeline.path=`/api/v1/pipelines/{pipeline_id}`
-/**
-* @description execute_pipeline url链接，包含baseURL
-*/
-pipelines.execute_pipeline.fullPath=`${axios.defaults.baseURL}/api/v1/pipelines/execute`
-/**
-* @description execute_pipeline url链接，不包含baseURL
-*/
-pipelines.execute_pipeline.path=`/api/v1/pipelines/execute`
-/**
-* @description execute_pipeline_async url链接，包含baseURL
-*/
-pipelines.execute_pipeline_async.fullPath=`${axios.defaults.baseURL}/api/v1/pipelines/execute-async`
-/**
-* @description execute_pipeline_async url链接，不包含baseURL
-*/
-pipelines.execute_pipeline_async.path=`/api/v1/pipelines/execute-async`
 
 export class prompts {
  

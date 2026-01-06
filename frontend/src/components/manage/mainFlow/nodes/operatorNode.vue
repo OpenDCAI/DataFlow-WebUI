@@ -231,7 +231,7 @@ const setServingItem = (item, val) => {
     item.value = val.key
 }
 
-const loading = ref(false)
+const loading = ref(false) // for data loading display
 const paramsWrapper = (objs) => {
     for (let item of objs) {
         if (!item.value) item.value = item.default_value || ''
@@ -297,9 +297,16 @@ watch(
     }
 )
 
+watch(
+    () => dataflow.execution.status,
+    (newVal, oldVal) => {
+        syncLoading()
+    }
+)
+
 const currentLog = computed(() => {
     if (!dataflow.execution) return null
-    if (!dataflow.execution.execution_id) return null
+    if (!dataflow.execution.task_id) return null
     let currentKey = `${thisData.value.label}_${thisData.value.pipeline_idx - 1}`
     let currentOutput = dataflow.execution.operator_progress.run[currentKey]
     if (!currentOutput) return null
@@ -307,17 +314,17 @@ const currentLog = computed(() => {
 })
 const isOverStep = computed(() => {
     if (!dataflow.execution) return null
-    if (!dataflow.execution.execution_id) return null
+    if (!dataflow.execution.task_id) return null
     let pipeline_idx = thisData.value.pipeline_idx - 1
     return dataflow.executionStep > pipeline_idx || dataflow.execution.status === 'completed'
 })
 const syncLoading = () => {
     if (!dataflow.execution) return null
-    if (!dataflow.execution.execution_id) return null
+    if (!dataflow.execution.task_id) return null
     let pipeline_idx = thisData.value.pipeline_idx - 1
     let current_step = dataflow.executionStep
     if (current_step === pipeline_idx && dataflow.execution.status !== 'completed') {
-        props.data.loading = true
+        props.data.loading = true // for execution loading display
     } else {
         props.data.loading = false
     }

@@ -10,7 +10,7 @@
         <template v-slot:content>
             <div class="panel-result-content-block">
                 <div v-if="runningResult" class="info-bar-block">
-                    <p class="title">{{ runningResult.execution_id }}</p>
+                    <p class="title">{{ runningResult.task_id }}</p>
                     <time-rounder
                         :model-value="new Date(runningResult.completed_at)"
                         style="width: auto"

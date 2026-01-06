@@ -295,39 +295,6 @@ export class ApiResponse_List_ServingDetailSchema__ {
     message=undefined
     
 }
-export class ApiResponse_List_TaskOut__ {
-  
-    /**
-     *
-     * @param {undefined} success 
-     * @param {Number} code 业务错误码，0 表示成功
-     * @param {String} message 
-     */ 
-    constructor(success = undefined,code = undefined,message = undefined,data = undefined,meta = undefined){
-        this.success = success
-        this.code = code
-        this.message = message
-        this.data = data
-        this.meta = meta
-    }
-       
-    /**
-     * 
-     * @type {undefined}
-     */
-    success=undefined   
-    /**
-     * 业务错误码，0 表示成功
-     * @type {Number}
-     */
-    code=undefined   
-    /**
-     * 
-     * @type {String}
-     */
-    message=undefined
-    
-}
 export class ApiResponse_List_Text2SQLDatabaseManagerClassSchema__ {
   
     /**
@@ -692,39 +659,6 @@ export class ApiResponse_ServingQuerySchema_ {
     
 }
 export class ApiResponse_ServingResponseSchema_ {
-  
-    /**
-     *
-     * @param {undefined} success 
-     * @param {Number} code 业务错误码，0 表示成功
-     * @param {String} message 
-     */ 
-    constructor(success = undefined,code = undefined,message = undefined,data = undefined,meta = undefined){
-        this.success = success
-        this.code = code
-        this.message = message
-        this.data = data
-        this.meta = meta
-    }
-       
-    /**
-     * 
-     * @type {undefined}
-     */
-    success=undefined   
-    /**
-     * 业务错误码，0 表示成功
-     * @type {Number}
-     */
-    code=undefined   
-    /**
-     * 
-     * @type {String}
-     */
-    message=undefined
-    
-}
-export class ApiResponse_TaskOut_ {
   
     /**
      *
@@ -1367,13 +1301,15 @@ export class PipelineExecutionResult {
   
     /**
      *
-     * @param {String} execution_id 执行会话唯一标识符
+     * @param {String} task_id 执行会话唯一标识符
      * @param {ExecutionStatus} status 
      * @param {undefined} output 执行输出结果
      * @param {Array} logs 执行日志列表
      */ 
-    constructor(execution_id = undefined,status = undefined,output = undefined,logs = undefined,started_at = undefined,completed_at = undefined){
-        this.execution_id = execution_id
+    constructor(task_id = undefined,pipeline_id = undefined,pipeline_config = undefined,status = undefined,output = undefined,logs = undefined,started_at = undefined,completed_at = undefined){
+        this.task_id = task_id
+        this.pipeline_id = pipeline_id
+        this.pipeline_config = pipeline_config
         this.status = status
         this.output = output
         this.logs = logs
@@ -1385,7 +1321,7 @@ export class PipelineExecutionResult {
      * 执行会话唯一标识符
      * @type {String}
      */
-    execution_id=undefined   
+    task_id=undefined   
     /**
      * 
      * @type {ExecutionStatus}
@@ -1783,122 +1719,6 @@ export class ServingUpdateSchema {
     constructor(name = undefined,params = undefined){
         this.name = name
         this.params = params
-    }
-    
-    
-}
-export class TaskCreate {
-  
-    /**
-     *
-     * @param {String} dataset_id 输入数据集ID
-     * @param {String} executor_name 执行的算子或pipeline名称
-     * @param {String} executor_type 执行类型: operator 或 pipeline
-     * @param {undefined} meta 额外的元数据信息
-     */ 
-    constructor(dataset_id = undefined,executor_name = undefined,executor_type = undefined,meta = undefined){
-        this.dataset_id = dataset_id
-        this.executor_name = executor_name
-        this.executor_type = executor_type
-        this.meta = meta
-    }
-       
-    /**
-     * 输入数据集ID
-     * @type {String}
-     */
-    dataset_id=undefined   
-    /**
-     * 执行的算子或pipeline名称
-     * @type {String}
-     */
-    executor_name=undefined   
-    /**
-     * 执行类型: operator 或 pipeline
-     * @type {String}
-     */
-    executor_type=undefined   
-    /**
-     * 额外的元数据信息
-     * @type {undefined}
-     */
-    meta=undefined
-    
-}
-export class TaskOut {
-  
-    /**
-     *
-     * @param {String} id 任务唯一ID
-     * @param {String} dataset_id 输入数据集ID
-     * @param {String} executor_name 执行的算子或pipeline名称
-     * @param {String} executor_type 执行类型
-     * @param {String} status 任务状态
-     * @param {undefined} meta 元数据
-     * @param {String} created_at 创建时间
-     */ 
-    constructor(id = undefined,dataset_id = undefined,executor_name = undefined,executor_type = undefined,output_id = undefined,status = undefined,error_message = undefined,meta = undefined,created_at = undefined,started_at = undefined,finished_at = undefined){
-        this.id = id
-        this.dataset_id = dataset_id
-        this.executor_name = executor_name
-        this.executor_type = executor_type
-        this.output_id = output_id
-        this.status = status
-        this.error_message = error_message
-        this.meta = meta
-        this.created_at = created_at
-        this.started_at = started_at
-        this.finished_at = finished_at
-    }
-       
-    /**
-     * 任务唯一ID
-     * @type {String}
-     */
-    id=undefined   
-    /**
-     * 输入数据集ID
-     * @type {String}
-     */
-    dataset_id=undefined   
-    /**
-     * 执行的算子或pipeline名称
-     * @type {String}
-     */
-    executor_name=undefined   
-    /**
-     * 执行类型
-     * @type {String}
-     */
-    executor_type=undefined   
-    /**
-     * 任务状态
-     * @type {String}
-     */
-    status=undefined   
-    /**
-     * 元数据
-     * @type {undefined}
-     */
-    meta=undefined   
-    /**
-     * 创建时间
-     * @type {String}
-     */
-    created_at=undefined
-    
-}
-export class TaskUpdate {
-  
-    /**
-     *
-
-     */ 
-    constructor(status = undefined,output_id = undefined,error_message = undefined,meta = undefined){
-        this.status = status
-        this.output_id = output_id
-        this.error_message = error_message
-        this.meta = meta
     }
     
     

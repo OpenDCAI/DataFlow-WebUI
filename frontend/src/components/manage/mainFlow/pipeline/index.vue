@@ -15,6 +15,19 @@
                 </fv-button>
             </div>
             <div class="df-pipeline-content">
+                <fv-pivot
+                    v-model="choosenPivot"
+                    class="pivot-panel"
+                    :items="pivotItems"
+                    :tab="true"
+                    :fontSize="12"
+                    background="rgba(255, 255, 255, 1)"
+                    :sliderBackground="gradient"
+                    :borderRadius="8"
+                    padding="0px 5px"
+                    itemPadding="0px 10px"
+                    :sliderBorderRadius="12"
+                ></fv-pivot>
                 <hr />
                 <div class="search-block">
                     <fv-text-box
@@ -59,7 +72,7 @@
                 <div class="pipeline-list-block">
                     <div
                         v-show="item.show"
-                        v-for="(item, index) in pipelines"
+                        v-for="(item, index) in filteredPipelines"
                         :key="item.id"
                         class="pipeline-item"
                         :class="[{ choosen: thisPipeline === item }]"
@@ -159,6 +172,17 @@ export default {
             thisPipeline: null,
             currentContextItem: null,
             addPanelMode: 'add',
+            choosenPivot: null,
+            pivotItems: [
+                {
+                    key: 'template',
+                    name: () => this.local('Template')
+                },
+                {
+                    key: 'custom',
+                    name: () => this.local('Custom Pipeline')
+                }
+            ],
             show: {
                 add: false,
                 rightMenu: false
@@ -209,8 +233,17 @@ export default {
             }
             return operators
         },
+        filteredPipelines() {
+            let mode = this.choosenPivot ? this.choosenPivot.key : 'template'
+            if (mode === 'template')
+                return this.pipelines.filter((item) => item.tags && item.tags.includes('template'))
+            else
+                return this.pipelines.filter(
+                    (item) => !item.tags || !item.tags.includes('template')
+                )
+        },
         totalNumVisible() {
-            return this.pipelines.filter((item) => item.show).length
+            return this.filteredPipelines.filter((item) => item.show).length
         }
     },
     mounted() {
@@ -422,7 +455,18 @@ export default {
         height: 10px;
         flex: 1;
         display: flex;
+        align-items: center;
         flex-direction: column;
+
+        .pivot-panel {
+            width: calc(100% - 20px);
+            height: 30px;
+            flex-shrink: 0;
+        }
+
+        hr {
+            width: calc(100% - 20px);
+        }
 
         .search-block {
             position: relative;
@@ -434,7 +478,7 @@ export default {
 
             .pipeline-search-box {
                 width: 100%;
-                height: 40px;
+                height: 35px;
             }
 
             .search-result-info {

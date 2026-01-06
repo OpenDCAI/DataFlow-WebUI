@@ -39,8 +39,7 @@ export default {
             if (tags.includes('template')) return []
             let result = []
             this.tasks.forEach((item) => {
-                let meta = item.meta || {}
-                if (meta.pipeline_id === this.modelValue.id) {
+                if (item.pipeline_id === this.modelValue.id) {
                     result.push(item)
                 }
             })

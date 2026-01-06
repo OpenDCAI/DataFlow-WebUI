@@ -348,7 +348,6 @@ export default {
             currentPipeline: null,
             runningResult: null,
             executionInfo: {
-                exec_id: null,
                 task_id: null
             },
             timer: {
@@ -415,8 +414,7 @@ export default {
             if (tags.includes('template')) return []
             let result = []
             this.tasks.forEach((item) => {
-                let meta = item.meta || {}
-                if (meta.pipeline_id === this.currentPipeline.id) {
+                if (item.pipeline_id === this.currentPipeline.id) {
                     result.push(item)
                 }
             })
@@ -652,11 +650,10 @@ export default {
                 return
             }
             this.lock.running = false
-            this.$api.pipelines
+            this.$api.tasks
                 .execute_pipeline_async(this.currentPipeline.id)
                 .then((res) => {
                     if (res.code === 200) {
-                        this.executionInfo.exec_id = res.data.execution_id
                         this.executionInfo.task_id = res.data.task_id
                         this.watchExecution()
                         this.$barWarning(this.local('Pipeline has been executed'), {
@@ -673,9 +670,9 @@ export default {
                 })
         },
         showExecDetails(pipeline_idx) {
-            if (!this.executionInfo.exec_id || !this.executionInfo.task_id) return
-            this.$api.pipelines
-                .get_execution_result(this.executionInfo.exec_id, pipeline_idx - 1, 15)
+            if (!this.executionInfo.task_id) return
+            this.$api.tasks
+                .get_task_result(this.executionInfo.task_id, pipeline_idx - 1, 15)
                 .then((res) => {
                     if (res.code === 200) {
                         this.runningResult = res.data
@@ -683,17 +680,16 @@ export default {
                     }
                 })
         },
-        handleWatchExecution({ exec_id, task_id }) {
-            this.executionInfo.exec_id = exec_id
+        handleWatchExecution({ task_id }) {
             this.executionInfo.task_id = task_id
             this.watchExecution()
         },
         watchExecution() {
-            if (!this.executionInfo.exec_id || !this.executionInfo.task_id) return
-            this.getExecution(this.executionInfo.exec_id, this.executionInfo.task_id)
+            if (!this.executionInfo.task_id) return
+            this.getExecution(this.executionInfo.task_id)
             clearInterval(this.timer.exec)
             this.timer.exec = setInterval(() => {
-                this.getExecution(this.executionInfo.exec_id, this.executionInfo.task_id)
+                this.getExecution(this.executionInfo.task_id)
                 this.lock.running = false
                 if (this.execution.status === 'completed') {
                     clearInterval(this.timer.exec)

@@ -186,7 +186,7 @@ export const useDataflow = defineStore('useDataflow', () => {
 
     const tasks = ref([])
     const getTasks = async () => {
-        await proxy.$api.tasks.list_tasks().then((res) => {
+        await proxy.$api.tasks.list_executions().then((res) => {
             if (res.code === 200) {
                 let _tasks = res.data
                 tasks.value = _tasks
@@ -196,8 +196,8 @@ export const useDataflow = defineStore('useDataflow', () => {
 
     const execution = ref({})
     const executionStep = ref(null)
-    const getExecution = async (exec_id, task_id) => {
-        await proxy.$api.pipelines.get_execution_status(exec_id, task_id).then((res) => {
+    const getExecution = async (task_id) => {
+        await proxy.$api.tasks.get_execution_status(task_id).then((res) => {
             if (res.code === 200) {
                 execution.value = res.data
                 try {

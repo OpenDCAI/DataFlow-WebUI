@@ -6,8 +6,8 @@
                     v-for="(item, index) in filteredTasks"
                     :key="index"
                     class="task-item"
-                    :title="item.id"
-                    :content="item.meta.execution_id"
+                    :title="item.task_id"
+                    :content="formatTime(item.completed_at)"
                     :maxHeight="item.showPreview ? 690 : 380"
                     background="rgba(251, 251, 251, 1)"
                     :disabled-collapse="true"
@@ -26,7 +26,16 @@
                             :borderRadius="8"
                             :isBoxShadow="true"
                             @click="confirmView(item)"
-                            >{{ local('View') }}
+                        >
+                            <fv-progress-ring
+                                v-show="item.status !== 'completed'"
+                                loading="true"
+                                r="10"
+                                :border-width="2"
+                                background="rgba(255, 255, 255, 0.6)"
+                                color="rgba(255, 255, 255, 1)"
+                            ></fv-progress-ring>
+                            {{ local('View') }}
                         </fv-button>
                     </template>
                 </fv-Collapse>
@@ -93,7 +102,12 @@ export default {
             if (!this.currentPipeline) {
                 return []
             }
-            return this.tasks.filter((item) => item.meta.pipeline_id === this.currentPipeline.id)
+            return this.tasks.filter((item) => item.pipeline_id === this.currentPipeline.id)
+        },
+        formatTime() {
+            return (dateStr) => {
+                return this.$SDate.Format('YYYY-mm-dd HH:MM:SS', new Date(dateStr))
+            }
         }
     },
     mounted() {},
@@ -101,8 +115,7 @@ export default {
         ...mapActions(useDataflow, ['getTasks']),
         confirmView(item) {
             this.$emit('confirm', {
-                exec_id: item.meta.execution_id,
-                task_id: item.id
+                task_id: item.task_id
             })
             this.thisValue = false
         }
