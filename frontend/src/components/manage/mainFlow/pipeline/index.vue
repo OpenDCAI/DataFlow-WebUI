@@ -54,6 +54,8 @@
                 <hr />
                 <fv-button
                     icon="Add"
+                    background="rgba(255, 255, 255, 0.6)"
+                    foreground="rgba(90, 90, 90, 1)"
                     border-radius="8"
                     :is-box-shadow="true"
                     style="width: calc(100% - 20px); height: 40px; margin-left: 10px"
@@ -76,7 +78,7 @@
                         :key="item.id"
                         class="pipeline-item"
                         :class="[{ choosen: thisPipeline === item }]"
-                        @click="selectPipeline(item)"
+                        @click="selectPipeline(item.config)"
                         @contextmenu="showRightMenu($event, item)"
                     >
                         <div class="pipeline-item-main">
@@ -136,6 +138,7 @@ import { useAppConfig } from '@/stores/appConfig'
 import { useDataflow } from '@/stores/dataflow'
 import { useVueFlow } from '@vue-flow/core'
 import { useTheme } from '@/stores/theme'
+import { usePipelineOperation } from '@/hooks/dataflow/usePipelineOperation'
 
 import timeRounder from '@/components/general/timeRounder.vue'
 import pipelinePanel from '@/components/manage/mainFlow/panels/piplinePanel.vue'
@@ -285,10 +288,10 @@ export default {
             }
             flow.addNodes(newNode)
         },
-        async selectPipeline(item) {
-            console.log(item)
+        async selectPipeline(pipelineConfig) {
+            console.log(pipelineConfig)
             if (!this.thisLoading) return
-            this.thisPipeline = item
+            this.thisPipeline = pipelineConfig
             const flow = useVueFlow(this.flowId)
             flow.$reset()
             flow.setViewport({
@@ -297,9 +300,9 @@ export default {
                 zoom: 1
             })
             await this.$nextTick()
-            if (!item.config) return
+            if (!pipelineConfig) return
             this.thisLoading = false
-            const { input_dataset, operators } = item.config
+            const { input_dataset, operators } = pipelineConfig
             const basicPos = {
                 x: 350,
                 y: 0

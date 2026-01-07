@@ -16,7 +16,12 @@
             }}</span>
         </div>
         <hr />
-        <div v-if="allowedPrompts.length > 0" class="node-row-item col" @mousedown.stop @click.stop>
+        <div
+            v-if="allowedPrompts.length > 0 && isPromptTemplate"
+            class="node-row-item col"
+            @mousedown.stop
+            @click.stop
+        >
             <span class="info-title">{{ appConfig.local('Prompt Template') }}</span>
             <fv-combobox
                 v-model="promptTemplateModel"
@@ -187,6 +192,13 @@ const allowedPrompts = computed(() => {
         })
     })
     return results
+})
+const isPromptTemplate = computed(() => {
+    try {
+        return thisData.value.operatorParams.init.some((item) => item.name === 'prompt_template')
+    } catch (error) {
+        return false
+    }
 })
 const promptTemplateModel = computed({
     get() {
