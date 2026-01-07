@@ -78,12 +78,25 @@
                         :key="item.id"
                         class="pipeline-item"
                         :class="[{ choosen: thisPipeline === item }]"
-                        @click="selectPipeline(item.config)"
+                        @click="selectPipeline(item)"
                         @contextmenu="showRightMenu($event, item)"
                     >
                         <div class="pipeline-item-main">
-                            <div class="main-icon">
-                                <i class="ms-Icon ms-Icon--DialShape3"></i>
+                            <div
+                                class="main-icon"
+                                :style="{
+                                    background:
+                                        choosenPivot && choosenPivot.key === 'custom'
+                                            ? gradient
+                                            : ''
+                                }"
+                            >
+                                <i
+                                    class="ms-Icon"
+                                    :class="[
+                                        `ms-Icon--${choosenPivot && choosenPivot.key === 'custom' ? 'CalendarWeek' : 'DialShape3'}`
+                                    ]"
+                                ></i>
                             </div>
 
                             <div class="content-block">
@@ -288,97 +301,23 @@ export default {
             }
             flow.addNodes(newNode)
         },
-        async selectPipeline(pipelineConfig) {
-            console.log(pipelineConfig)
+        async selectPipeline(pipelineItem) {
+            console.log(pipelineItem)
             if (!this.thisLoading) return
-            this.thisPipeline = pipelineConfig
-            const flow = useVueFlow(this.flowId)
-            flow.$reset()
-            flow.setViewport({
-                x: 0,
-                y: 0,
-                zoom: 1
-            })
-            await this.$nextTick()
-            if (!pipelineConfig) return
             this.thisLoading = false
-            const { input_dataset, operators } = pipelineConfig
-            const basicPos = {
-                x: 350,
-                y: 0
-            }
-            let dataset = this.datasets.find((item) => item.id === input_dataset.id)
-            if (!dataset) {
-                this.thisLoading = true
-                this.$barWarning(this.local('Input dataset not found'), {
-                    status: 'warning'
-                })
-            } else {
-                dataset = Object.assign({}, dataset)
-                dataset.location = input_dataset.location
-                this.$emit('confirm-dataset', dataset)
-            }
-            let formatOperators = []
-            let promiseList = []
-            // 在这里的设计是为了保险起见还是重新获取所有operator的预定义参数, 然后结合当前pipeline获取的参数进行合并, 然而当前事实上其实还是直接用了当前pipeline获取的参数, 后续若有需求再考虑是否需要修改
-            operators.forEach((item, idx) => {
-                promiseList.push(
-                    this.$api.operators.get_operator_detail_by_name(item.name).then((res) => {
-                        if (res.code === 200) {
-                            let operator = this.flatFormatedOperators.find(
-                                (it) => it.name === item.name
-                            )
-                            operator = Object.assign({}, operator)
-                            operator = Object.assign(operator, res.data)
-                            operator.location = item.location
-                            operator._cache_parameter = {
-                                init: [],
-                                run: []
-                            }
-                            operator._cache_parameter.init = item.params.init
-                            operator._cache_parameter.run = item.params.run
-                            operator.pipeline_idx = idx + 1
-                            formatOperators.push(operator)
-                        }
-                    })
-                )
-            })
-            await Promise.all(promiseList)
-            formatOperators.sort((a, b) => a.pipeline_idx - b.pipeline_idx)
-            formatOperators.forEach((item, idx) => {
-                if (Array.isArray(item.location)) {
-                    item.location = {
-                        x: item.location[0],
-                        y: item.location[1]
-                    }
-                }
-                if (item.location.x === 0 || item.location.y === 0)
-                    item.location = {
-                        x: idx === 0 ? basicPos.x : formatOperators[idx - 1].location.x + 350,
-                        y: basicPos.y
-                    }
-                item.nodeId = this.$Guid()
-                this.addPipelineNode(item)
-            })
-            let existsDatasetNode = flow.findNode('db-node')
-            formatOperators.forEach((item, idx) => {
-                if (idx === 0 && !existsDatasetNode) return
-                let last_id = idx === 0 ? 'db-node' : formatOperators[idx - 1].nodeId
-                flow.addEdges({
-                    id: this.$Guid(),
-                    type: 'base-edge',
-                    source: last_id,
-                    target: item.nodeId,
-                    sourceHandle: 'node::source::node',
-                    targetHandle: 'node::target::node',
-                    animated: false,
-                    data: {
-                        label: 'Node',
-                        edgeType: 'node'
-                    }
-                })
-            })
+            this.thisPipeline = pipelineItem
+            await usePipelineOperation().renderPipeline(
+                pipelineItem.config,
+                this.flowId,
+                this.datasets,
+                this.flatFormatedOperators,
+                this,
+                this.$nextTick,
+                this.$emit,
+                this.$Guid
+            )
             this.thisLoading = true
+            this.$emit('select-pipeline', pipelineItem)
         },
         delPipeline(item) {
             if (!item) return
@@ -563,10 +502,23 @@ export default {
                         height: 40px;
                         flex-shrink: 0;
                         background: linear-gradient(
-                            90deg,
-                            rgba(73, 131, 251, 1) 0%,
-                            rgba(100, 161, 252, 1) 100%
-                        );
+                                114.95deg,
+                                rgba(235, 0, 255, 0.5) 0%,
+                                rgba(0, 71, 255, 0) 34.35%
+                            ),
+                            linear-gradient(180deg, #004b5b 0%, #ffa7a7 100%),
+                            linear-gradient(244.35deg, #ffb26a 0%, #3676b1 50.58%, #00a3ff 100%),
+                            linear-gradient(244.35deg, #ffffff 0%, #004a74 49.48%, #ff0000 100%),
+                            radial-gradient(100% 233.99% at 0% 100%, #b70000 0%, #ad00ff 100%),
+                            linear-gradient(307.27deg, #1dac92 0.37%, #2800c6 100%),
+                            radial-gradient(
+                                100% 140% at 100% 0%,
+                                #eaff6b 0%,
+                                #006c7a 57.29%,
+                                #2200aa 100%
+                            );
+                        background-blend-mode: hard-light, overlay, overlay, overlay, difference,
+                            difference, normal;
                         border: 1px solid rgba(120, 120, 120, 0.1);
                         border-radius: 8px;
                         color: whitesmoke;

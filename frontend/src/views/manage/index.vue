@@ -75,14 +75,14 @@ export default {
                 },
                 {
                     key: 0,
-                    name: () => this.local('Dataflow'),
+                    name: () => this.local('Dataflow Hub'),
                     icon: 'World',
                     img: dataflow,
                     route: '/m/'
                 },
                 {
                     key: 1,
-                    name: () => this.local('Serving'),
+                    name: () => this.local('Serving Manager'),
                     icon: 'World',
                     img: serving,
                     route: '/m/serving'
@@ -98,7 +98,8 @@ export default {
                     key: -1,
                     name: () => this.local('Home'),
                     icon: 'Home',
-                    route: '/'
+                    route: '/',
+                    show: false
                 }
             ],
             img: {

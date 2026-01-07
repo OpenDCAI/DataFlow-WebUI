@@ -7,6 +7,7 @@
             :flow-id="flowId"
             class="df-pipeline-container"
             @confirm-dataset="confirmDataset($event, true)"
+            @select-pipeline="selectPipelineCallback"
         ></pipeline>
         <div class="df-flow-container">
             <mainFlow
@@ -97,6 +98,7 @@
                                 ></i>
                             </fv-button>
                             <fv-button
+                                v-show="!isTemplate"
                                 theme="dark"
                                 background="linear-gradient(90deg, rgba(69, 98, 213, 1), rgba(161, 145, 206, 1))"
                                 foreground="rgba(255, 255, 255, 1)"
@@ -221,6 +223,7 @@ import { useTheme } from '@/stores/theme'
 import { useDataflow } from '@/stores/dataflow'
 import { useVueFlow } from '@vue-flow/core'
 import { useEdgeSync } from '@/hooks/dataflow/useEdgeSync'
+import { usePipelineOperation } from '@/hooks/dataflow/usePipelineOperation'
 
 import mainFlow from '@/components/manage/mainFlow/index.vue'
 import pipeline from '@/components/manage/mainFlow/pipeline/index.vue'
@@ -306,44 +309,10 @@ export default {
                 //             'Node Info: This is node info block for displaying node information.',
                 //         iconColor: 'rgba(0, 108, 126, 1)'
                 //     }
-                // },
-                // {
-                //     id: '2',
-                //     type: 'base-node',
-                //     position: { x: 100, y: 400 },
-                //     data: {
-                //         label: 'Node 2',
-                //         nodeInfo:
-                //             'Node Info: This is node info block for displaying node information.',
-                //         icon: 'Accept'
-                //     }
-                // },
-                // {
-                //     id: '3',
-                //     type: 'base-node',
-                //     position: { x: 400, y: 800 },
-                //     data: { label: 'Node 3', icon: 'Cloud' }
                 // }
             ],
 
-            edges: [
-                // {
-                //     id: 'e1->2',
-                //     type: 'base-edge',
-                //     source: '1',
-                //     target: '2'
-                // },
-                // {
-                //     id: 'e2->3',
-                //     type: 'base-edge',
-                //     source: '2',
-                //     target: '3',
-                //     animated: true,
-                //     data: {
-                //         label: 'world'
-                //     }
-                // }
-            ],
+            edges: [],
             sourceDatabase: null,
             currentPipeline: null,
             runningResult: null,
@@ -396,9 +365,24 @@ export default {
             'isAutoConnection',
             'servingList',
             'currentServing',
+            'datasets',
+            'groupOperators',
             'tasks',
             'execution'
         ]),
+        flatFormatedOperators() {
+            let operators = []
+            for (let key in this.groupOperators) {
+                operators.push(...this.groupOperators[key].items)
+            }
+            return operators
+        },
+        isTemplate() {
+            if (!this.currentPipeline) return false
+            let tags = this.currentPipeline.tags
+            if (!Array.isArray(tags)) return false
+            return tags.includes('template')
+        },
         isAutoConnectionModel: {
             get() {
                 return this.isAutoConnection
@@ -573,13 +557,35 @@ export default {
             }
             this.savePipeline()
         },
-        savePipeline() {
+        async savePipeline() {
             if (!this.sourceDatabase) {
                 this.$barWarning(this.local('Please select a dataset'), {
                     status: 'warning'
                 })
                 return
             }
+            let cancel = false
+            if (this.executionInfo.task_id) {
+                await new Promise((resolve) => {
+                    this.$infoBox(
+                        this.local(
+                            'Are you sure to override the pipeline with the execution task?'
+                        ),
+                        {
+                            status: 'warning',
+                            confirm: () => {
+                                cancel = false
+                                resolve()
+                            },
+                            cancel: () => {
+                                cancel = true
+                                resolve()
+                            }
+                        }
+                    )
+                })
+            }
+            if (cancel) return
             let nodeOperators = this.sortPipeline()
             const flow = useVueFlow(this.flowId)
             let dbNode = flow.findNode('db-node')
@@ -680,13 +686,37 @@ export default {
                     }
                 })
         },
-        handleWatchExecution({ task_id }) {
+        selectPipelineCallback() {
+            this.clearExecution()
+            this.executionInfo.task_id = null
+        },
+        async selectExecutionPipeline(config) {
+            console.log(config)
+            if (!this.lock.loading) return
+            this.lock.loading = false
+            const confirmDatasetCall = (_, dataset) => {
+                this.confirmDataset(dataset, true)
+            }
+            await usePipelineOperation().renderPipeline(
+                config,
+                this.flowId,
+                this.datasets,
+                this.flatFormatedOperators,
+                this,
+                this.$nextTick,
+                confirmDatasetCall,
+                this.$Guid
+            )
+            this.lock.loading = true
+        },
+        async handleWatchExecution({ task_id }) {
             this.executionInfo.task_id = task_id
+            await this.getExecution(this.executionInfo.task_id)
+            await this.selectExecutionPipeline(this.execution.pipeline_config)
             this.watchExecution()
         },
         watchExecution() {
             if (!this.executionInfo.task_id) return
-            this.getExecution(this.executionInfo.task_id)
             clearInterval(this.timer.exec)
             this.timer.exec = setInterval(() => {
                 this.getExecution(this.executionInfo.task_id)

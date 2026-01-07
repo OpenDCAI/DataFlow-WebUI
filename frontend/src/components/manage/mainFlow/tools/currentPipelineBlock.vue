@@ -142,7 +142,7 @@ export default {
 }
 
 .df-cp-scale-up-to-up-enter-active {
-    animation: scaleUp 0.7s ease both;
+    animation: scaleUp 0.3s ease both;
     animation-delay: 0.3s;
 }
 .df-cp-scale-up-to-up-leave-active {

@@ -1,7 +1,5 @@
 import { useAppConfig } from '@/stores/appConfig'
 import { useVueFlow } from '@vue-flow/core'
-import { getCurrentInstance } from 'vue'
-import { useGlobal } from '@/hooks/general/useGlobal'
 
 /**
  * 管道操作Hook，提供数据流图中管道的相关操作功能
@@ -46,20 +44,14 @@ export function usePipelineOperation() {
      * @param {string} flowId - Vue Flow实例的ID
      * @param {Array} datasets - 数据集列表
      * @param {Array} flatFormatedOperators - 格式化的操作符列表
+     * @param {Object} proxy - Vue组件实例的代理对象
      * @param {Function} $nextTick - Vue的nextTick函数
      * @param {Function} $emit - 组件的事件发射函数
      */
-    const renderPipeline = async (pipelineConfig, flowId, datasets, flatFormatedOperators, $nextTick, $emit) => {
-        // 获取Vue组件实例和代理
-        const instance = getCurrentInstance()
-        const proxy = instance.proxy
+    const renderPipeline = async (pipelineConfig, flowId, datasets, flatFormatedOperators, proxy, $nextTick, $emit, $Guid) => {
         // 获取应用配置
         const appConfig = useAppConfig()
-        // 获取全局工具函数
-        const { $Guid, $infoBox } = useGlobal()
 
-        // 打印管道配置（调试用）
-        console.log(pipelineConfig)
         // 获取指定ID的Vue Flow实例
         const flow = useVueFlow(flowId)
         // 重置流程图状态
