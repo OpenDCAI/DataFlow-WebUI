@@ -1,7 +1,7 @@
 <template>
     <div
         class="df-current-pipeline-container"
-        :class="[{ template: isTemplate }]"
+        :class="[{ template: isTemplate || taskId }]"
         @mouseenter="inside = true"
         @mouseleave="inside = false"
     >
@@ -24,6 +24,18 @@
                 {{ local('Created from') }}: {{ modelValue ? modelValue.name : '' }}
             </p>
         </div>
+        <div v-if="taskId" class="row-item">
+            <fv-button
+                :border-radius="20"
+                font-size="10"
+                style="width: 25px; height: 20px; flex-shrink: 0"
+                :title="local('Recover Pipeline')"
+                @click="$emit('recover-click')"
+            >
+                <i class="ms-Icon ms-Icon--Reply"></i>
+            </fv-button>
+            <p class="df-current-sec-info">{{ local('Execution') }}: {{ taskId }}</p>
+        </div>
     </div>
 </template>
 
@@ -39,6 +51,9 @@ export default {
     },
     props: {
         modelValue: {
+            default: null
+        },
+        taskId: {
             default: null
         }
     },
@@ -83,7 +98,7 @@ export default {
     height: 40px;
     max-width: 120px;
     gap: 5px;
-    padding: 0px 10px;
+    padding: 0px 15px;
     background: rgba(245, 245, 245, 0.3);
     border: rgba(120, 120, 120, 0.1) solid thin;
     border-radius: 50px;

@@ -142,7 +142,11 @@
                         </div>
                     </template>
                 </fv-command-bar>
-                <current-pipeline-block v-model="currentPipeline"></current-pipeline-block>
+                <current-pipeline-block
+                    v-model="currentPipeline"
+                    :taskId="executionInfo.task_id"
+                    @recover-click="recoverPipeline"
+                ></current-pipeline-block>
             </div>
         </div>
         <page-loading :model-value="!lock.loading" title="Loading..."></page-loading>
@@ -620,6 +624,12 @@ export default {
             let nodeOperators = this.sortPipeline()
             const flow = useVueFlow(this.flowId)
             let dbNode = flow.findNode('db-node')
+            if (!dbNode) {
+                this.$barWarning(this.local('Please select a dataset'), {
+                    status: 'warning'
+                })
+                return
+            }
             this.$api.pipelines
                 .create_pipeline({
                     name: name,
@@ -707,6 +717,27 @@ export default {
                 confirmDatasetCall,
                 this.$Guid
             )
+            this.lock.loading = true
+        },
+        async recoverPipeline() {
+            if (!this.currentPipeline || !this.currentPipeline.config) {
+                return
+            }
+            this.lock.loading = false
+            const confirmDatasetCall = (_, dataset) => {
+                this.confirmDataset(dataset, true)
+            }
+            await usePipelineOperation().renderPipeline(
+                this.currentPipeline.config,
+                this.flowId,
+                this.datasets,
+                this.flatFormatedOperators,
+                this,
+                this.$nextTick,
+                confirmDatasetCall,
+                this.$Guid
+            )
+            this.selectPipelineCallback()
             this.lock.loading = true
         },
         async handleWatchExecution({ task_id }) {
