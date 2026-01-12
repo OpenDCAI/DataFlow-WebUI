@@ -259,18 +259,52 @@ class TaskRegistry:
         if not execution_data:
             return None
         
+        # operator_progress is now deprecated, use operators_detail from output
+        output = execution_data.get("output", {})
+        
         return {
             "task_id": task_id,
             "pipeline_id": execution_data.get("pipeline_id"),
             "pipeline_config": execution_data.get("pipeline_config"),
             "status": execution_data.get("status"),
-            "operator_progress": execution_data.get("operator_progress", {}),
+            "operators_detail": output.get("operators_detail", {}),
             "logs": execution_data.get("logs", []),
-            "output": execution_data.get("output", {}),
+            "output": output,
             "started_at": execution_data.get("started_at"),
             "completed_at": execution_data.get("completed_at"),
         }
     
+    def get_execution_logs(self, task_id: str, operator_name: Optional[str] = None) -> List[str]:
+        """获取任务日志，可选过滤指定算子"""
+        data = self._read()
+        execution_data = data.get("tasks", {}).get(task_id)
+        if not execution_data:
+            return []
+        
+        # 如果是查询全局日志/流水线日志
+        if not operator_name:
+            return execution_data.get("logs", [])
+        
+        # Assuming we only care about completed logs or what's available.
+        output = execution_data.get("output", {})
+        operator_logs = output.get("operator_logs", {})
+        
+        # Try to find by operator name
+        target_logs = []
+        
+        # First check structured logs
+        if operator_name in operator_logs:
+            return operator_logs[operator_name]
+            
+        # If not indexed by simple name, maybe key is op_key
+        # Try finding key ending with name or just name
+        for k, v in operator_logs.items():
+            if k == operator_name or k.startswith(f"{operator_name}_"):
+                return v
+
+        # Default fallback to searching in main logs?
+        return []
+
     def get_execution_result(
         self, 
         task_id: str,
@@ -300,7 +334,7 @@ class TaskRegistry:
         
         # 获取执行结果和算子进度
         execution_results = output.get("execution_results", [])
-        operator_progress = execution_data.get("operator_progress", {})
+        operators_detail = output.get("operators_detail", {})
         
         # 确定要查询的步骤索引
         if step is None:
@@ -308,11 +342,16 @@ class TaskRegistry:
             if execution_results:
                 step = execution_results[-1].get("index", 0)
             else:
-                # 如果没有完成的步骤，尝试从 operator_progress 获取当前正在运行的步骤
-                current_step = operator_progress.get("current_step")
-                if current_step is not None:
-                    # 使用当前正在运行的 step
-                    step = current_step
+                # 尝试查找正在运行的步骤
+                # Find operator with status 'running' in operators_detail
+                running_op = None
+                for op_key, op_info in operators_detail.items():
+                    if op_info.get("status") == "running":
+                        running_op = op_info
+                        break
+                
+                if running_op:
+                    step = running_op.get("index", 0)
                 else:
                     step = 0
         
@@ -325,7 +364,7 @@ class TaskRegistry:
         total_count = 0
         file_exists = False
         
-        # 如果当前 step 的文件不存在，尝试读取上一步的文件（运行中时，当前 step 的文件还没写入）
+        # 如果当前 step 的文件不存在，尝试读取上一步的文件
         if not os.path.exists(cache_file) and step > 0:
             cache_file = os.path.join(cache_path, f"{cache_file_prefix}_step{step-1}.jsonl")
         
@@ -347,31 +386,14 @@ class TaskRegistry:
         operator_name = None
         operator_status = None
         
-        # 首先尝试从 execution_results 获取（已完成的算子）
-        if step < len(execution_results):
-            operator_name = execution_results[step].get("operator")
-            operator_status = execution_results[step].get("status")
-        else:
-            # 如果 execution_results 中没有，尝试从 operator_progress 获取（正在运行的算子）
-            run_progress = operator_progress.get("run", {})
-            if run_progress:
-                # 找到第一个正在运行的 operator（Started 但还没有 Completed）
-                current_operator_key = None
-                for op_key, op_logs in run_progress.items():
-                    if op_logs:
-                        last_log = op_logs[-1]
-                        if "Started" in last_log and "Completed" not in last_log:
-                            current_operator_key = op_key
-                            operator_status = "running"
-                            break
-                        elif "Completed" in last_log:
-                            # 这个已经完成了，继续找下一个
-                            continue
-                
-                # 从 key 中提取 operator 名称（去掉 _idx 后缀）
-                if current_operator_key:
-                    operator_name = current_operator_key.rsplit('_', 1)[0]
-        
+        # 从 operators_detail 中查找
+        # Need to find entry with index == step
+        for op_key, op_val in operators_detail.items():
+            if op_val.get("index") == step:
+                operator_name = op_val.get("name")
+                operator_status = op_val.get("status")
+                break
+
         return {
             "task_id": task_id,
             "pipeline_id": execution_data.get("pipeline_id"),
@@ -387,7 +409,8 @@ class TaskRegistry:
             "cache_file": cache_file,
             "logs": logs,
             "started_at": execution_data.get("started_at"),
-            "completed_at": execution_data.get("completed_at")
+            "completed_at": execution_data.get("completed_at"),
+            "operators_detail": operators_detail 
         }
     
     async def start_execution_async(

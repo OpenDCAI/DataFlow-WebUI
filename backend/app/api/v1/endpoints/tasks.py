@@ -84,6 +84,37 @@ def get_task_result(task_id: str, step: int = None, limit: int = 5):
         raise HTTPException(500, f"Failed to get task result: {str(e)}")
 
 
+@router.get("/execution/{task_id}/log", response_model=ApiResponse[List[str]], operation_id="get_execution_log", summary="获取任务日志")
+def get_execution_log(task_id: str, operator_name: str = Query(None, description="算子名称")):
+    """
+    获取任务日志
+    
+    Args:
+        task_id: 任务 ID
+        operator_name: 算子名称（可选，指定时返回该算子的日志）
+    
+    Returns:
+        日志列表
+    """
+    try:
+        logger.info(f"Request: GET /execution/{task_id}/log, operator_name={operator_name}")
+        
+        # 检查任务是否存在
+        task = container.task_registry.get(task_id)
+        if not task:
+            raise HTTPException(404, f"Task with id {task_id} not found")
+
+        logs = container.task_registry.get_execution_logs(task_id, operator_name)
+        
+        return ok(logs)
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get task logs: {e}")
+        raise HTTPException(500, f"Failed to get task logs: {str(e)}")
+
+
 @router.get("/execution/{task_id}/download", operation_id="download_task_result", summary="下载任务执行结果文件")
 def download_task_result(task_id: str, step: int = None):
     """
