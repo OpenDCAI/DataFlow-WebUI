@@ -23,7 +23,7 @@ except Exception:
 def _safe_filename(name: str) -> str:
     name = os.path.basename(name or "database.sqlite")
     name = re.sub(r"[^a-zA-Z0-9._-]+", "_", name)
-    return name or "database.sqlite"
+    return name
 
 
 DATABASE_MANAGER_MODULE_ALL = ["DatabaseManager"]
@@ -103,7 +103,6 @@ class Text2SQLDatabaseRegistry:
         self,
         filename: str,
         file_bytes: bytes,
-        name: Optional[str] = None,
         description: Optional[str] = None,
     ) -> str:
         """
@@ -112,24 +111,39 @@ class Text2SQLDatabaseRegistry:
         if not file_bytes:
             raise ValueError("Empty file")
 
-        safe_name = _safe_filename(filename)
-        if not any(safe_name.lower().endswith(ext) for ext in (".db", ".sqlite", ".sqlite3")):
+        safe_filename = _safe_filename(filename)
+        if not any(safe_filename.lower().endswith(ext) for ext in (".db", ".sqlite", ".sqlite3")):
             raise ValueError("Only .db/.sqlite/.sqlite3 files are supported")
 
-        db_id = os.urandom(8).hex()
-        db_dir = os.path.join(self.sqlite_root, db_id)
-        os.makedirs(db_dir, exist_ok=True)
-        dest_path = os.path.join(db_dir, safe_name)
+        db_id = os.path.splitext(safe_filename)[0]
+        
+        if db_id in self._get_all():
+            raise ValueError(f"Database name '{db_id}' already exists, please use another name")
 
-        with open(dest_path, "wb") as f:
-            f.write(file_bytes)
+        dest_path = os.path.join(self.sqlite_root, safe_filename)
+        
+        if os.path.exists(dest_path):
+            os.remove(dest_path)
 
-        self._validate_sqlite_file(dest_path)
+        try:
+            with open(dest_path, "wb") as f:
+                f.write(file_bytes)
+            
+            self._validate_sqlite_file(dest_path)
+        except Exception:
+            if os.path.exists(dest_path):
+                os.remove(dest_path)
+            raise
 
         data = self._get_all() or {}
+        if db_id in data:
+            if os.path.exists(dest_path):
+                os.remove(dest_path)
+            raise ValueError(f"Database name '{db_id}' already exists, please use another name")
+        
         data[db_id] = {
-            "name": name or os.path.splitext(safe_name)[0],
-            "file_name": safe_name,
+            "name": db_id,
+            "file_name": safe_filename,
             "path": dest_path,
             "uploaded_at": datetime.now().isoformat(),
             "size": os.path.getsize(dest_path),
@@ -144,23 +158,11 @@ class Text2SQLDatabaseRegistry:
             return False
 
         if remove_files:
-            db_dir = os.path.join(self.sqlite_root, db_id)
-            if os.path.isdir(db_dir):
-                shutil.rmtree(db_dir, ignore_errors=True)
+            db_path = data[db_id].get("path")
+            if db_path and os.path.exists(db_path):
+                os.remove(db_path)
 
         del data[db_id]
-        self._write_all(data)
-        return True
-
-    def _update(self, db_id: str, name: Optional[str] = None) -> bool:
-        """
-        改名字.
-        """
-        data = self._get_all() or {}
-        if db_id not in data:
-            return False
-        if name:
-            data[db_id]["name"] = name
         self._write_all(data)
         return True
 

@@ -59,10 +59,8 @@ def _make_sqlite_bytes(tmp_path: Path) -> bytes:
         con.close()
     return p.read_bytes()
 
-def _upload_db(client: TestClient, filename: str, content: bytes, name: str | None = None, description: str | None = None) -> str:
+def _upload_db(client: TestClient, filename: str, content: bytes, description: str | None = None) -> str:
     data = {}
-    if name is not None:
-        data["name"] = name
     if description is not None:
         data["description"] = description
     r = client.post(
@@ -76,7 +74,7 @@ def _upload_db(client: TestClient, filename: str, content: bytes, name: str | No
 
 def test_sqlite_upload_list_get_delete(client: TestClient, tmp_path: Path):
     b = _make_sqlite_bytes(tmp_path)
-    db_id = _upload_db(client, "test.sqlite", b, name="mydb", description="desc")
+    db_id = _upload_db(client, "test.sqlite", b, description="desc")
 
     r = client.get("/api/v1/text2sql_database/")
     assert r.status_code == 200
@@ -130,10 +128,32 @@ def test_sqlite_get_and_delete_nonexistent(client: TestClient):
     assert r.status_code == 404
 
 
+def test_sqlite_upload_rejects_duplicate_name(client: TestClient, tmp_path: Path):
+    """Test that uploading a database with the same db_id (filename without extension) is rejected."""
+    b = _make_sqlite_bytes(tmp_path)
+    db_id1 = _upload_db(client, "test.sqlite", b)
+    
+    # Try to upload another file with the same base name (different extension)
+    r = client.post(
+        "/api/v1/text2sql_database/upload",
+        files={"file": ("test.db", b, "application/octet-stream")},
+    )
+    assert r.status_code == 400
+    assert "already exists" in r.json()["detail"].lower()
+    
+    # Try to upload with the same filename
+    r = client.post(
+        "/api/v1/text2sql_database/upload",
+        files={"file": ("test.sqlite", b, "application/octet-stream")},
+    )
+    assert r.status_code == 400
+    assert "already exists" in r.json()["detail"].lower()
+
+
 def test_sqlite_filename_is_sanitized_and_delete_removes_files(client: TestClient, tmp_path: Path):
     b = _make_sqlite_bytes(tmp_path / "san")
     # include path traversal-like name; backend should sanitize to basename
-    db_id = _upload_db(client, "../../evil.sqlite", b, name="evil")
+    db_id = _upload_db(client, "../../evil.sqlite", b)
 
     item = container.text2sql_database_registry._get(db_id)
     assert item is not None
