@@ -128,6 +128,28 @@ def test_sqlite_get_and_delete_nonexistent(client: TestClient):
     assert r.status_code == 404
 
 
+def test_sqlite_upload_rejects_duplicate_name(client: TestClient, tmp_path: Path):
+    """Test that uploading a database with the same db_id (filename without extension) is rejected."""
+    b = _make_sqlite_bytes(tmp_path)
+    db_id1 = _upload_db(client, "test.sqlite", b)
+    
+    # Try to upload another file with the same base name (different extension)
+    r = client.post(
+        "/api/v1/text2sql_database/upload",
+        files={"file": ("test.db", b, "application/octet-stream")},
+    )
+    assert r.status_code == 400
+    assert "already exists" in r.json()["detail"].lower()
+    
+    # Try to upload with the same filename
+    r = client.post(
+        "/api/v1/text2sql_database/upload",
+        files={"file": ("test.sqlite", b, "application/octet-stream")},
+    )
+    assert r.status_code == 400
+    assert "already exists" in r.json()["detail"].lower()
+
+
 def test_sqlite_filename_is_sanitized_and_delete_removes_files(client: TestClient, tmp_path: Path):
     b = _make_sqlite_bytes(tmp_path / "san")
     # include path traversal-like name; backend should sanitize to basename
