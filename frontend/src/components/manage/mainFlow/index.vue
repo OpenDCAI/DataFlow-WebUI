@@ -40,6 +40,7 @@
                     @update-node-data="updateNodeData"
                     @update-run-value="updateRunValue"
                     @show-details="showDetails"
+                    @download-data="downloadData"
                 />
             </template>
 
@@ -62,7 +63,7 @@ import { Background } from '@vue-flow/background'
 import baseNode from './nodes/baseNode.vue'
 import baseEdge from './edges/baseEdge.vue'
 import databaseNode from './nodes/databaseNode.vue'
-import operatorNode from './nodes/operatorNode.vue'
+import operatorNode from './nodes/operatorNode/index.vue'
 import baseConnectionLine from './edges/baseConnectionLine.vue'
 
 const { $Guid, $infoBox } = useGlobal()
@@ -185,6 +186,9 @@ const deleteNode = (nodeInfo) => {
 
 const showDetails = ({ pipeline_idx }) => {
     emits('show-details', pipeline_idx)
+}
+const downloadData = ({ pipeline_idx }) => {
+    emits('download-data', pipeline_idx)
 }
 </script>
 

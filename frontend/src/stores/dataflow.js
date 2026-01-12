@@ -168,6 +168,23 @@ export const useDataflow = defineStore('useDataflow', () => {
         currentServing.value = item
     }
 
+    const dataManagerList = ref([])
+    const getDataManagerList = async () => {
+        await proxy.$api.text2sql_database_manager.list_text2sql_database_managers().then((res) => {
+            if (res.code === 200) {
+                res.data.forEach((item) => {
+                    item.key = item.id
+                    item.text = item.name
+                })
+                dataManagerList.value = res.data
+            } else {
+                proxy.$barWarning(res.message, {
+                    status: 'warning'
+                })
+            }
+        })
+    }
+
     const pipelines = ref([])
     const getPipelines = async () => {
         await proxy.$api.pipelines.list_pipelines().then((res) => {
@@ -231,6 +248,8 @@ export const useDataflow = defineStore('useDataflow', () => {
         currentServing,
         getServingList,
         chooseServing,
+        dataManagerList,
+        getDataManagerList,
         pipelines,
         getPipelines,
         tasks,

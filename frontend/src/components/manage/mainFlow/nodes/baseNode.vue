@@ -171,7 +171,7 @@ const y = computed(() => `${Math.round(props.position.y)}px`)
     width: 250px;
     padding: 5px 0px;
     background: var(--node-background);
-    border: 1px solid rgba(120, 120, 120, 0.1);
+    border: 1px solid rgba(120, 120, 120, 0.2);
     border-radius: 8px;
     outline: 1.5px solid transparent;
     display: flex;
@@ -187,6 +187,7 @@ const y = computed(() => `${Math.round(props.position.y)}px`)
         -3px 6px 16px transparent;
 
     &:hover {
+        border: 1px solid rgba(200, 200, 200, 0.6);
         box-shadow:
             0px 0px 1px var(--node-shadow-color),
             3px 6px 16px var(--node-shadow-color),

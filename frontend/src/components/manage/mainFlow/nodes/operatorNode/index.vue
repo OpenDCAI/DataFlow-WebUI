@@ -42,31 +42,13 @@
             class="node-row-item col"
         >
             <span class="info-title">{{ item.name }}</span>
-            <fv-text-box
-                v-if="item.name.indexOf('_serving') === -1"
+            <value-input
                 v-model="item.value"
-                :placeholder="appConfig.local('Please input') + ` ${item.name}`"
-                font-size="12"
-                border-radius="8"
-                :reveal-border="true"
-                style="width: 100%; height: 35px"
+                :item-obj="item"
+                :this-data="thisData"
                 @mousedown.stop
                 @click.stop
-            ></fv-text-box>
-            <fv-combobox
-                v-if="item.name.indexOf('_serving') !== -1"
-                :model-value="computedServingItem(item)"
-                @update:modelValue="setServingItem(item, $event)"
-                :placeholder="appConfig.local('Select Serving')"
-                :options="servingList"
-                :choosen-slider-background="thisData.borderColor"
-                :reveal-background-color="[thisData.shadowColor, 'rgba(255, 255, 255, 1)']"
-                :reveal-border-color="thisData.borderColor"
-                border-radius="8"
-                style="width: 100%"
-                @mousedown.stop
-                @click.stop
-            ></fv-combobox>
+            ></value-input>
         </div>
         <div class="node-row-item">
             <span class="info-title" style="font-size: 13px; color: rgba(0, 122, 255, 1)">{{
@@ -97,8 +79,12 @@
                 v-model="item.value"
                 :placeholder="appConfig.local('Please input') + ` ${item.name}`"
                 font-size="12"
-                border-radius="8"
+                border-radius="3"
+                :border-width="2"
                 :reveal-border="true"
+                :border-color="thisData.shadowColor"
+                :focus-border-color="thisData.borderColor"
+                underline
                 style="width: 100%; height: 35px"
                 @update:modelValue="emitUpdateRunValue(item)"
                 @mousedown.stop
@@ -110,19 +96,36 @@
             <div class="log-list">
                 <p v-for="(text, index) in currentLog" :key="index">{{ text }}</p>
             </div>
-            <fv-button
-                v-show="isOverStep"
-                theme="dark"
-                icon="Info"
-                :background="thisData.borderColor"
-                border-radius="8"
-                :is-box-shadow="true"
-                style="width: 100%; margin-top: 5px"
-                @mousedown.stop
-                @click.stop
-                @click="showDetails"
-                >{{ appConfig.local('Show Details') }}</fv-button
-            >
+            <div class="node-row-item" style="gap: 5px">
+                <fv-button
+                    v-show="isOverStep"
+                    theme="dark"
+                    icon="Diagnostic"
+                    :background="thisData.borderColor"
+                    border-radius="8"
+                    font-size="10"
+                    :is-box-shadow="true"
+                    style="width: 100%; margin-top: 5px"
+                    @mousedown.stop
+                    @click.stop
+                    @click="showDetails"
+                    >{{ appConfig.local('Show Details') }}</fv-button
+                >
+                <fv-button
+                    v-show="isOverStep"
+                    theme="dark"
+                    icon="Download"
+                    :background="thisData.borderColor"
+                    border-radius="8"
+                    font-size="10"
+                    :is-box-shadow="true"
+                    style="width: 100%; margin-top: 5px"
+                    @mousedown.stop
+                    @click.stop
+                    @click="downloadData"
+                    >{{ appConfig.local('Download Data') }}</fv-button
+                >
+            </div>
         </div>
     </base-node>
 </template>
@@ -135,6 +138,7 @@ import { useDataflow } from '@/stores/dataflow'
 import { Position, Handle } from '@vue-flow/core'
 
 import baseNode from '@/components/manage/mainFlow/nodes/baseNode.vue'
+import valueInput from './valueInput.vue'
 
 const { $api } = useGlobal()
 
@@ -225,23 +229,6 @@ const promptTemplateModel = computed({
         }
     }
 })
-
-const servingList = computed(() => {
-    return dataflow.servingList
-})
-const computedServingItem = (item) => {
-    let selectedItem = servingList.value.find((it) => it.key === item.value)
-    if (selectedItem) return selectedItem
-    if (dataflow.currentServing) {
-        item.value = dataflow.currentServing.key
-        return dataflow.currentServing
-    }
-    return {}
-}
-const setServingItem = (item, val) => {
-    if (!val.key) return
-    item.value = val.key
-}
 
 const loading = ref(false) // for data loading display
 const paramsWrapper = (objs) => {
@@ -344,6 +331,11 @@ const syncLoading = () => {
 
 const showDetails = () => {
     emits('show-details', {
+        pipeline_idx: thisData.value.pipeline_idx
+    })
+}
+const downloadData = () => {
+    emits('download-data', {
         pipeline_idx: thisData.value.pipeline_idx
     })
 }

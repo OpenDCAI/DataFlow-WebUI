@@ -20,6 +20,7 @@
                 @connect-end="onConnectEnd"
                 @update-run-value="useEdgeSync.syncRunValue($event, flowId)"
                 @show-details="showExecDetails"
+                @download-data="downloadData"
             ></mainFlow>
             <div class="control-menu-block">
                 <fv-command-bar
@@ -245,6 +246,8 @@ import operatorIcon from '@/assets/flow/operator.svg'
 import taskIcon from '@/assets/flow/task.svg'
 import saveIcon from '@/assets/flow/save.svg'
 
+import axios from '@/axios/config'
+
 export default {
     components: {
         mainFlow,
@@ -417,6 +420,7 @@ export default {
         ...mapActions(useDataflow, [
             'switchAutoConnection',
             'getServingList',
+            'getDataManagerList',
             'chooseServing',
             'getPipelines',
             'getTasks',
@@ -468,6 +472,7 @@ export default {
             if (!this.lock.serving) return
             this.lock.serving = false
             await this.getServingList()
+            await this.getDataManagerList()
             this.lock.serving = true
         },
         showServing($event) {
@@ -696,6 +701,14 @@ export default {
                     }
                 })
         },
+        downloadData(pipeline_idx) {
+            if (!this.executionInfo.task_id) return
+            let baseURL = axios.defaults.baseURL
+            let url =
+                baseURL +
+                `/api/v1/tasks/execution/${this.executionInfo.task_id}/download?step=${pipeline_idx - 1}`
+            window.open(url, '_blank')
+        },
         selectPipelineCallback() {
             this.clearExecution()
             this.executionInfo.task_id = null
@@ -755,6 +768,18 @@ export default {
                 if (this.execution.status === 'completed') {
                     clearInterval(this.timer.exec)
                     this.lock.running = true
+                } else if (this.execution.status === 'failed') {
+                    clearInterval(this.timer.exec)
+                    this.lock.running = true
+                    this.$barWarning(
+                        this.local(
+                            'Pipeline execution failed:' + JSON.stringify(this.execution.output)
+                        ),
+                        {
+                            status: 'error',
+                            autoClose: -1
+                        }
+                    )
                 }
             }, 3000)
         },
