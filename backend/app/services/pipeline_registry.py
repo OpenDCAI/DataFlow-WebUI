@@ -444,6 +444,8 @@ class PipelineRegistry:
         "Text Conversation Synthesis Pipeline",
         "Text Sft Synthesis Pipeline",
         "Text2Qa Pipeline",
+        "Text2Sql Pipeline Refine",
+        "Text2Sql Pipeline Gen",
     }
 
     def _normalize_pipeline_name(self, name: str) -> str:
