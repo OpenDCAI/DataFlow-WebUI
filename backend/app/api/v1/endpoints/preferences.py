@@ -9,18 +9,14 @@ from app.schemas.preferences import UserPreferences
 
 router = APIRouter(tags=["preferences"])
 
-# 配置文件路径：backend/data/user_preferences.json
-PREFERENCES_PATH = os.path.join(settings.BASE_DIR, "data", "user_preferences.json")
-
-
 def _read_preferences() -> UserPreferences:
     """读取偏好配置，不存在则返回默认值"""
     try:
-        if not os.path.exists(PREFERENCES_PATH):
+        if not os.path.exists(settings.PREFERENCES_PATH):
             # 直接用默认配置
             return UserPreferences()
 
-        with open(PREFERENCES_PATH, "r", encoding="utf-8") as f:
+        with open(settings.PREFERENCES_PATH, "r", encoding="utf-8") as f:
             data = json.load(f)
         return UserPreferences(**data)
     except Exception as e:
@@ -30,8 +26,8 @@ def _read_preferences() -> UserPreferences:
 def _write_preferences(prefs: UserPreferences) -> None:
     """写入偏好配置，直接覆盖"""
     try:
-        os.makedirs(os.path.dirname(PREFERENCES_PATH), exist_ok=True)
-        with open(PREFERENCES_PATH, "w", encoding="utf-8") as f:
+        os.makedirs(os.path.dirname(settings.PREFERENCES_PATH), exist_ok=True)
+        with open(settings.PREFERENCES_PATH, "w", encoding="utf-8") as f:
             json.dump(prefs.model_dump(), f, ensure_ascii=False, indent=2)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to write preferences: {e}")
