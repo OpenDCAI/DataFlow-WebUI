@@ -62,20 +62,25 @@ def get_database_detail(db_id: str):
 )
 async def upload_sqlite_database(
     file: UploadFile = File(...),
-    name: str | None = Form(None),
     description: str | None = Form(None),
 ):
     try:
+        if not file.filename:
+            raise HTTPException(status_code=400, detail="Filename is required")
+        
         content = await file.read()
         db_id = container.text2sql_database_registry.upload_sqlite_file(
             filename=file.filename,
             file_bytes=content,
-            name=name,
             description=description
         )
         return created({"id": db_id})
+    except HTTPException:
+        raise
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Failed to upload database: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to upload database: {e}")
 
 
 @router.delete(
