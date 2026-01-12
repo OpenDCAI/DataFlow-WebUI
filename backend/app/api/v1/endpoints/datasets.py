@@ -35,6 +35,11 @@ def list_dir(path: str):
             'name': file,
             'is_dir': os.path.isdir(os.path.join(path, file)),
         })
+    # 排序：目录排在前面，然后按名称排序
+    res = sorted(
+        res,
+        key=lambda x: (not x['is_dir'], x['name'])
+    )
     return ok(res)
 
 @router.get("/{ds_id}", response_model=ApiResponse[DatasetOut], operation_id="get_dataset", summary="根据数据集 ID 获取数据集信息")
