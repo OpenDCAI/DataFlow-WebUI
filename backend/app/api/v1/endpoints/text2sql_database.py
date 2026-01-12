@@ -62,6 +62,7 @@ def get_database_detail(db_id: str):
 )
 async def upload_sqlite_database(
     file: UploadFile = File(...),
+    name: str | None = Form(None),
     description: str | None = Form(None),
 ):
     try:
