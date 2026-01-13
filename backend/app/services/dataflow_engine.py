@@ -375,6 +375,12 @@ class DataFlowEngine:
             # 如果是具体的算子，记录到 operator_logs
             if op_name != "__pipeline__":
                 operator_logs.setdefault(op_name, []).append(ts_msg)
+                # Sync logs to file incrementally? Or just trust final update?
+                # User requested 'operator_logs' to be written in. 
+                # To be safe and real-time, we can update it in file occasionally or 
+                # just ensure it's in the final output.
+                # Here we will ensure it's passed during status updates if needed, 
+                # but better to update it with status updates.
         
         add_log("global", f"[{started_at}] Starting pipeline execution: {task_id}")
         logger.info(f"Starting pipeline execution: {task_id}")
@@ -569,6 +575,7 @@ class DataFlowEngine:
             add_log("run", f"[{datetime.now().isoformat()}] Step 3: Executing {len(run_op)} operators...")
             logger.info(f"Executing {len(run_op)} operators...")
             
+            execution_results = []
             for op_idx, (operator, run_params, op_name, op_key) in enumerate(run_op):
                 try:
                     run_params["storage"] = storage.step()
@@ -581,7 +588,10 @@ class DataFlowEngine:
                     operators_detail[op_key]["started_at"] = datetime.now().isoformat()
                     
                     # ✅ 实时更新状态到文件
-                    update_execution_status("running", {"operators_detail": operators_detail})
+                    update_execution_status("running", {
+                        "operators_detail": operators_detail,
+                        "operator_logs": operator_logs # Sync logs to file
+                    })
                     
                     api_pipeline_path = os.path.join(settings.DATAFLOW_CORE_DIR, "api_pipelines")
                     os.chdir(api_pipeline_path)
@@ -630,7 +640,10 @@ class DataFlowEngine:
                     # ✅ 更新算子粒度状态：执行完成
                     operators_detail[op_key]["status"] = "completed"
                     operators_detail[op_key]["completed_at"] = datetime.now().isoformat()
-                    update_execution_status("running", {"operators_detail": operators_detail})
+                    update_execution_status("running", {
+                        "operators_detail": operators_detail,
+                        "operator_logs": operator_logs
+                    })
 
                     
                     # ✅ 记录缓存文件信息
@@ -656,7 +669,10 @@ class DataFlowEngine:
                 except Exception as e:
                     operators_detail[op_key]["status"] = "failed"
                     operators_detail[op_key]["error"] = str(e)
-                    update_execution_status("failed", {"operators_detail": operators_detail})
+                    update_execution_status("failed", {
+                        "operators_detail": operators_detail,
+                        "operator_logs": operator_logs
+                    })
                     raise DataFlowEngineError(
                         f"执行Operator失败: {op_name}",
                         context={
@@ -675,7 +691,7 @@ class DataFlowEngine:
             
             output["operators_executed"] = len(run_op)
             output["operators_detail"] = operators_detail
-            # output["operator_logs"] = operator_logs # Logs returned separately in top level
+            output["operator_logs"] = operator_logs
             output["execution_results"] = execution_results
             output["success"] = True
             

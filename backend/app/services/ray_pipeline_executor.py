@@ -365,7 +365,10 @@ def dataflow_pipeline_execute(pipeline_config: Dict[str, Any], dataflow_runtime:
                 operators_detail[op_key]["started_at"] = datetime.now().isoformat()
                 
                 # ✅ 实时更新状态到文件
-                update_execution_status("running", {"operators_detail": operators_detail})
+                update_execution_status("running", {
+                    "operators_detail": operators_detail,
+                    "operator_logs": operator_logs
+                })
                 
                 api_pipeline_path = os.path.join(settings.DATAFLOW_CORE_DIR, "api_pipelines")
                 print(api_pipeline_path)
@@ -430,7 +433,10 @@ def dataflow_pipeline_execute(pipeline_config: Dict[str, Any], dataflow_runtime:
                         logger.error(f"[Pipeline] Failed to read cache file: {e}")
                 
                 # ✅ 实时更新状态到文件
-                update_execution_status("running", {"operators_detail": operators_detail})
+                update_execution_status("running", {
+                    "operators_detail": operators_detail,
+                    "operator_logs": operator_logs
+                })
                 
                 execution_results.append({
                     "operator": op_name,
@@ -441,7 +447,10 @@ def dataflow_pipeline_execute(pipeline_config: Dict[str, Any], dataflow_runtime:
             except Exception as e:
                 operators_detail[op_key]["status"] = "failed"
                 operators_detail[op_key]["error"] = str(e)
-                update_execution_status("failed", {"operators_detail": operators_detail})
+                update_execution_status("failed", {
+                    "operators_detail": operators_detail,
+                    "operator_logs": operator_logs
+                })
                 
                 raise DataFlowEngineError(
                     f"执行Operator失败: {op_name}",
@@ -461,6 +470,7 @@ def dataflow_pipeline_execute(pipeline_config: Dict[str, Any], dataflow_runtime:
         
         output["operators_executed"] = len(run_op)
         output["operators_detail"] = operators_detail
+        output["operator_logs"] = operator_logs
         output["execution_results"] = execution_results
         output["success"] = True
         

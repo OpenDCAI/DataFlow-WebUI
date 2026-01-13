@@ -268,8 +268,9 @@ class TaskRegistry:
             "pipeline_config": execution_data.get("pipeline_config"),
             "status": execution_data.get("status"),
             "operators_detail": output.get("operators_detail", {}),
+            "operator_logs": output.get("operator_logs", {}),
             "logs": execution_data.get("logs", []),
-            "output": output,
+            # "output": output, # Output removed as requested to avoid duplication
             "started_at": execution_data.get("started_at"),
             "completed_at": execution_data.get("completed_at"),
         }
@@ -335,6 +336,7 @@ class TaskRegistry:
         # 获取执行结果和算子进度
         execution_results = output.get("execution_results", [])
         operators_detail = output.get("operators_detail", {})
+        operator_logs = output.get("operator_logs", {})
         
         # 确定要查询的步骤索引
         if step is None:
@@ -408,6 +410,7 @@ class TaskRegistry:
             "file_exists": file_exists,
             "cache_file": cache_file,
             "logs": logs,
+            "operator_logs": operator_logs,
             "started_at": execution_data.get("started_at"),
             "completed_at": execution_data.get("completed_at"),
             "operators_detail": operators_detail 
