@@ -1,5 +1,6 @@
 import os
-from fastapi import APIRouter, HTTPException
+import shutil
+from fastapi import APIRouter, HTTPException, UploadFile, File
 from app.schemas.dataset import DatasetIn, DatasetOut
 from app.core.container import container
 from app.api.v1.resp import ok, created
@@ -21,6 +22,25 @@ def register_dataset(payload: DatasetIn):
     except Exception as e:
         raise HTTPException(400, f"Failed to register dataset: {e}")
     return created(ds)
+
+@router.get("/list_dir", response_model=ApiResponse[list[dict]], operation_id="listDir", summary="列出目录下的文件, 且判定是否为文件夹")
+def list_dir(path: str):
+    """列出目录下的文件, 且判定是否为文件夹"""
+    if not os.path.exists(path):
+        raise HTTPException(400, "目录不存在")
+    files = os.listdir(path)
+    res = []
+    for file in files:
+        res.append({
+            'name': file,
+            'is_dir': os.path.isdir(os.path.join(path, file)),
+        })
+    # 排序：目录排在前面，然后按名称排序
+    res = sorted(
+        res,
+        key=lambda x: (not x['is_dir'], x['name'])
+    )
+    return ok(res)
 
 @router.get("/{ds_id}", response_model=ApiResponse[DatasetOut], operation_id="get_dataset", summary="根据数据集 ID 获取数据集信息")
 def get_dataset(ds_id: str):
@@ -103,3 +123,40 @@ def get_dataset_columns(ds_id: str):
         raise HTTPException(404, "Dataset not found")
     except Exception as e:
         raise HTTPException(500, f"Failed to get dataset columns: {e}")
+
+@router.post("/upload", response_model=ApiResponse[DatasetOut], operation_id="upload_dataset", summary="通过上传文件的形式添加数据集")
+async def upload_dataset(file: UploadFile = File(...), name: str = None):
+    """通过上传文件的形式添加数据集
+    
+    Args:
+        file: 要上传的文件
+        name: 数据集名称，默认为文件名
+        
+    Returns:
+        新创建的数据集信息
+    """
+    try:
+        # 创建上传目录（如果不存在）
+        upload_dir = os.path.join(os.path.dirname(container.dataset_registry.path), "uploads")
+        if not os.path.exists(upload_dir):
+            os.makedirs(upload_dir)
+        
+        # 保存文件
+        file_path = os.path.join(upload_dir, file.filename)
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+        
+        # 注册数据集
+        ds_dict = {
+            "name": name if name else file.filename,
+            "root": file_path,
+            "pipeline": "uploaded",
+            "meta": {},
+        }
+        
+        ds = container.dataset_registry.add_or_update(ds_dict)
+        return created(ds)
+    except Exception as e:
+        raise HTTPException(400, f"Failed to upload dataset: {e}")
+    finally:
+        file.file.close()

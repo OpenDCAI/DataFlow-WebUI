@@ -430,13 +430,57 @@ class PipelineRegistry:
             if updated:
                 self._write(data)
         except Exception as e:
-            logger.error(f"Error updating API pipeline operators: {e}", exc_info=True)  
+            logger.error(f"Error updating API pipeline operators: {e}", exc_info=True)
+
+    _PRESET_PIPELINE_NAME_WHITELIST = {
+        "Agentic Rag Pipeline",
+        "Chemistry Smiles",
+        "Code Code To Sft Data Pipeline",
+        "Code Gen Dataset Pipeline",
+        "Func Call Synthesis",
+        "Reasoning General Pipeline",
+        "Reasoning Math Pipeline",
+        "Reasoning Pretrain Pipeline",
+        "Text Conversation Synthesis Pipeline",
+        "Text Sft Synthesis Pipeline",
+        "Text2Qa Pipeline",
+        "Text2Sql Pipeline Refine",
+        "Text2Sql Pipeline Gen",
+    }
+
+    def _normalize_pipeline_name(self, name: str) -> str:
+        return re.sub(r"\s+", " ", (name or "")).strip()
+
+    def _is_preset_pipeline(self, pipeline: Dict[str, Any]) -> bool:
+        tags = pipeline.get("tags") or []
+        if "api" in tags:
+            return True
+
+        file_path = (pipeline.get("config") or {}).get("file_path") or ""
+        if not file_path:
+            return False
+
+        api_dir = os.path.join(settings.DATAFLOW_CORE_DIR, "api_pipelines")
+        try:
+            return os.path.commonpath([os.path.abspath(file_path), os.path.abspath(api_dir)]) == os.path.abspath(api_dir)
+        except Exception:
+            return False
+
+    def _is_visible_pipeline(self, pipeline: Dict[str, Any]) -> bool:
+        if self._is_preset_pipeline(pipeline):
+            name = self._normalize_pipeline_name(pipeline.get("name", ""))
+            return name in self._PRESET_PIPELINE_NAME_WHITELIST
+        return True
 
     def list_templates(self) -> List[Dict[str, Any]]:
         """列出所有预置(template) Pipelines"""
         data = self._read()
         pipelines = list(data.get("pipelines", {}).values())
-        templates = [p for p in pipelines if "template" in (p.get("tags") or [])]
+        templates = [
+            p
+            for p in pipelines
+            if "template" in (p.get("tags") or []) and self._is_visible_pipeline(p)
+        ]
         templates.sort(key=lambda x: x.get("updated_at", ""), reverse=True)
         return templates
     
@@ -478,6 +522,7 @@ class PipelineRegistry:
         
         data = self._read()
         pipelines = list(data.get("pipelines", {}).values())
+        pipelines = [p for p in pipelines if self._is_visible_pipeline(p)]
         
         # 按更新时间倒序排序
         pipelines.sort(key=lambda x: x.get("updated_at", ""), reverse=True)
@@ -526,6 +571,9 @@ class PipelineRegistry:
         """
         data = self._read()
         pipeline_data = data.get("pipelines", {}).get(pipeline_id)
+
+        if pipeline_data and not self._is_visible_pipeline(pipeline_data):
+            return None
         
         if pipeline_data:
             # 如果是api pipeline，检查并更新operators列表
