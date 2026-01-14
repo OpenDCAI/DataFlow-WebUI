@@ -375,12 +375,6 @@ class DataFlowEngine:
             # 如果是具体的算子，记录到 operator_logs
             if op_name != "__pipeline__":
                 operator_logs.setdefault(op_name, []).append(ts_msg)
-                # Sync logs to file incrementally? Or just trust final update?
-                # User requested 'operator_logs' to be written in. 
-                # To be safe and real-time, we can update it in file occasionally or 
-                # just ensure it's in the final output.
-                # Here we will ensure it's passed during status updates if needed, 
-                # but better to update it with status updates.
         
         add_log("global", f"[{started_at}] Starting pipeline execution: {task_id}")
         logger.info(f"Starting pipeline execution: {task_id}")
@@ -619,17 +613,27 @@ class DataFlowEngine:
                     os.chdir(settings.BASE_DIR)
                     
                     # ✅ 获取处理后的数据量
-                    # 尝试从 storage 获取
+                    # 尝试从 output file 获取
                     sample_count = 0
-                    if "storage" in run_params and hasattr(run_params["storage"], "get_data_count"):
-                         sample_count = run_params["storage"].get_data_count()
-                    # 或者尝试从 output file 获取 (如果 storage 是 FileStorage)
-                    elif "storage" in run_params and hasattr(run_params["storage"], "file_name"):
-                         try:
-                             with open(run_params["storage"].file_name, 'r') as f:
-                                 sample_count = sum(1 for _ in f)
-                         except:
-                             pass
+                    storage_obj = run_params.get("storage")
+                    
+                    if storage_obj:
+                         f_path = None
+                         # 尝试使用 _get_cache_file_path 推断输出文件路径
+                         if hasattr(storage_obj, "_get_cache_file_path") and hasattr(storage_obj, "operator_step"):
+                             try:
+                                 # operator_step 是输入 step，输出在 step + 1
+                                 f_path = storage_obj._get_cache_file_path(storage_obj.operator_step + 1)
+                             except Exception:
+                                 pass
+                         
+                         if f_path and os.path.exists(f_path):
+                             try:
+                                 with open(f_path, 'r', encoding='utf-8') as f:
+                                     sample_count = sum(1 for _ in f)
+                             except Exception as e:
+                                 logger.warning(f"Failed to count lines in {f_path}: {e}")
+                                 add_log("run", f"WARN: Failed to read output file: {e}", op_key)
                     
                     operators_detail[op_key]["sample_count"] = sample_count
                     add_log("run", f"Processed {sample_count} samples", op_key)
