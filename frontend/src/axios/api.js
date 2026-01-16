@@ -112,6 +112,57 @@ export class datasets {
   }
  
   /**
+  * @summary 列出目录下的文件, 且判定是否为文件夹
+  * @param {String} [path] 
+  * @param {CancelTokenSource} [cancelSource] Axios Cancel Source 对象，可以取消该请求
+  * @param {Function} [uploadProgress] 上传回调函数
+  * @param {Function} [downloadProgress] 下载回调函数
+  */
+  static async listDir(path,cancelSource,uploadProgress,downloadProgress){
+    return await new Promise((resolve,reject)=>{
+      let responseType = "json";
+      let options = {
+        method:'get',
+        url:'/api/v1/datasets/list_dir',
+        data:{},
+        params:{path},
+        headers:{
+          "Content-Type":""
+        },
+        onUploadProgress:uploadProgress,
+        onDownloadProgress:downloadProgress
+      }
+      // support wechat mini program
+      if (cancelSource!=undefined){
+        options.cancelToken = cancelSource.token
+      }
+      if (responseType != "json"){
+        options.responseType = responseType;
+      }
+      axios(options)
+      .then(res=>{
+        if (res.config.responseType=="blob"){
+          resolve(new Blob([res.data],{
+            type: res.headers["content-type"].split(";")[0]
+          }))
+        }else{
+          resolve(res.data);
+          return res.data
+        }
+      }).catch(err=>{
+        if (err.response){
+          if (err.response.data)
+            reject(err.response.data)
+          else
+            reject(err.response);
+        }else{
+          reject(err)
+        }
+      })
+    })
+  }
+ 
+  /**
   * @summary 根据数据集 ID 获取数据集信息
   * @param {String} [pathds_id] 
   * @param {CancelTokenSource} [cancelSource] Axios Cancel Source 对象，可以取消该请求
@@ -419,6 +470,58 @@ export class datasets {
       })
     })
   }
+ 
+  /**
+  * @summary 通过上传文件的形式添加数据集
+  * @param {String} [name] 
+  * @param {UserModel.Body_upload_dataset} [body_upload_dataset] 
+  * @param {CancelTokenSource} [cancelSource] Axios Cancel Source 对象，可以取消该请求
+  * @param {Function} [uploadProgress] 上传回调函数
+  * @param {Function} [downloadProgress] 下载回调函数
+  */
+  static async upload_dataset(name,body_upload_dataset,cancelSource,uploadProgress,downloadProgress){
+    return await new Promise((resolve,reject)=>{
+      let responseType = "json";
+      let options = {
+        method:'post',
+        url:'/api/v1/datasets/upload',
+        data:body_upload_dataset,
+        params:{name},
+        headers:{
+          "Content-Type":"multipart/form-data"
+        },
+        onUploadProgress:uploadProgress,
+        onDownloadProgress:downloadProgress
+      }
+      // support wechat mini program
+      if (cancelSource!=undefined){
+        options.cancelToken = cancelSource.token
+      }
+      if (responseType != "json"){
+        options.responseType = responseType;
+      }
+      axios(options)
+      .then(res=>{
+        if (res.config.responseType=="blob"){
+          resolve(new Blob([res.data],{
+            type: res.headers["content-type"].split(";")[0]
+          }))
+        }else{
+          resolve(res.data);
+          return res.data
+        }
+      }).catch(err=>{
+        if (err.response){
+          if (err.response.data)
+            reject(err.response.data)
+          else
+            reject(err.response);
+        }else{
+          reject(err)
+        }
+      })
+    })
+  }
 }
 
 // class datasets static method properties bind
@@ -438,6 +541,14 @@ datasets.register_dataset.fullPath=`${axios.defaults.baseURL}/api/v1/datasets/`
 * @description register_dataset url链接，不包含baseURL
 */
 datasets.register_dataset.path=`/api/v1/datasets/`
+/**
+* @description listDir url链接，包含baseURL
+*/
+datasets.listDir.fullPath=`${axios.defaults.baseURL}/api/v1/datasets/list_dir`
+/**
+* @description listDir url链接，不包含baseURL
+*/
+datasets.listDir.path=`/api/v1/datasets/list_dir`
 /**
 * @description get_dataset url链接，包含baseURL
 */
@@ -486,6 +597,14 @@ datasets.get_dataset_columns.fullPath=`${axios.defaults.baseURL}/api/v1/datasets
 * @description get_dataset_columns url链接，不包含baseURL
 */
 datasets.get_dataset_columns.path=`/api/v1/datasets/columns/{ds_id}`
+/**
+* @description upload_dataset url链接，包含baseURL
+*/
+datasets.upload_dataset.fullPath=`${axios.defaults.baseURL}/api/v1/datasets/upload`
+/**
+* @description upload_dataset url链接，不包含baseURL
+*/
+datasets.upload_dataset.path=`/api/v1/datasets/upload`
 
 export class operators {
  
@@ -824,6 +943,58 @@ export class tasks {
   }
  
   /**
+  * @summary 获取任务日志
+  * @param {String} [pathtask_id] 
+  * @param {String} [operator_name] 算子名称
+  * @param {CancelTokenSource} [cancelSource] Axios Cancel Source 对象，可以取消该请求
+  * @param {Function} [uploadProgress] 上传回调函数
+  * @param {Function} [downloadProgress] 下载回调函数
+  */
+  static async get_execution_log(pathtask_id,operator_name,cancelSource,uploadProgress,downloadProgress){
+    return await new Promise((resolve,reject)=>{
+      let responseType = "json";
+      let options = {
+        method:'get',
+        url:'/api/v1/tasks/execution/'+pathtask_id+'/log',
+        data:{},
+        params:{operator_name},
+        headers:{
+          "Content-Type":""
+        },
+        onUploadProgress:uploadProgress,
+        onDownloadProgress:downloadProgress
+      }
+      // support wechat mini program
+      if (cancelSource!=undefined){
+        options.cancelToken = cancelSource.token
+      }
+      if (responseType != "json"){
+        options.responseType = responseType;
+      }
+      axios(options)
+      .then(res=>{
+        if (res.config.responseType=="blob"){
+          resolve(new Blob([res.data],{
+            type: res.headers["content-type"].split(";")[0]
+          }))
+        }else{
+          resolve(res.data);
+          return res.data
+        }
+      }).catch(err=>{
+        if (err.response){
+          if (err.response.data)
+            reject(err.response.data)
+          else
+            reject(err.response);
+        }else{
+          reject(err)
+        }
+      })
+    })
+  }
+ 
+  /**
   * @summary 下载任务执行结果文件
   * @param {String} [pathtask_id] 
   * @param {Number} [step] 
@@ -1003,6 +1174,14 @@ tasks.get_task_result.fullPath=`${axios.defaults.baseURL}/api/v1/tasks/execution
 * @description get_task_result url链接，不包含baseURL
 */
 tasks.get_task_result.path=`/api/v1/tasks/execution/{task_id}/result`
+/**
+* @description get_execution_log url链接，包含baseURL
+*/
+tasks.get_execution_log.fullPath=`${axios.defaults.baseURL}/api/v1/tasks/execution/{task_id}/log`
+/**
+* @description get_execution_log url链接，不包含baseURL
+*/
+tasks.get_execution_log.path=`/api/v1/tasks/execution/{task_id}/log`
 /**
 * @description download_task_result url链接，包含baseURL
 */
@@ -2642,3 +2821,125 @@ text2sql_database_manager.delete_text2sql_database_manager.fullPath=`${axios.def
 * @description delete_text2sql_database_manager url链接，不包含baseURL
 */
 text2sql_database_manager.delete_text2sql_database_manager.path=`/api/v1/text2sql_database_manager/{mgr_id}`
+
+export class preferences {
+ 
+  /**
+  * @summary 获取当前全局用户偏好配置
+  * @param {CancelTokenSource} [cancelSource] Axios Cancel Source 对象，可以取消该请求
+  * @param {Function} [uploadProgress] 上传回调函数
+  * @param {Function} [downloadProgress] 下载回调函数
+  */
+  static async get_preferences_api_v1_preferences__get(cancelSource,uploadProgress,downloadProgress){
+    return await new Promise((resolve,reject)=>{
+      let responseType = "json";
+      let options = {
+        method:'get',
+        url:'/api/v1/preferences/',
+        data:{},
+        params:{},
+        headers:{
+          "Content-Type":""
+        },
+        onUploadProgress:uploadProgress,
+        onDownloadProgress:downloadProgress
+      }
+      // support wechat mini program
+      if (cancelSource!=undefined){
+        options.cancelToken = cancelSource.token
+      }
+      if (responseType != "json"){
+        options.responseType = responseType;
+      }
+      axios(options)
+      .then(res=>{
+        if (res.config.responseType=="blob"){
+          resolve(new Blob([res.data],{
+            type: res.headers["content-type"].split(";")[0]
+          }))
+        }else{
+          resolve(res.data);
+          return res.data
+        }
+      }).catch(err=>{
+        if (err.response){
+          if (err.response.data)
+            reject(err.response.data)
+          else
+            reject(err.response);
+        }else{
+          reject(err)
+        }
+      })
+    })
+  }
+ 
+  /**
+  * @summary 更新全局用户偏好配置（直接覆盖）
+  * @param {UserModel.UserPreferences} [userpreferences] 
+  * @param {CancelTokenSource} [cancelSource] Axios Cancel Source 对象，可以取消该请求
+  * @param {Function} [uploadProgress] 上传回调函数
+  * @param {Function} [downloadProgress] 下载回调函数
+  */
+  static async set_preferences_api_v1_preferences__post(userpreferences,cancelSource,uploadProgress,downloadProgress){
+    return await new Promise((resolve,reject)=>{
+      let responseType = "json";
+      let options = {
+        method:'post',
+        url:'/api/v1/preferences/',
+        data:userpreferences,
+        params:{},
+        headers:{
+          "Content-Type":"application/json"
+        },
+        onUploadProgress:uploadProgress,
+        onDownloadProgress:downloadProgress
+      }
+      // support wechat mini program
+      if (cancelSource!=undefined){
+        options.cancelToken = cancelSource.token
+      }
+      if (responseType != "json"){
+        options.responseType = responseType;
+      }
+      axios(options)
+      .then(res=>{
+        if (res.config.responseType=="blob"){
+          resolve(new Blob([res.data],{
+            type: res.headers["content-type"].split(";")[0]
+          }))
+        }else{
+          resolve(res.data);
+          return res.data
+        }
+      }).catch(err=>{
+        if (err.response){
+          if (err.response.data)
+            reject(err.response.data)
+          else
+            reject(err.response);
+        }else{
+          reject(err)
+        }
+      })
+    })
+  }
+}
+
+// class preferences static method properties bind
+/**
+* @description get_preferences_api_v1_preferences__get url链接，包含baseURL
+*/
+preferences.get_preferences_api_v1_preferences__get.fullPath=`${axios.defaults.baseURL}/api/v1/preferences/`
+/**
+* @description get_preferences_api_v1_preferences__get url链接，不包含baseURL
+*/
+preferences.get_preferences_api_v1_preferences__get.path=`/api/v1/preferences/`
+/**
+* @description set_preferences_api_v1_preferences__post url链接，包含baseURL
+*/
+preferences.set_preferences_api_v1_preferences__post.fullPath=`${axios.defaults.baseURL}/api/v1/preferences/`
+/**
+* @description set_preferences_api_v1_preferences__post url链接，不包含baseURL
+*/
+preferences.set_preferences_api_v1_preferences__post.path=`/api/v1/preferences/`

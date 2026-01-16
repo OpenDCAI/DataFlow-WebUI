@@ -13,8 +13,8 @@
                 class="navigation-view"
                 :show-back="false"
                 :show-search="false"
-                :show-setting="false"
                 @item-click="handleItemClick"
+                @setting-click="handleSettingClick"
                 @back="$Back()"
             >
                 <template v-slot:banner>
@@ -133,6 +133,9 @@ export default {
                     break
                 }
             }
+        },
+        handleSettingClick() {
+            this.$Go('/m/settings')
         }
     }
 }

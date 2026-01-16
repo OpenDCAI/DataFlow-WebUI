@@ -17,6 +17,10 @@ export default {
         {
             path: 'dm',
             component: () => AsyncLoad(() => import("@/views/manage/dbManager/index.vue"))
+        },
+        {
+            path: 'settings',
+            component: () => AsyncLoad(() => import("@/views/manage/settings/index.vue"))
         }
     ]
 };
