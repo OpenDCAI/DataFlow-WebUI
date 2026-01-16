@@ -1,26 +1,16 @@
 <template>
-    <basePanel
-        v-model="thisValue"
-        :title="title"
-        width="clamp(350px, 90%, 800px)"
-        height="clamp(500px, 90%, 800px)"
-        theme="light"
-        :teleport="true"
-    >
+    <basePanel v-model="thisValue" :title="title" width="clamp(350px, 90%, 800px)" height="clamp(500px, 90%, 800px)"
+        :theme="theme" :teleport="true">
         <template v-slot:content>
             <div class="panel-result-content-block">
                 <div v-if="runningResult" class="info-bar-block">
                     <p class="title">{{ runningResult.task_id }}</p>
-                    <time-rounder
-                        :model-value="new Date(runningResult.completed_at)"
-                        style="width: auto"
-                    ></time-rounder>
+                    <time-rounder :model-value="new Date(runningResult.completed_at)"
+                        style="width: auto"></time-rounder>
                 </div>
                 <span class="title-block">{{ local('Execution Sampled Data') }}</span>
-                <table-info
-                    v-if="runningResult && runningResult.sample_data"
-                    :table-info="runningResult.sample_data"
-                ></table-info>
+                <table-info v-if="runningResult && runningResult.sample_data"
+                    :table-info="runningResult.sample_data"></table-info>
                 <span class="title-block">{{ local('Logs') }}</span>
                 <div v-if="runningResult" class="log-container">
                     <p v-for="(item, index) in runningResult.logs" :key="index" class="log-item">
@@ -30,13 +20,8 @@
             </div>
         </template>
         <template v-slot:control="{ close }">
-            <fv-button
-                :borderRadius="8"
-                :isBoxShadow="true"
-                style="width: 120px; margin-right: 8px"
-                @click="close"
-                >{{ local('Close') }}</fv-button
-            >
+            <fv-button :borderRadius="8" :isBoxShadow="true" style="width: 120px; margin-right: 8px" @click="close">{{
+                local('Close') }}</fv-button>
         </template>
     </basePanel>
 </template>
@@ -86,7 +71,7 @@ export default {
     },
     computed: {
         ...mapState(useAppConfig, ['local']),
-        ...mapState(useTheme, ['color', 'gradient']),
+        ...mapState(useTheme, ['theme', 'color', 'gradient']),
         operators() {
             try {
                 return this.runningResult.output.execution_results
@@ -95,7 +80,7 @@ export default {
             }
         }
     },
-    mounted() {},
+    mounted() { },
     methods: {}
 }
 </script>

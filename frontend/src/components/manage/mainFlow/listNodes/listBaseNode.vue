@@ -1,17 +1,13 @@
 <template>
-    <div
-        class="df-flow-default-list-node"
-        :class="[{ selected: selected }]"
-        :style="{
-            '--node-background': thisData.background,
-            '--node-icon-color': thisData.iconColor,
-            '--node-border-color': thisData.borderColor,
-            '--node-shadow-color': thisData.shadowColor,
-            '--node-group-background': thisData.groupBackground,
-            '--node-title-color': thisData.titleColor,
-            '--node-status-color': thisData.statusColor
-        }"
-    >
+    <div class="df-flow-default-list-node" :class="[{ dark: props.theme == 'dark' }, { selected: selected }]" :style="{
+        '--node-background': thisData.background,
+        '--node-icon-color': thisData.iconColor,
+        '--node-border-color': thisData.borderColor,
+        '--node-shadow-color': thisData.shadowColor,
+        '--node-group-background': thisData.groupBackground,
+        '--node-title-color': thisData.titleColor,
+        '--node-status-color': thisData.statusColor
+    }">
         <div class="node-banner">
             <div class="icon-block" :style="{ background: thisData.iconBackground }">
                 <i v-if="!thisData.img" class="ms-Icon" :class="[`ms-Icon--${thisData.icon}`]"></i>
@@ -22,15 +18,9 @@
                 <p class="main-title" :title="thisData.label">{{ thisData.label }}</p>
             </div>
             <div class="control-block">
-                <fv-button
-                    v-if="thisData.enableDelete"
-                    theme="dark"
-                    border-radius="8"
-                    :font-size="12"
-                    background="rgba(215, 95, 95, 1)"
-                    border-color="rgba(255, 255, 255, 0.1)"
-                    style="width: 25px; height: 25px"
-                >
+                <fv-button v-if="thisData.enableDelete" theme="dark" border-radius="8" :font-size="12"
+                    background="rgba(215, 95, 95, 1)" border-color="rgba(255, 255, 255, 0.1)"
+                    style="width: 25px; height: 25px">
                     <i class="ms-Icon ms-Icon--Cancel"></i>
                 </fv-button>
             </div>
@@ -62,6 +52,10 @@ const props = defineProps({
     data: {
         type: Object,
         default: () => ({})
+    },
+    theme: {
+        type: String,
+        default: 'light'
     }
 })
 
@@ -116,6 +110,16 @@ const thisData = computed(() => {
         0px 0px 1px var(--node-shadow-color),
         3px 6px 16px transparent,
         -3px 6px 16px transparent;
+
+    &.dark {
+        --node-background: rgba(28, 30, 41, 0.8);
+        --node-title-color: rgba(255, 255, 255, 1);
+        --node-status-color: rgba(255, 255, 255, 0.5);
+        --node-shadow-color: rgba(122, 124, 206, 0.3);
+        --node-border-color: rgba(163, 164, 236, 1);
+        --node-icon-color: rgba(255, 255, 255, 1);
+        --node-group-background: rgba(245, 245, 245, 0.8);
+    }
 
     &:hover {
         box-shadow:

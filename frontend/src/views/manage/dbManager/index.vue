@@ -1,19 +1,20 @@
 <template>
-    <div class="df-dm-container">
+    <div class="df-dm-container" :class="[{ dark: theme === 'dark' }]">
         <div class="major-container">
             <div class="title-block">
                 <p class="main-title">{{ local('DB Manager') }}</p>
             </div>
             <div class="content-block">
-                <fv-Collapse v-model="show.add" class="serving-item" icon="Marquee" :title="local('Add Serving')"
-                    :content="local('Add new serving information.')" :disabled-collapse="true" :max-height="'auto'">
+                <fv-Collapse :theme="theme" v-model="show.add" class="serving-item" icon="Marquee"
+                    :title="local('Add Serving')" :content="local('Add new serving information.')"
+                    :disabled-collapse="true" :max-height="'auto'">
                     <template v-slot:extension>
                         <fv-button v-show="show.add" theme="dark" :is-box-shadow="true" :background="gradient"
                             :disabled="!checkAdd() || !lock.add" border-radius="6"
                             style="width: 90px; margin-right: 5px" @click="confirmAdd">
                             {{ local('Confirm') }}
                         </fv-button>
-                        <fv-button :theme="show.add ? 'light' : 'dark'" :is-box-shadow="true"
+                        <fv-button :theme="show.add ? theme : 'dark'" :is-box-shadow="true"
                             :background="show.add ? '' : gradient" border-radius="6" style="width: 90px"
                             @click="handleAdd">
                             {{ show.add ? local('Cancel') : local('Add') }}
@@ -22,31 +23,32 @@
                     <template v-slot:default>
                         <div class="serving-item-row column">
                             <p class="serving-item-light-title">{{ local('Serving Name') }}</p>
-                            <fv-text-box v-model="servingName" :placeholder="local('Serving Name')" border-radius="6"
-                                :reveal-border="true" :is-box-shadow="true"></fv-text-box>
+                            <fv-text-box :theme="theme" v-model="servingName" :placeholder="local('Serving Name')"
+                                border-radius="6" :reveal-border="true" :is-box-shadow="true"></fv-text-box>
                         </div>
                         <hr />
                         <div class="serving-item-row column">
                             <p class="serving-item-light-title">{{ local('Description') }}</p>
-                            <fv-text-field v-model="description" :placeholder="local('Description')" border-radius="6"
-                                :reveal-border="true" :is-box-shadow="true" style="height: 80px;"></fv-text-field>
+                            <fv-text-field :theme="theme" v-model="description" :placeholder="local('Description')"
+                                border-radius="6" :reveal-border="true" :is-box-shadow="true"
+                                style="height: 80px;"></fv-text-field>
                         </div>
                         <hr />
                         <div class="serving-item-row column">
                             <p class="serving-item-light-title">{{ local('Select CLS Name') }}</p>
-                            <fv-combobox v-model="choosenClsItem" :options="createProps"
+                            <fv-combobox :theme="theme" v-model="choosenClsItem" :options="createProps"
                                 :placeholder="local('Select CLS Name')" :border-radius="6"
-                                :input-background="'rgba(252, 252, 252, 1)'"></fv-combobox>
+                                :input-background="theme === 'dark' ? 'rgba(36, 36, 36, 1)' : 'rgba(252, 252, 252, 1)'"></fv-combobox>
                         </div>
                         <hr />
                         <div v-if="choosenClsItem && choosenClsItem.params"
                             v-for="(param, p_index) in choosenClsItem.params">
                             <div class="serving-item-row column">
                                 <p class="serving-item-light-title">{{ param.name }}</p>
-                                <fv-text-box v-if="param.name !== 'selected_db_ids'" v-model="param.value"
-                                    :placeholder="local(param.name)" border-radius="6" :reveal-border="true"
-                                    :is-box-shadow="true"></fv-text-box>
-                                <fv-drop-down v-if="param.name === 'selected_db_ids'"
+                                <fv-text-box :theme="theme" v-if="param.name !== 'selected_db_ids'"
+                                    v-model="param.value" :placeholder="local(param.name)" border-radius="6"
+                                    :reveal-border="true" :is-box-shadow="true"></fv-text-box>
+                                <fv-drop-down :theme="theme" v-if="param.name === 'selected_db_ids'"
                                     v-model="choosenText2SqlDatasetItems" :options="formatedText2SqlDatasets"
                                     :multiple="true" :placeholder="local('Select Text2Sql Dataset')" :border-radius="6"
                                     :input-background="'rgba(252, 252, 252, 1)'"></fv-drop-down>
@@ -55,8 +57,8 @@
                         </div>
                     </template>
                 </fv-Collapse>
-                <fv-Collapse v-for="(item, index) in dmManagerList" :key="index" class="serving-item" icon="DialShape4"
-                    :title="item.name.value" :content="item.cls_name.value" :max-height="770">
+                <fv-Collapse :theme="theme" v-for="(item, index) in dmManagerList" :key="index" class="serving-item"
+                    icon="DialShape4" :title="item.name.value" :content="item.cls_name.value" :max-height="770">
                     <template v-slot:extension>
                         <fv-button theme="dark" background="rgba(191, 95, 95, 1)" foreground="rgba(255, 255, 255, 1)"
                             border-radius="6" :is-box-shadow="true" style="width: 90px"
@@ -76,8 +78,8 @@
                                 style="width: 90px; margin-right: 5px" @click="confirmEdit(item)">
                                 {{ local('Confirm') }}
                             </fv-button>
-                            <fv-button :icon="item.edit ? 'Cancel' : 'Edit'" :is-box-shadow="true" border-radius="6"
-                                style="width: 90px" @click="handleEdit(item)">
+                            <fv-button :theme="theme" :icon="item.edit ? 'Cancel' : 'Edit'" :is-box-shadow="true"
+                                border-radius="6" style="width: 90px" @click="handleEdit(item)">
                                 {{ item.edit ? local('Cancel') : local('Edit') }}
                             </fv-button>
                         </div>
@@ -85,10 +87,10 @@
                         <div v-show="key !== 'edit'" v-for="(val, key) in item" :key="key">
                             <div class="serving-item-row column">
                                 <p class="serving-item-light-title">{{ key }}</p>
-                                <fv-text-box v-if="key !== 'selected_db_ids'" v-model="item[key].value"
+                                <fv-text-box :theme="theme" v-if="key !== 'selected_db_ids'" v-model="item[key].value"
                                     border-radius="6" :disabled="!item.edit" :reveal-border="true"
                                     :is-box-shadow="item.edit"></fv-text-box>
-                                <fv-drop-down v-if="key === 'selected_db_ids'" v-model="item[key].value"
+                                <fv-drop-down :theme="theme" v-if="key === 'selected_db_ids'" v-model="item[key].value"
                                     :options="formatedText2SqlDatasets" :multiple="true"
                                     :placeholder="local('Select Text2Sql Dataset')" :border-radius="6"
                                     :disabled="!item.edit" :input-background="'rgba(252, 252, 252, 1)'"></fv-drop-down>
@@ -402,6 +404,18 @@ export default {
     background-color: rgba(241, 241, 241, 1);
     display: flex;
     justify-content: center;
+
+    &.dark {
+        background: rgba(36, 36, 36, 1);
+
+        .major-container {
+            .title-block {
+                .main-title {
+                    color: whitesmoke;
+                }
+            }
+        }
+    }
 
     .major-container {
         width: 100%;

@@ -1,50 +1,27 @@
 <template>
-    <baseDrawer v-model="thisValue" :title="title" length="400px" theme="light">
+    <baseDrawer v-model="thisValue" :title="title" length="400px" :theme="theme">
         <template v-slot:content>
-            <fv-pivot
-                v-model="choosenPivot"
-                class="pivot-panel"
-                :items="pivotItems"
-                :tab="true"
-                :fontSize="12"
-                background="rgba(255, 255, 255, 1)"
-                :sliderBackground="gradient"
-                :borderRadius="8"
-                padding="0px 5px"
-                itemPadding="0px 10px"
-                :sliderBorderRadius="12"
-            ></fv-pivot>
+            <fv-pivot :theme="theme" v-model="choosenPivot" class="pivot-panel" :items="pivotItems" :tab="true"
+                :fontSize="12" :background="theme == 'dark' ? 'rgba(20, 20, 20, 1)' : 'rgba(255, 255, 255, 1)'"
+                :sliderBackground="gradient" :borderRadius="8" padding="0px 5px" itemPadding="0px 10px"
+                :sliderBorderRadius="12"></fv-pivot>
             <hr />
-            <fv-text-box
-                :placeholder="local('Search Operators ...')"
-                icon="Search"
-                class="operator-search-box"
-                :revealBorder="true"
-                borderRadius="30"
-                borderWidth="2"
-                :isBoxShadow="true"
-                :focusBorderColor="color"
-                :revealBorderColor="'rgba(103, 105, 251, 0.6)'"
+            <fv-text-box :theme="theme" :placeholder="local('Search Operators ...')" icon="Search"
+                class="operator-search-box" :revealBorder="true" borderRadius="30" borderWidth="2" :isBoxShadow="true"
+                :focusBorderColor="color" :revealBorderColor="'rgba(103, 105, 251, 0.6)'"
                 :reveal-background-color="['rgba(103, 105, 251, 0.1)', 'rgba(103, 105, 251, 0.6)']"
-                @debounce-input="searchText = $event"
-            ></fv-text-box>
+                @debounce-input="searchText = $event"></fv-text-box>
             <div v-show="searchText" class="search-result-info">
                 {{ local('Total') }}: {{ totalNumVisible }} {{ local('operators') }}
                 <p class="search-text">"{{ searchText }}"</p>
             </div>
             <hr />
             <div class="panel-operator-content-block">
-                <fv-expander
-                    v-show="getGroupVisibleLength(key) > 0"
-                    v-model="val.expand"
-                    v-for="(val, key) in groupOperators"
-                    :key="key"
-                    class="dataset-item"
-                    :title="val.name"
-                    :maxHeight="'auto'"
-                    background="rgba(255, 255, 255, 1)"
-                    expandBackground="rgba(250, 250, 250, 1)"
-                >
+                <fv-expander :theme="theme" v-show="getGroupVisibleLength(key) > 0" v-model="val.expand"
+                    v-for="(val, key) in groupOperators" :key="key" class="dataset-item"
+                    :class="[{ dark: theme === 'dark' }]" :title="val.name" :maxHeight="'auto'"
+                    :background="theme == 'dark' ? 'rgba(36, 36, 36, 1)' : 'rgba(255, 255, 255, 1)'"
+                    :expandBackground="theme == 'dark' ? 'rgba(36, 36, 36, 1)' : 'rgba(250, 250, 250, 1)'">
                     <template v-slot:content>
                         <div class="expander-row-block">
                             <i class="ms-Icon ms-Icon--OEM"></i>
@@ -52,20 +29,10 @@
                         </div>
                     </template>
                     <div class="collapse-item-content">
-                        <listBaseNode
-                            v-show="op.show"
-                            draggable="true"
-                            v-for="(op, opKey) in val.items"
-                            :key="opKey"
-                            :data="op"
-                            style="width: 100%"
-                            @dragstart="dragStart($event, op)"
-                        >
-                            <mdTextBlock
-                                class="expander-desc"
-                                :modelValue="op.description"
-                                style="width: 100%"
-                            ></mdTextBlock>
+                        <listBaseNode :theme="theme" v-show="op.show" draggable="true" v-for="(op, opKey) in val.items"
+                            :key="opKey" :data="op" style="width: 100%" @dragstart="dragStart($event, op)">
+                            <mdTextBlock class="expander-desc" :modelValue="op.description" style="width: 100%">
+                            </mdTextBlock>
                         </listBaseNode>
                     </div>
                     <template v-slot:extension>
@@ -77,13 +44,8 @@
             </div>
         </template>
         <template v-slot:control="{ close }">
-            <fv-button
-                :borderRadius="8"
-                :isBoxShadow="true"
-                style="width: 120px; margin-right: 8px"
-                @click="close"
-                >{{ local('Close') }}</fv-button
-            >
+            <fv-button :theme="theme" :borderRadius="8" :isBoxShadow="true" style="width: 120px; margin-right: 8px"
+                @click="close">{{ local('Close') }}</fv-button>
         </template>
     </baseDrawer>
 </template>
@@ -171,7 +133,7 @@ export default {
     computed: {
         ...mapState(useAppConfig, ['local']),
         ...mapState(useDataflow, ['operators', 'groupOperators']),
-        ...mapState(useTheme, ['color', 'gradient']),
+        ...mapState(useTheme, ['theme', 'color', 'gradient']),
         numSamples() {
             // 用于显示每个分组下的可见算子数量
             return (item) => {
@@ -241,10 +203,12 @@ export default {
     height: 30px;
     flex-shrink: 0;
 }
+
 .operator-search-box {
     width: 100%;
     height: 40px;
 }
+
 .search-result-info {
     @include Vcenter;
 
@@ -264,6 +228,7 @@ export default {
         color: rgba(0, 90, 158, 1);
     }
 }
+
 .panel-operator-content-block {
     --node-status-color: rgba(128, 128, 128, 1);
 
@@ -289,6 +254,14 @@ export default {
 
     .dataset-item {
         flex-shrink: 0;
+
+        &.dark {
+            .collapse-item-content {
+                .expander-desc {
+                    color: rgba(255, 255, 255, 0.8);
+                }
+            }
+        }
 
         .collapse-item-content {
             position: relative;

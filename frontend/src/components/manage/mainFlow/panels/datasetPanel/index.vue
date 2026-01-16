@@ -1,10 +1,10 @@
 <template>
-    <basePanel v-model="thisValue" :title="title" width="800px" height="80%" theme="light">
+    <basePanel v-model="thisValue" :title="title" width="800px" height="80%" :theme="theme">
         <template v-slot:content>
             <div class="panel-dataset-content-wrapper">
-                <fv-pivot v-model="choosenPivot" class="pivot-panel" :items="pivotItems" :tab="true" :fontSize="12"
-                    :sliderBackground="gradient" :borderRadius="8" padding="0px 5px" itemPadding="0px 10px"
-                    :sliderBorderRadius="12"></fv-pivot>
+                <fv-pivot :theme="theme" v-model="choosenPivot" class="pivot-panel" :items="pivotItems" :tab="true"
+                    :fontSize="12" :sliderBackground="gradient" :borderRadius="8" padding="0px 5px"
+                    itemPadding="0px 10px" :sliderBorderRadius="12"></fv-pivot>
                 <hr />
                 <common-dataset :model-value="choosenPivot && choosenPivot.key === 'Common'"
                     @confirm="$emit('confirm', $event)"></common-dataset>
@@ -12,8 +12,9 @@
             </div>
         </template>
         <template v-slot:control="{ close }">
-            <fv-button :borderRadius="8" :isBoxShadow="true" style="width: 120px; margin-right: 8px" @click="close">{{
-                local('Close') }}</fv-button>
+            <fv-button :theme="theme" :borderRadius="8" :isBoxShadow="true" style="width: 120px; margin-right: 8px"
+                @click="close">{{
+                    local('Close') }}</fv-button>
         </template>
     </basePanel>
 </template>
@@ -73,7 +74,7 @@ export default {
     computed: {
         ...mapState(useAppConfig, ['local']),
         ...mapState(useDataflow, ['datasets']),
-        ...mapState(useTheme, ['color', 'gradient']),
+        ...mapState(useTheme, ['theme', 'color', 'gradient']),
     },
     mounted() { },
     methods: {

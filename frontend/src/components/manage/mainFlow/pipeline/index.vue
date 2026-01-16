@@ -1,102 +1,59 @@
 <template>
     <transition name="pipeline-slide">
-        <div v-show="thisValue" class="df-pipeline-container">
+        <div v-show="thisValue" class="df-pipeline-container" :class="[{ dark: theme === 'dark' }]">
             <div class="df-pipeline-header">
                 <div class="left-block">
                     <fv-img class="logo" :src="img.pipeline" alt="pipeline"></fv-img>
                     <p class="title">Pipeline</p>
                 </div>
-                <fv-button
-                    border-radius="8"
-                    style="width: 35px; height: 35px"
-                    @click="thisValue = false"
-                >
+                <fv-button :theme="theme" border-radius="8" style="width: 35px; height: 35px"
+                    @click="thisValue = false">
                     <i class="ms-Icon ms-Icon--ChevronLeft"></i>
                 </fv-button>
             </div>
             <div class="df-pipeline-content">
-                <fv-pivot
-                    v-model="choosenPivot"
-                    class="pivot-panel"
-                    :items="pivotItems"
-                    :tab="true"
-                    :fontSize="12"
-                    background="rgba(255, 255, 255, 1)"
-                    :sliderBackground="gradient"
-                    :borderRadius="8"
-                    padding="0px 5px"
-                    itemPadding="0px 10px"
-                    :sliderBorderRadius="12"
-                ></fv-pivot>
+                <fv-pivot :theme="theme" v-model="choosenPivot" class="pivot-panel" :items="pivotItems" :tab="true"
+                    :fontSize="12" :background="theme === 'dark' ? 'rgba(40, 40, 40, 1)' : 'rgba(255, 255, 255, 1)'"
+                    :sliderBackground="gradient" :borderRadius="8" padding="0px 5px" itemPadding="0px 10px"
+                    :sliderBorderRadius="12"></fv-pivot>
                 <hr />
                 <div class="search-block">
-                    <fv-text-box
-                        :placeholder="local('Search Pipelines ...')"
-                        icon="Search"
-                        class="pipeline-search-box"
-                        :revealBorder="true"
-                        borderRadius="30"
-                        borderWidth="2"
-                        :isBoxShadow="true"
-                        :focusBorderColor="color"
-                        :revealBorderColor="'rgba(103, 105, 251, 0.6)'"
+                    <fv-text-box :theme="theme" :placeholder="local('Search Pipelines ...')" icon="Search"
+                        class="pipeline-search-box" :revealBorder="true" borderRadius="30" borderWidth="2"
+                        :isBoxShadow="true" :focusBorderColor="color" :revealBorderColor="'rgba(103, 105, 251, 0.6)'"
                         :reveal-background-color="[
                             'rgba(103, 105, 251, 0.1)',
                             'rgba(103, 105, 251, 0.6)'
-                        ]"
-                        @debounce-input="searchText = $event"
-                    ></fv-text-box>
+                        ]" @debounce-input="searchText = $event"></fv-text-box>
                     <div v-show="searchText" class="search-result-info">
                         {{ local('Total') }}: {{ totalNumVisible }} {{ local('pipelines') }}
                         <p class="search-text">"{{ searchText }}"</p>
                     </div>
                 </div>
                 <hr />
-                <fv-button
-                    icon="Add"
-                    background="rgba(255, 255, 255, 0.6)"
-                    foreground="rgba(90, 90, 90, 1)"
-                    border-radius="8"
-                    :is-box-shadow="true"
+                <fv-button :theme="theme" icon="Add"
+                    :background="theme === 'dark' ? 'rgba(40, 40, 40, 1)' : 'rgba(255, 255, 255, 0.6)'"
+                    foreground="rgba(90, 90, 90, 1)" border-radius="8" :is-box-shadow="true"
                     style="width: calc(100% - 20px); height: 40px; margin-left: 10px"
-                    @click="(show.add = true), (addPanelMode = 'add')"
-                    >{{ local('New Pipeline') }}</fv-button
-                >
+                    @click="(show.add = true), (addPanelMode = 'add')">{{ local('New Pipeline') }}</fv-button>
                 <div v-show="!lock.pipeline" class="pipeline-list-loading">
-                    <fv-progress-ring
-                        loading="true"
-                        :r="20"
-                        :border-width="3"
-                        :color="color"
-                        :background="'rgba(245, 245, 245, 1)'"
-                    ></fv-progress-ring>
+                    <fv-progress-ring loading="true" :r="20" :border-width="3" :color="color"
+                        :background="'rgba(245, 245, 245, 1)'"></fv-progress-ring>
                 </div>
                 <div class="pipeline-list-block">
-                    <div
-                        v-show="item.show"
-                        v-for="(item, index) in filteredPipelines"
-                        :key="item.id"
-                        class="pipeline-item"
-                        :class="[{ choosen: thisPipeline === item }]"
-                        @click="selectPipeline(item)"
-                        @contextmenu="showRightMenu($event, item)"
-                    >
+                    <div v-show="item.show" v-for="(item, index) in filteredPipelines" :key="item.id"
+                        class="pipeline-item" :class="[{ choosen: thisPipeline === item }]"
+                        @click="selectPipeline(item)" @contextmenu="showRightMenu($event, item)">
                         <div class="pipeline-item-main">
-                            <div
-                                class="main-icon"
-                                :style="{
-                                    background:
-                                        choosenPivot && choosenPivot.key === 'custom'
-                                            ? gradient
-                                            : ''
-                                }"
-                            >
-                                <i
-                                    class="ms-Icon"
-                                    :class="[
-                                        `ms-Icon--${choosenPivot && choosenPivot.key === 'custom' ? 'CalendarWeek' : 'DialShape3'}`
-                                    ]"
-                                ></i>
+                            <div class="main-icon" :style="{
+                                background:
+                                    choosenPivot && choosenPivot.key === 'custom'
+                                        ? gradient
+                                        : ''
+                            }">
+                                <i class="ms-Icon" :class="[
+                                    `ms-Icon--${choosenPivot && choosenPivot.key === 'custom' ? 'CalendarWeek' : 'DialShape3'}`
+                                ]"></i>
                             </div>
 
                             <div class="content-block">
@@ -109,11 +66,8 @@
                                         {{ local('Total') }}: {{ item.config.operators.length }}
                                         {{ local('operators') }}
                                     </p>
-                                    <time-rounder
-                                        :model-value="new Date(item.updated_at)"
-                                        :foreground="color"
-                                        style="width: auto"
-                                    ></time-rounder>
+                                    <time-rounder :model-value="new Date(item.updated_at)" :foreground="color"
+                                        style="width: auto"></time-rounder>
                                 </div>
                             </div>
                         </div>
@@ -121,11 +75,7 @@
                     </div>
                 </div>
             </div>
-            <pipeline-panel
-                v-model="show.add"
-                :obj="currentContextItem"
-                :addPanelMode="addPanelMode"
-            ></pipeline-panel>
+            <pipeline-panel v-model="show.add" :obj="currentContextItem" :addPanelMode="addPanelMode"></pipeline-panel>
             <fv-right-menu v-model="show.rightMenu" ref="rightMenu">
                 <span @click="(show.add = true), (addPanelMode = 'add')">
                     <i class="ms-Icon ms-Icon--Add" :style="{ color: color }"></i>
@@ -241,7 +191,7 @@ export default {
     computed: {
         ...mapState(useAppConfig, ['local']),
         ...mapState(useDataflow, ['datasets', 'groupOperators', 'pipelines']),
-        ...mapState(useTheme, ['color', 'gradient']),
+        ...mapState(useTheme, ['theme', 'color', 'gradient']),
         flatFormatedOperators() {
             let operators = []
             for (let key in this.groupOperators) {
@@ -355,6 +305,11 @@ export default {
     display: flex;
     flex-direction: column;
     backdrop-filter: blur(10px);
+
+    &.dark {
+        background: rgba(36, 36, 36, 0.3);
+        border: rgba(120, 120, 120, 0.1) solid thin;
+    }
 
     hr {
         margin: 10px 0px;
@@ -470,6 +425,7 @@ export default {
 
                 &:hover {
                     background: rgba(227, 231, 251, 0.6);
+
                     .pipeline-item-main {
                         .content-block {
                             .pipeline-name {
@@ -501,22 +457,18 @@ export default {
                         width: 40px;
                         height: 40px;
                         flex-shrink: 0;
-                        background: linear-gradient(
-                                114.95deg,
+                        background: linear-gradient(114.95deg,
                                 rgba(235, 0, 255, 0.5) 0%,
-                                rgba(0, 71, 255, 0) 34.35%
-                            ),
+                                rgba(0, 71, 255, 0) 34.35%),
                             linear-gradient(180deg, #004b5b 0%, #ffa7a7 100%),
                             linear-gradient(244.35deg, #ffb26a 0%, #3676b1 50.58%, #00a3ff 100%),
                             linear-gradient(244.35deg, #ffffff 0%, #004a74 49.48%, #ff0000 100%),
                             radial-gradient(100% 233.99% at 0% 100%, #b70000 0%, #ad00ff 100%),
                             linear-gradient(307.27deg, #1dac92 0.37%, #2800c6 100%),
-                            radial-gradient(
-                                100% 140% at 100% 0%,
+                            radial-gradient(100% 140% at 100% 0%,
                                 #eaff6b 0%,
                                 #006c7a 57.29%,
-                                #2200aa 100%
-                            );
+                                #2200aa 100%);
                         background-blend-mode: hard-light, overlay, overlay, overlay, difference,
                             difference, normal;
                         border: 1px solid rgba(120, 120, 120, 0.1);
@@ -568,9 +520,11 @@ export default {
         }
     }
 }
+
 .pipeline-slide-enter-active {
     transition: all 0.6s ease-out;
 }
+
 .pipeline-slide-leave-active {
     transition: all 0.3s;
 }

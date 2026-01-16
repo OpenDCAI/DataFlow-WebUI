@@ -1,12 +1,5 @@
 <template>
-    <basePanel
-        v-model="thisValue"
-        :title="computedTitle"
-        width="350px"
-        height="300px"
-        theme="light"
-        :teleport="true"
-    >
+    <basePanel v-model="thisValue" :title="computedTitle" width="350px" height="300px" :theme="theme" :teleport="true">
         <template v-slot:content>
             <div class="panel-pipeline-content-block">
                 <div class="pipeline-item-main">
@@ -15,39 +8,20 @@
                     </div>
 
                     <div class="content-block">
-                        <fv-text-box
-                            v-model="addName"
-                            :placeholder="local('Input the pipeline name')"
-                            border-radius="6"
-                            underline
-                            border-width="2"
-                            :focus-border-color="color"
-                            :is-box-shadow="true"
-                            ref="addName"
-                            style="width: 100%; height: 40px"
-                        ></fv-text-box>
+                        <fv-text-box :theme="theme" v-model="addName" :placeholder="local('Input the pipeline name')"
+                            border-radius="6" underline border-width="2" :focus-border-color="color"
+                            :is-box-shadow="true" ref="addName" style="width: 100%; height: 40px"></fv-text-box>
                     </div>
                 </div>
             </div>
         </template>
         <template v-slot:control="{ close }">
-            <fv-button
-                theme="dark"
-                :background="'linear-gradient(130deg, rgba(229, 123, 67, 1), rgba(252, 98, 32, 1))'"
-                :border-radius="8"
-                :disabled="!addName"
-                :is-box-shadow="true"
-                style="width: 120px; margin-right: 10px"
-                @click="handleConfirm"
-                >{{ local('Confirm') }}</fv-button
-            >
-            <fv-button
-                :borderRadius="8"
-                :isBoxShadow="true"
-                style="width: 120px; margin-right: 8px"
-                @click="close"
-                >{{ local('Close') }}</fv-button
-            >
+            <fv-button theme="dark" :background="'linear-gradient(130deg, rgba(229, 123, 67, 1), rgba(252, 98, 32, 1))'"
+                :border-radius="8" :disabled="!addName" :is-box-shadow="true" style="width: 120px; margin-right: 10px"
+                @click="handleConfirm">{{ local('Confirm') }}</fv-button>
+            <fv-button :theme="theme" :borderRadius="8" :isBoxShadow="true" style="width: 120px; margin-right: 8px"
+                @click="close">{{
+                    local('Close') }}</fv-button>
         </template>
     </basePanel>
 </template>
@@ -100,7 +74,7 @@ export default {
     },
     computed: {
         ...mapState(useAppConfig, ['local']),
-        ...mapState(useTheme, ['color', 'gradient']),
+        ...mapState(useTheme, ['theme', 'color', 'gradient']),
         computedTitle() {
             return this.addPanelMode === 'add'
                 ? this.local('New Pipeline')
@@ -194,11 +168,9 @@ export default {
             width: 40px;
             height: 40px;
             flex-shrink: 0;
-            background: linear-gradient(
-                90deg,
-                rgba(73, 131, 251, 1) 0%,
-                rgba(100, 161, 252, 1) 100%
-            );
+            background: linear-gradient(90deg,
+                    rgba(73, 131, 251, 1) 0%,
+                    rgba(100, 161, 252, 1) 100%);
             border: 1px solid rgba(120, 120, 120, 0.1);
             border-radius: 8px;
             color: whitesmoke;

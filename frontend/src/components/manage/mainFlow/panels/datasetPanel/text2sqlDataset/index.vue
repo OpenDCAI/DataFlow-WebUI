@@ -1,6 +1,6 @@
 <template>
     <div v-show="thisValue" class="panel-dataset-content-block">
-        <fv-Collapse v-model="show.add" class="db-add-item" icon="Marquee" :title="local('Add Database')"
+        <fv-Collapse :theme="theme" v-model="show.add" class="db-add-item" icon="Marquee" :title="local('Add Database')"
             :content="local('Add new Text2SQL database information.')" :disabled-collapse="true" :max-height="'auto'">
             <template v-slot:icon>
                 <fv-img :src="img.database" style="width: auto; height: 30px; margin: 0px 5px"></fv-img>
@@ -14,7 +14,7 @@
                         style="margin-right: 5px"></fv-progress-ring>
                     {{ local('Confirm') }}
                 </fv-button>
-                <fv-button :theme="show.add ? 'light' : 'dark'" :is-box-shadow="true"
+                <fv-button :theme="show.add ? theme : 'dark'" :is-box-shadow="true"
                     :background="show.add ? '' : gradient" border-radius="6" style="width: 90px" @click="handleAdd">
                     {{ show.add ? local('Cancel') : local('Add') }}
                 </fv-button>
@@ -34,20 +34,20 @@
                 <hr />
                 <div class="db-add-item-row column">
                     <p class="db-add-item-light-title">{{ local('Database Name') }}</p>
-                    <fv-text-box v-model="databaseName" :placeholder="local('Database Name')" border-radius="6"
-                        :reveal-border="true" :is-box-shadow="true"></fv-text-box>
+                    <fv-text-box :theme="theme" v-model="databaseName" :placeholder="local('Database Name')"
+                        border-radius="6" :reveal-border="true" :is-box-shadow="true"></fv-text-box>
                 </div>
                 <hr />
                 <div class="db-add-item-row column">
                     <p class="db-add-item-light-title">{{ local('Description') }}</p>
-                    <fv-text-box v-model="databaseDescription" :placeholder="local('Description')" border-radius="6"
-                        :reveal-border="true" :is-box-shadow="true"></fv-text-box>
+                    <fv-text-box :theme="theme" v-model="databaseDescription" :placeholder="local('Description')"
+                        border-radius="6" :reveal-border="true" :is-box-shadow="true"></fv-text-box>
                 </div>
             </template>
         </fv-Collapse>
-        <fv-Collapse v-model="item.expanded" v-for="(item, index) in text2sqlDatasets" :key="index" class="dataset-item"
-            :title="item.name" :content="computeInfo(item)" :maxHeight="item.showPreview ? 690 : 380"
-            background="rgba(251, 251, 251, 1)">
+        <fv-Collapse :theme="theme" v-model="item.expanded" v-for="(item, index) in text2sqlDatasets" :key="index"
+            class="dataset-item" :title="item.name" :content="computeInfo(item)"
+            :maxHeight="item.showPreview ? 690 : 380" background="rgba(251, 251, 251, 1)">
             <template v-slot:icon>
                 <fv-img :src="img.database" style="width: auto; height: 30px; margin: 0px 5px"></fv-img>
             </template>
@@ -112,7 +112,7 @@ export default {
     computed: {
         ...mapState(useAppConfig, ['local']),
         ...mapState(useDataflow, ['text2sqlDatasets']),
-        ...mapState(useTheme, ['color', 'gradient']),
+        ...mapState(useTheme, ['theme', 'color', 'gradient']),
         computeInfo() {
             return (item) => {
                 return `${this.local('Size')}: ${(item.size / 1000).toFixed(2)} KB`

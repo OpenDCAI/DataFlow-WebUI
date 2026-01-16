@@ -1,26 +1,17 @@
 <template>
     <div class="collapse-item-content">
         <div class="control-block">
-            <fv-button
-                background="transparent"
-                border-radius="8"
-                style="width: 30px; height: 30px"
-                @click="$emit('back')"
-            >
+            <fv-button background="transparent" border-radius="8" style="width: 30px; height: 30px"
+                @click="$emit('back')">
                 <i class="ms-Icon ms-Icon--Back"></i>
             </fv-button>
             <p>{{ local('Back') }}</p>
         </div>
-        <div class="table-wrapper">
+        <div class="table-wrapper" :class="[{ dark: theme === 'dark' }]">
             <i v-show="!tableInfo.length" class="empty-icon ms-Icon ms-Icon--Important"></i>
             <p v-show="!tableInfo.length" class="empty-title">{{ local('No Data') }}</p>
-            <fv-details-list
-                v-show="tableInfo.length"
-                :model-value="tableInfo"
-                :head="heads"
-                ref="table"
-                style="width: 100%; height: 100%"
-            >
+            <fv-details-list :theme="theme" v-show="tableInfo.length" :model-value="tableInfo" :head="heads" ref="table"
+                style="width: 100%; height: 100%">
                 <template v-for="(col, i) in heads" :key="i + 1" v-slot:[`column_${i}`]="x">
                     <p :title="i == 0 ? x.row_index + 1 : x.item[col.key] ? x.item[col.key] : ''">
                         {{ i == 0 ? x.row_index + 1 : x.item[col.key] ? x.item[col.key] : '' }}
@@ -28,21 +19,16 @@
                 </template>
             </fv-details-list>
         </div>
-        <fv-pagination
-            v-show="pages > 0 && tableInfo.length"
-            v-model="currentPage"
-            :total="pages"
-            background="rgba(255, 255, 255, 1)"
-            foreground="rgba(111, 92, 196, 1)"
-            :small="true"
-            style="width: 100%; height: 35px; margin-top: 5px"
-        />
+        <fv-pagination :theme="theme" v-show="pages > 0 && tableInfo.length" v-model="currentPage" :total="pages"
+            :background="theme === 'dark' ? 'rgba(36, 36, 36, 1)' : 'rgba(255, 255, 255, 1)'"
+            foreground="rgba(111, 92, 196, 1)" :small="true" style="width: 100%; height: 35px; margin-top: 5px" />
     </div>
 </template>
 
 <script>
 import { mapState } from 'pinia'
 import { useAppConfig } from '@/stores/appConfig'
+import { useTheme } from '@/stores/theme'
 
 export default {
     props: {
@@ -66,6 +52,7 @@ export default {
     },
     computed: {
         ...mapState(useAppConfig, ['local']),
+        ...mapState(useTheme, ['theme']),
         pages() {
             return Math.ceil(this.item.num_samples / this.num_per_page)
         }
@@ -145,6 +132,10 @@ export default {
     justify-content: center;
     align-items: center;
     overflow: hidden;
+
+    &.dark {
+        background: rgba(36, 36, 36, 1);
+    }
 
     .empty-icon {
         font-size: 40px;

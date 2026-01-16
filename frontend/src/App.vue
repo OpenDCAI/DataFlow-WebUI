@@ -8,6 +8,7 @@
 import i18n from '@/js/i18n.js'
 import { mapActions } from 'pinia'
 import { useAppConfig } from '@/stores/appConfig'
+import { useTheme } from './stores/theme';
 
 export default {
     name: 'App',
@@ -19,17 +20,34 @@ export default {
         }
     },
     watch: {
-        $route() {}
+        $route() { }
     },
     mounted() {
+        this.getConfig()
         this.i18nInit()
         this.timerInit()
     },
     methods: {
         ...mapActions(useAppConfig, {
             reviseI18N: 'reviseI18N',
+            reviseLanguage: 'reviseLanguage',
             setScreenWidth: 'setScreenWidth'
         }),
+        ...mapActions(useTheme, {
+            reviseTheme: 'reviseTheme'
+        }),
+        getConfig() {
+            this.$api.preferences.get_preferences_api_v1_preferences__get().then(res => {
+                if (res.code === 200) {
+                    if (res.data.language) {
+                        this.reviseLanguage(res.data.language)
+                    }
+                    if (res.data.theme) {
+                        this.reviseTheme(res.data.theme)
+                    }
+                }
+            })
+        },
         i18nInit() {
             this.reviseI18N(i18n)
         },

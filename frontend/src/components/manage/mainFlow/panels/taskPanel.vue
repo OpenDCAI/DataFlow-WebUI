@@ -1,40 +1,20 @@
 <template>
-    <basePanel v-model="thisValue" :title="title" width="800px" height="80%" theme="light">
+    <basePanel v-model="thisValue" :title="title" width="800px" height="80%" :theme="theme">
         <template v-slot:content>
             <div v-show="thisValue" class="panel-task-content-block">
-                <fv-Collapse
-                    v-for="(item, index) in filteredTasks"
-                    :key="index"
-                    class="task-item"
-                    :title="item.task_id"
-                    :content="formatTime(item.completed_at)"
-                    :maxHeight="item.showPreview ? 690 : 380"
-                    background="rgba(251, 251, 251, 1)"
-                    :disabled-collapse="true"
-                >
+                <fv-Collapse v-for="(item, index) in filteredTasks" :key="index" class="task-item" :title="item.task_id"
+                    :content="formatTime(item.completed_at)" :maxHeight="item.showPreview ? 690 : 380"
+                    background="rgba(251, 251, 251, 1)" :disabled-collapse="true">
                     <template v-slot:icon>
-                        <fv-img
-                            :src="img.task"
-                            style="width: auto; height: 30px; margin: 0px 5px"
-                        ></fv-img>
+                        <fv-img :src="img.task" style="width: auto; height: 30px; margin: 0px 5px"></fv-img>
                     </template>
                     <template v-slot:extension>
-                        <fv-button
-                            theme="dark"
-                            :icon="'View'"
+                        <fv-button theme="dark" :icon="'View'"
                             :background="'linear-gradient(130deg, rgba(229, 123, 67, 1), rgba(225, 107, 56, 1))'"
-                            :borderRadius="8"
-                            :isBoxShadow="true"
-                            @click="confirmView(item)"
-                        >
-                            <fv-progress-ring
-                                v-show="item.status !== 'completed'"
-                                loading="true"
-                                r="10"
-                                :border-width="2"
-                                background="rgba(255, 255, 255, 0.6)"
-                                color="rgba(255, 255, 255, 1)"
-                            ></fv-progress-ring>
+                            :borderRadius="8" :isBoxShadow="true" @click="confirmView(item)">
+                            <fv-progress-ring v-show="item.status !== 'completed'" loading="true" r="10"
+                                :border-width="2" background="rgba(255, 255, 255, 0.6)"
+                                color="rgba(255, 255, 255, 1)"></fv-progress-ring>
                             {{ local('View') }}
                         </fv-button>
                     </template>
@@ -42,13 +22,8 @@
             </div>
         </template>
         <template v-slot:control="{ close }">
-            <fv-button
-                :borderRadius="8"
-                :isBoxShadow="true"
-                style="width: 120px; margin-right: 8px"
-                @click="close"
-                >{{ local('Close') }}</fv-button
-            >
+            <fv-button :borderRadius="8" :isBoxShadow="true" style="width: 120px; margin-right: 8px" @click="close">{{
+                local('Close') }}</fv-button>
         </template>
     </basePanel>
 </template>
@@ -97,7 +72,7 @@ export default {
     computed: {
         ...mapState(useAppConfig, ['local']),
         ...mapState(useDataflow, ['tasks']),
-        ...mapState(useTheme, ['color', 'gradient']),
+        ...mapState(useTheme, ['theme', 'color', 'gradient']),
         filteredTasks() {
             if (!this.currentPipeline) {
                 return []
@@ -110,7 +85,7 @@ export default {
             }
         }
     },
-    mounted() {},
+    mounted() { },
     methods: {
         ...mapActions(useDataflow, ['getTasks']),
         confirmView(item) {

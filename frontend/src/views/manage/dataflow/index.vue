@@ -1,223 +1,107 @@
 <template>
-    <div class="df-default-container" :class="[{ 'show-pipeline': show.pipeline }]">
-        <pipeline
-            v-model="show.pipeline"
-            v-model:loading="lock.loading"
-            v-model:pipeline="currentPipeline"
-            :flow-id="flowId"
-            class="df-pipeline-container"
-            @confirm-dataset="confirmDataset($event, true)"
-            @select-pipeline="selectPipelineCallback"
-        ></pipeline>
+    <div class="df-default-container" :class="[{ dark: theme === 'dark', 'show-pipeline': show.pipeline }]">
+        <pipeline v-model="show.pipeline" v-model:loading="lock.loading" v-model:pipeline="currentPipeline"
+            :flow-id="flowId" class="df-pipeline-container" @confirm-dataset="confirmDataset($event, true)"
+            @select-pipeline="selectPipelineCallback"></pipeline>
         <div class="df-flow-container">
-            <mainFlow
-                :id="flowId"
-                v-model:nodes="nodes"
-                v-model:edges="edges"
-                @switch-database="show.dataset = true"
-                @connect="onConnect"
-                @connect-start="onConnectStart"
-                @connect-end="onConnectEnd"
-                @update-run-value="useEdgeSync.syncRunValue($event, flowId)"
-                @show-details="showExecDetails"
-                @download-data="downloadData"
-            ></mainFlow>
+            <mainFlow :id="flowId" v-model:nodes="nodes" v-model:edges="edges" @switch-database="show.dataset = true"
+                @connect="onConnect" @connect-start="onConnectStart" @connect-end="onConnectEnd"
+                @update-run-value="useEdgeSync.syncRunValue($event, flowId)" @show-details="showExecDetails"
+                @download-data="downloadData"></mainFlow>
             <div class="control-menu-block">
-                <fv-command-bar
-                    v-model="value"
-                    :options="options"
-                    :item-border-radius="30"
-                    background="rgba(250, 250, 250, 0.8)"
-                    class="command-bar"
-                >
+                <fv-command-bar :theme="theme" v-model="value" :options="options" :item-border-radius="30"
+                    :background="theme === 'dark' ? '' : 'rgba(250, 250, 250, 0.8)'" class="command-bar">
                     <template v-slot:optionItem="x">
                         <div class="command-bar-item-wrapper">
                             <fv-img v-if="x.item.img" class="option-img" :src="x.item.img" alt="" />
-                            <i
-                                v-else
-                                class="ms-Icon icon"
-                                :class="[`ms-Icon--${x.valueTrigger(x.item.icon)}`]"
-                                :style="{ color: x.valueTrigger(x.item.foreground) }"
-                            ></i>
-                            <p
-                                class="option-name"
-                                :style="{ color: x.valueTrigger(x.item.foreground) }"
-                            >
+                            <i v-else class="ms-Icon icon" :class="[`ms-Icon--${x.valueTrigger(x.item.icon)}`]"
+                                :style="{ color: x.valueTrigger(x.item.foreground) }"></i>
+                            <p class="option-name" :style="{ color: x.valueTrigger(x.item.foreground) }">
                                 {{ x.valueTrigger(x.item.name) }}
                             </p>
-                            <i
-                                v-show="x.item.secondary.length > 0"
-                                class="ms-Icon ms-Icon--ChevronDown icon"
-                            ></i>
+                            <i v-show="x.item.secondary.length > 0" class="ms-Icon ms-Icon--ChevronDown icon"></i>
                         </div>
                     </template>
                     <template v-slot:right-space>
                         <div class="command-bar-right-space">
-                            <fv-toggle-switch
-                                v-model="isAutoConnectionModel"
-                                :width="75"
-                                :on="local('Auto')"
-                                :off="local('Manual')"
-                                :insideContent="true"
-                                :height="30"
-                                borderColor="rgba(235, 235, 235, 1)"
-                                ring-background="rgba(180, 180, 180, 1)"
-                                :switch-on-background="gradient"
-                                :title="local('Whether Auto Connect Run Edges')"
-                            >
+                            <fv-toggle-switch :theme="theme" v-model="isAutoConnectionModel" :width="75"
+                                :on="local('Auto')" :off="local('Manual')" :insideContent="true" :height="30"
+                                borderColor="rgba(235, 235, 235, 1)" ring-background="rgba(180, 180, 180, 1)"
+                                :switch-on-background="gradient" :title="local('Whether Auto Connect Run Edges')">
                             </fv-toggle-switch>
-                            <fv-button
-                                :theme="currentServing ? 'dark' : 'light'"
-                                :background="
-                                    currentServing
-                                        ? 'linear-gradient(135deg, rgba(69, 98, 213, 1), #ff0080, #ff8c00)'
-                                        : ''
-                                "
-                                border-radius="30"
-                                :disabled="!lock.serving"
-                                style="width: 30px; height: 30px"
-                                @click="showServing"
-                            >
+                            <fv-button :theme="currentServing ? 'dark' : theme" :background="currentServing
+                                ? 'linear-gradient(135deg, rgba(69, 98, 213, 1), #ff0080, #ff8c00)'
+                                : ''
+                                " border-radius="30" :disabled="!lock.serving" style="width: 30px; height: 30px"
+                                @click="showServing">
                                 <transition-group tag="span" name="df-scale-up-to-up">
-                                    <i
-                                        v-show="currentServing"
-                                        key="0"
-                                        class="ms-Icon"
-                                        :class="[`ms-Icon--DialShape4`]"
-                                    ></i>
-                                    <i
-                                        v-show="!currentServing"
-                                        key="1"
-                                        class="ms-Icon"
-                                        :class="[`ms-Icon--More`]"
-                                    ></i>
+                                    <i v-show="currentServing" key="0" class="ms-Icon"
+                                        :class="[`ms-Icon--DialShape4`]"></i>
+                                    <i v-show="!currentServing" key="1" class="ms-Icon" :class="[`ms-Icon--More`]"></i>
                                 </transition-group>
-                                <i
-                                    v-show="false"
-                                    class="ms-Icon"
-                                    :class="[`ms-Icon--${currentServing ? 'DialShape4' : 'More'}`]"
-                                ></i>
+                                <i v-show="false" class="ms-Icon"
+                                    :class="[`ms-Icon--${currentServing ? 'DialShape4' : 'More'}`]"></i>
                             </fv-button>
-                            <fv-button
-                                v-show="!isTemplate"
-                                theme="dark"
+                            <fv-button v-show="!isTemplate" theme="dark"
                                 background="linear-gradient(90deg, rgba(69, 98, 213, 1), rgba(161, 145, 206, 1))"
-                                foreground="rgba(255, 255, 255, 1)"
-                                border-color="rgba(255, 255, 255, 0.3)"
-                                border-radius="30"
-                                :disabled="!currentPipeline"
-                                :reveal-background-color="[
+                                foreground="rgba(255, 255, 255, 1)" border-color="rgba(255, 255, 255, 0.3)"
+                                border-radius="30" :disabled="!currentPipeline" :reveal-background-color="[
                                     'rgba(255, 255, 255, 0.5)',
                                     'rgba(103, 105, 251, 0.6)'
-                                ]"
-                                @click="executePipeline"
-                            >
-                                <i
-                                    v-show="lock.running"
-                                    class="ms-Icon ms-Icon--Play"
-                                    style="margin-right: 5px"
-                                ></i>
-                                <fv-progress-ring
-                                    v-show="!lock.running"
-                                    loading="true"
-                                    :r="10"
-                                    :border-width="2"
-                                    background="rgba(200, 200, 200, 1)"
-                                    :color="'white'"
-                                    style="margin-right: 5px"
-                                ></fv-progress-ring>
+                                ]" @click="executePipeline">
+                                <i v-show="lock.running" class="ms-Icon ms-Icon--Play" style="margin-right: 5px"></i>
+                                <fv-progress-ring v-show="!lock.running" loading="true" :r="10" :border-width="2"
+                                    background="rgba(200, 200, 200, 1)" :color="'white'"
+                                    style="margin-right: 5px"></fv-progress-ring>
                                 <p>{{ this.local('Run') }}</p>
                             </fv-button>
-                            <fv-button
-                                theme="dark"
-                                background="rgba(191, 95, 95, 0.6)"
-                                foreground="rgba(255, 255, 255, 1)"
-                                border-color="whitesmoke"
-                                border-radius="30"
-                                :title="local('Delete')"
-                                style="width: 30px; height: 30px"
-                                @click="resetFlow"
-                            >
+                            <fv-button theme="dark" background="rgba(191, 95, 95, 0.6)"
+                                foreground="rgba(255, 255, 255, 1)" border-color="whitesmoke" border-radius="30"
+                                :title="local('Delete')" style="width: 30px; height: 30px" @click="resetFlow">
                                 <i class="ms-Icon ms-Icon--Delete"></i>
                             </fv-button>
                         </div>
                     </template>
                 </fv-command-bar>
-                <current-pipeline-block
-                    v-model="currentPipeline"
-                    :taskId="executionInfo.task_id"
-                    @recover-click="recoverPipeline"
-                ></current-pipeline-block>
+                <current-pipeline-block v-model="currentPipeline" :taskId="executionInfo.task_id"
+                    @recover-click="recoverPipeline"></current-pipeline-block>
             </div>
         </div>
         <page-loading :model-value="!lock.loading" title="Loading..."></page-loading>
-        <datasetPanel
-            v-model="show.dataset"
-            :title="local('Dataset')"
-            @confirm="confirmDataset"
-        ></datasetPanel>
+        <datasetPanel v-model="show.dataset" :title="local('Dataset')" @confirm="confirmDataset"></datasetPanel>
         <operatorPanel v-model="show.operator" :title="local('Operator')"></operatorPanel>
-        <fv-right-menu
-            v-model="show.serving"
-            class="serving-menu"
-            ref="servingMenu"
-            :rightMenuWidth="250"
-            background="rgba(255, 255, 255, 0.3)"
-            :fullExpandAnimation="true"
-            style="z-index: 6"
-        >
-            <p
-                style="
+        <fv-right-menu :theme="theme" v-model="show.serving" class="serving-menu" ref="servingMenu"
+            :rightMenuWidth="250" :background="theme === 'dark' ? 'rgba(30, 30, 30, 1)' : 'rgba(255, 255, 255, 0.3)'"
+            :fullExpandAnimation="true" style="z-index: 6">
+            <p style="
                     width: calc(100% - 20px);
                     margin: 10px;
                     font-size: 12px;
                     font-weight: bold;
                     user-select: none;
                     cursor: default;
-                "
-            >
+                ">
                 {{ local('Select Serving') }}
             </p>
             <hr />
-            <span
-                class="serving-item"
-                :class="{ choosen: currentServing && currentServing.id === servingItem.id }"
-                v-for="servingItem in servingList"
-                :key="servingItem.id"
-                @click="chooseServing(servingItem)"
-            >
+            <span class="serving-item" :class="{ choosen: currentServing && currentServing.id === servingItem.id }"
+                v-for="servingItem in servingList" :key="servingItem.id" @click="chooseServing(servingItem)">
                 <p class="main-title">{{ servingItem.name }}</p>
                 <p class="sec-title">{{ servingItem.cls_name }}</p>
             </span>
             <hr />
-            <fv-button
-                :icon="servingList.length > 0 ? '' : 'Add'"
-                border-radius="8"
+            <fv-button :theme="theme" :icon="servingList.length > 0 ? '' : 'Add'" border-radius="8"
                 style="width: calc(100% - 20px); margin-left: 10px; margin-top: 5px"
-                @click="$Go('/m/serving'), (show.serving = false)"
-                >{{
+                @click="$Go('/m/serving'), (show.serving = false)">{{
                     servingList.length > 0 ? local('Serving Manage') : local('Add Serving')
-                }}</fv-button
-            >
+                }}</fv-button>
         </fv-right-menu>
-        <pipelinePanel
-            v-model="show.pipelinePanel"
-            :add-panel-mode="'custom'"
-            :title="local('Pipeline')"
-            @confirm="addPipeline"
-        ></pipelinePanel>
-        <execResultPanel
-            v-model="show.execResult"
-            :title="local('Execute Result')"
-            :current-pipeline="currentPipeline"
-            :running-result="runningResult"
-        ></execResultPanel>
-        <taskPanel
-            v-model="show.taskPanel"
-            :title="local('Executions')"
-            :current-pipeline="currentPipeline"
-            @confirm="handleWatchExecution"
-        ></taskPanel>
+        <pipelinePanel v-model="show.pipelinePanel" :add-panel-mode="'custom'" :title="local('Pipeline')"
+            @confirm="addPipeline"></pipelinePanel>
+        <execResultPanel v-model="show.execResult" :title="local('Execute Result')" :current-pipeline="currentPipeline"
+            :running-result="runningResult"></execResultPanel>
+        <taskPanel v-model="show.taskPanel" :title="local('Executions')" :current-pipeline="currentPipeline"
+            @confirm="handleWatchExecution"></taskPanel>
     </div>
 </template>
 
@@ -367,7 +251,7 @@ export default {
     },
     computed: {
         ...mapState(useAppConfig, ['local']),
-        ...mapState(useTheme, ['color', 'gradient']),
+        ...mapState(useTheme, ['theme', 'color', 'gradient']),
         ...mapState(useDataflow, [
             'isAutoConnection',
             'servingList',
@@ -853,7 +737,7 @@ export default {
                 }
             }
         },
-        onConnectStart(params) {},
+        onConnectStart(params) { },
         onConnectEnd(event) {
             console.log(event)
         },
@@ -878,6 +762,23 @@ export default {
     padding: 15px;
     background-color: rgba(241, 241, 241, 1);
     display: flex;
+
+    &.dark {
+        background: rgba(36, 36, 36, 1);
+
+        .df-flow-container {
+            background: rgba(30, 30, 30, 1);
+            border: rgba(90, 90, 90, 0.1) solid thin;
+        }
+
+        .control-menu-block {
+            .command-bar {
+                .option-name {
+                    color: whitesmoke;
+                }
+            }
+        }
+    }
 
     .df-pipeline-container {
         position: absolute;
@@ -1011,6 +912,7 @@ export default {
     animation: scaleUp 0.7s ease both;
     animation-delay: 0.3s;
 }
+
 .df-scale-up-to-up-leave-active {
     position: absolute;
     width: 100%;
@@ -1021,12 +923,14 @@ export default {
     animation: scaleDownUp 0.7s ease both;
     z-index: 8;
 }
+
 @keyframes scaleUp {
     from {
         opacity: 0;
         transform: scale(0.3);
     }
 }
+
 @keyframes scaleDownUp {
     to {
         opacity: 0;
