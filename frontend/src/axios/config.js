@@ -3,8 +3,8 @@ import axios from 'axios'
 let ax = axios.create()
 
 // config here
-if (process.env.NODE_ENV == 'production') {
-    ax.defaults.baseURL = 'http://127.0.0.1:8000'
+if (import.meta.env.MODE == 'production') {
+    ax.defaults.baseURL = import.meta.env.VITE_BACKEND_URL
 } else {
     ax.defaults.baseURL = '/api'
 }
