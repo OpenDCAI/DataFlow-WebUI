@@ -218,9 +218,25 @@ export const useDataflow = defineStore('useDataflow', () => {
             if (res.code === 200) {
                 execution.value = res.data
                 try {
-                    executionStep.value = execution.value.operator_progress.current_step
-                }
-                catch (error) {
+                    if (execution.value.status === 'running') {
+                        for (let key in execution.value.operators_detail) {
+                            let { index, status } = execution.value.operators_detail[key]
+                            if (status === 'running') {
+                                executionStep.value = index
+                                break
+                            }
+                        }
+                    } else {
+                        for (let key in execution.value.operators_detail) {
+                            let { index, status } = execution.value.operators_detail[key]
+                            if (status === 'completed') {
+                                if (index > executionStep.value || executionStep.value === null) {
+                                    executionStep.value = index
+                                }
+                            }
+                        }
+                    }
+                } catch (error) {
                     executionStep.value = null
                 }
             }

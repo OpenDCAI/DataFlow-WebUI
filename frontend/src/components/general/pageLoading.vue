@@ -1,10 +1,8 @@
 <template>
-    <div v-show="modelValue" class="df-page-loading">
-        <fv-progress-ring
-            loading="true"
-            background="rgba(245, 245, 245, 0.8)"
-            :color="color"
-        ></fv-progress-ring>
+    <div v-show="modelValue" class="df-page-loading" :class="[{ dark: theme === 'dark' }]">
+        <fv-progress-ring loading="true"
+            :background="theme === 'dark' ? 'rgba(36, 36, 36, 0.8)' : 'rgba(245, 245, 245, 0.8)'"
+            :color="color"></fv-progress-ring>
         <div class="df-page-loading-title">{{ title }}</div>
     </div>
 </template>
@@ -38,7 +36,7 @@ export default {
         }
     },
     computed: {
-        ...mapState(useTheme, ['color'])
+        ...mapState(useTheme, ['theme', 'color'])
     }
 }
 </script>
@@ -54,6 +52,15 @@ export default {
     height: 100%;
     background-color: rgba(255, 255, 255, 0.8);
     z-index: 9999;
+
+    &.dark {
+        background-color: rgba(0, 0, 0, 0.8);
+        color: whitesmoke;
+
+        .df-page-loading-title {
+            color: whitesmoke;
+        }
+    }
 
     .df-page-loading-title {
         margin-top: 10px;

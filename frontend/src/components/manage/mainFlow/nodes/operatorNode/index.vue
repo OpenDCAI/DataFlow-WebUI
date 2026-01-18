@@ -7,7 +7,7 @@
         <div class="node-row-item">
             <span class="info-title" style="font-size: 13px; color: rgba(52, 199, 89, 1)">{{
                 appConfig.local('Init. Parameters')
-            }}</span>
+                }}</span>
         </div>
         <hr />
         <div v-if="allowedPrompts.length > 0 && isPromptTemplate" class="node-row-item col" @mousedown.stop @click.stop>
@@ -26,7 +26,7 @@
         <div class="node-row-item">
             <span class="info-title" style="font-size: 13px; color: rgba(0, 122, 255, 1)">{{
                 appConfig.local('Run Parameters')
-            }}</span>
+                }}</span>
         </div>
         <hr />
         <div v-if="thisData.operatorParams" v-for="(item, index) in thisData.operatorParams.run" :key="`run_${index}`"
@@ -41,7 +41,8 @@
                 :focus-border-color="thisData.borderColor" underline style="width: 100%; height: 35px"
                 @update:modelValue="emitUpdateRunValue(item)" @mousedown.stop @click.stop></fv-text-box>
         </div>
-        <div v-if="currentLog" class="node-group-item">
+        <div v-if="currentLog" class="node-group-item"
+            :style="{ background: theme === 'dark' ? 'rgba(0, 0, 0, 1)' : '' }">
             <p class="info-title">Execution Logs</p>
             <div class="log-list">
                 <p v-for="(text, index) in currentLog" :key="index">{{ text }}</p>

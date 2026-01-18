@@ -100,7 +100,7 @@
         <pipelinePanel v-model="show.pipelinePanel" :add-panel-mode="'custom'" :title="local('Pipeline')"
             @confirm="addPipeline"></pipelinePanel>
         <execResultPanel v-model="show.execResult" :title="local('Execute Result')" :current-pipeline="currentPipeline"
-            :running-result="runningResult"></execResultPanel>
+            :current-step="executionInfo.currentStep" :running-result="executionInfo.runningResult"></execResultPanel>
         <taskPanel v-model="show.taskPanel" :title="local('Executions')" :current-pipeline="currentPipeline"
             @confirm="handleWatchExecution"></taskPanel>
     </div>
@@ -207,9 +207,10 @@ export default {
             edges: [],
             sourceDatabase: null,
             currentPipeline: null,
-            runningResult: null,
             executionInfo: {
-                task_id: null
+                task_id: null,
+                currentStep: null,
+                runningResult: null,
             },
             timer: {
                 exec: null
@@ -577,11 +578,12 @@ export default {
         },
         showExecDetails(pipeline_idx) {
             if (!this.executionInfo.task_id) return
+            this.executionInfo.currentStep = pipeline_idx - 1
             this.$api.tasks
-                .get_task_result(this.executionInfo.task_id, pipeline_idx - 1, 15)
+                .get_task_result(this.executionInfo.task_id, this.executionInfo.currentStep, 15)
                 .then((res) => {
                     if (res.code === 200) {
-                        this.runningResult = res.data
+                        this.executionInfo.runningResult = res.data
                         this.show.execResult = true
                     }
                 })

@@ -901,7 +901,7 @@ export default {
     },
     "Total": {
         "en": "Total",
-        "cn": "全部"
+        "cn": "总共"
     },
     "operators": {
         "en": "operators",

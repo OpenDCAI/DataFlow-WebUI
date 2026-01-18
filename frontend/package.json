@@ -16,6 +16,7 @@
         "@creatorsn/vfluent3": "^0.3.29",
         "@vue-flow/background": "^1.3.2",
         "@vue-flow/core": "^1.47.0",
+        "chart.js": "^4.5.1",
         "gsap": "^3.13.0",
         "markdown-it": "^14.1.0",
         "markdown-it-mark": "^4.0.0",
