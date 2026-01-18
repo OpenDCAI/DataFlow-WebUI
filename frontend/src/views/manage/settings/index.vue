@@ -9,8 +9,8 @@
                     :title="local('Switch Theme')" :content="local('Change the theme of the DataFlow WebUI.')"
                     :disabled-collapse="true" :max-height="'auto'">
                     <template #extension>
-                        <fv-toggle-switch :theme="theme" v-model="themeModel" :on="'Dark'"
-                            :off="'Light'"></fv-toggle-switch>
+                        <fv-toggle-switch :theme="theme" v-model="themeModel" :on="local('Dark')"
+                            :off="local('Light')"></fv-toggle-switch>
                     </template>
                 </fv-Collapse>
                 <fv-Collapse :theme="theme" class="serving-item" icon="LocaleLanguage" :title="local('Language')"
@@ -40,7 +40,7 @@ export default {
                     text: 'English'
                 },
                 {
-                    key: 'zh',
+                    key: 'cn',
                     text: '中文'
                 }
             ],

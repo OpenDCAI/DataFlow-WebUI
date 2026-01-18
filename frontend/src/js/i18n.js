@@ -802,5 +802,469 @@ export default {
     "Data Preparation": {
         "en": "Data Preparation",
         "cn": "数据准备"
+    },
+    "Logout": {
+        "en": "Logout",
+        "cn": "退出"
+    },
+    "Just now": {
+        "en": "Just now",
+        "cn": "刚刚"
+    },
+    "?s ago": {
+        "en": "?s ago",
+        "cn": "?秒前"
+    },
+    "?m ago": {
+        "en": "?m ago",
+        "cn": "?分钟前"
+    },
+    "?h ago": {
+        "en": "?h ago",
+        "cn": "?小时前"
+    },
+    "?s later": {
+        "en": "?s later",
+        "cn": "?秒后"
+    },
+    "?m later": {
+        "en": "?m later",
+        "cn": "?秒后"
+    },
+    "?h later": {
+        "en": "?h later",
+        "cn": "?小时后"
+    },
+    "Are you sure to delete this node?": {
+        "en": "Are you sure to delete this node?",
+        "cn": "您确定要删除该节点吗？"
+    },
+    "Pipeline": {
+        "en": "Pipeline",
+        "cn": "Pipeline"
+    },
+    "Num. Samples": {
+        "en": "Num. Samples",
+        "cn": "样本数量"
+    },
+    "Root": {
+        "en": "Root",
+        "cn": "根目录"
+    },
+    "Hash": {
+        "en": "Hash",
+        "cn": "哈希值"
+    },
+    "Please input": {
+        "en": "Please input",
+        "cn": "请输入"
+    },
+    "Switch Dataset": {
+        "en": "Switch Dataset",
+        "cn": "切换数据集"
+    },
+    "Init. Parameters": {
+        "en": "Init. Parameters",
+        "cn": "初始化参数"
+    },
+    "Prompt Template": {
+        "en": "Prompt Template",
+        "cn": "提示模板"
+    },
+    "Select Prompt": {
+        "en": "Select Prompt",
+        "cn": "选择提示"
+    },
+    "Run Parameters": {
+        "en": "Run Parameters",
+        "cn": "运行参数"
+    },
+    "Show Details": {
+        "en": "Show Details",
+        "cn": "显示详情"
+    },
+    "Download Data": {
+        "en": "Download Data",
+        "cn": "下载数据"
+    },
+    "Select Serving": {
+        "en": "Select Serving",
+        "cn": "选择服务"
+    },
+    "Select Database Manager": {
+        "en": "Select Database Manager",
+        "cn": "选择数据库管理器"
+    },
+    "Search Operators ...": {
+        "en": "Search Operators ...",
+        "cn": "搜索算子..."
+    },
+    "Total": {
+        "en": "Total",
+        "cn": "全部"
+    },
+    "operators": {
+        "en": "operators",
+        "cn": "算子"
+    },
+    "All": {
+        "en": "All",
+        "cn": "全部"
+    },
+    "Parser": {
+        "en": "Parser",
+        "cn": "解析器"
+    },
+    "Filter": {
+        "en": "Filter",
+        "cn": "筛选"
+    },
+    "Generate": {
+        "en": "Generate",
+        "cn": "生成"
+    },
+    "Evaluate": {
+        "en": "Evaluate",
+        "cn": "评估"
+    },
+    "Refine": {
+        "en": "Refine",
+        "cn": "精炼"
+    },
+    "Input the pipeline name": {
+        "en": "Input the pipeline name",
+        "cn": "输入Pipeline名称"
+    },
+    "New Pipeline": {
+        "en": "New Pipeline",
+        "cn": "创建Pipeline"
+    },
+    "Rename Pipeline": {
+        "en": "Rename Pipeline",
+        "cn": "重命名Pipeline"
+    },
+    "Add pipeline success": {
+        "en": "Add pipeline success",
+        "cn": "添加Pipeline成功"
+    },
+    "Rename pipeline success": {
+        "en": "Rename pipeline success",
+        "cn": "重命名Pipeline成功"
+    },
+    "View": {
+        "en": "View",
+        "cn": "查看"
+    },
+    "Common": {
+        "en": "Common",
+        "cn": "常规"
+    },
+    "Text2SQL": {
+        "en": "Text2SQL",
+        "cn": "Text2SQL"
+    },
+    "Hide": {
+        "en": "Hide",
+        "cn": "隐藏"
+    },
+    "Preview": {
+        "en": "Preview",
+        "cn": "预览"
+    },
+    "Select": {
+        "en": "Select",
+        "cn": "选择"
+    },
+    "samples": {
+        "en": "samples",
+        "cn": "样本"
+    },
+    "Size": {
+        "en": "Size",
+        "cn": "文件大小"
+    },
+    "File Name": {
+        "en": "File Name",
+        "cn": "文件名"
+    },
+    "Uploaded At": {
+        "en": "Uploaded At",
+        "cn": "上传于"
+    },
+    "Back": {
+        "en": "Back",
+        "cn": "后退"
+    },
+    "No Data": {
+        "en": "No Data",
+        "cn": "无数据"
+    },
+    "Add Database": {
+        "en": "Add Database",
+        "cn": "添加数据库"
+    },
+    "Add new Text2SQL database information.": {
+        "en": "Add new Text2SQL database information.",
+        "cn": "添加新的 Text2SQL 数据库信息。"
+    },
+    "File": {
+        "en": "File",
+        "cn": "文件"
+    },
+    "Add File": {
+        "en": "Add File",
+        "cn": "添加文件"
+    },
+    "Database Name": {
+        "en": "Database Name",
+        "cn": "数据库名称"
+    },
+    "Description": {
+        "en": "Description",
+        "cn": "描述"
+    },
+    "Add Database Success": {
+        "en": "Add Database Success",
+        "cn": "添加数据库成功"
+    },
+    "Add Database Failed": {
+        "en": "Add Database Failed",
+        "cn": "添加数据库失败"
+    },
+    "Confirm Delete Database": {
+        "en": "Confirm Delete Database",
+        "cn": "确认删除数据库"
+    },
+    "Delete Database Success": {
+        "en": "Delete Database Success",
+        "cn": "删除数据库成功"
+    },
+    "Delete Database Failed": {
+        "en": "Delete Database Failed",
+        "cn": "删除数据库失败"
+    },
+    "Execution Sampled Data": {
+        "en": "Execution Sampled Data",
+        "cn": "执行过程采样数据"
+    },
+    "Logs": {
+        "en": "Logs",
+        "cn": "日志"
+    },
+    "Running": {
+        "en": "Running",
+        "cn": "运行中"
+    },
+    "Search Pipelines ...": {
+        "en": "Search Pipelines ...",
+        "cn": "搜索Pipeline..."
+    },
+    "pipelines": {
+        "en": "pipelines",
+        "cn": "Pipeline"
+    },
+    "Delete Pipeline": {
+        "en": "Delete Pipeline",
+        "cn": "删除Pipeline"
+    },
+    "Template": {
+        "en": "Template",
+        "cn": "模板"
+    },
+    "Custom Pipeline": {
+        "en": "Custom Pipeline",
+        "cn": "自定义Pipeline"
+    },
+    "Are you sure to delete this pipeline?": {
+        "en": "Are you sure to delete this pipeline?",
+        "cn": "您确定要删除该Pipeline吗？"
+    },
+    "Delete pipeline failed": {
+        "en": "Delete pipeline failed",
+        "cn": "删除Pipeline失败"
+    },
+    "Current Pipeline": {
+        "en": "Current Pipeline",
+        "cn": "目前的Pipeline"
+    },
+    "Created from": {
+        "en": "Created from",
+        "cn": "创建于"
+    },
+    "Recover Pipeline": {
+        "en": "Recover Pipeline",
+        "cn": "恢复Pipeline"
+    },
+    "Execution": {
+        "en": "Execution",
+        "cn": "执行"
+    },
+    "Temp. Pipeline": {
+        "en": "Temp. Pipeline",
+        "cn": "临时 Pipeline"
+    },
+    "Input dataset not found": {
+        "en": "Input dataset not found",
+        "cn": "找不到输入数据集"
+    },
+    "Dataflow": {
+        "en": "Dataflow",
+        "cn": "Dataflow"
+    },
+    "Dataflow Hub": {
+        "en": "Dataflow Hub",
+        "cn": "Dataflow Hub"
+    },
+    "Serving Manager": {
+        "en": "Serving Manager",
+        "cn": "服务管理"
+    },
+    "DB Manager": {
+        "en": "DB Manager",
+        "cn": "数据库管理"
+    },
+    "Home": {
+        "en": "Home",
+        "cn": "主页"
+    },
+    "Auto": {
+        "en": "Auto",
+        "cn": "自动"
+    },
+    "Manual": {
+        "en": "Manual",
+        "cn": "手动"
+    },
+    "Whether Auto Connect Run Edges": {
+        "en": "Whether Auto Connect Run Edges",
+        "cn": "是否自动连接运行边"
+    },
+    "Run": {
+        "en": "Run",
+        "cn": "运行"
+    },
+    "Dataset": {
+        "en": "Dataset",
+        "cn": "数据集"
+    },
+    "Operator": {
+        "en": "Operator",
+        "cn": "算子库"
+    },
+    "Serving Manage": {
+        "en": "Serving Manage",
+        "cn": "服务管理"
+    },
+    "Add Serving": {
+        "en": "Add Serving",
+        "cn": "添加服务"
+    },
+    "Execute Result": {
+        "en": "Execute Result",
+        "cn": "执行结果"
+    },
+    "Executions": {
+        "en": "Executions",
+        "cn": "执行列表"
+    },
+    "Save": {
+        "en": "Save",
+        "cn": "保存"
+    },
+    "Pipeline is not a legal DAG": {
+        "en": "Pipeline is not a legal DAG",
+        "cn": "Pipeline 不是合法的 DAG"
+    },
+    "Please select a dataset": {
+        "en": "Please select a dataset",
+        "cn": "请选择一个数据集"
+    },
+    "Pipeline has been updated": {
+        "en": "Pipeline has been updated",
+        "cn": "Pipeline已更新"
+    },
+    "Pipeline has been created": {
+        "en": "Pipeline has been created",
+        "cn": "Pipeline已创建"
+    },
+    "Please select a pipeline": {
+        "en": "Please select a pipeline",
+        "cn": "请选择Pipeline"
+    },
+    "Please wait for the previous pipeline to finish": {
+        "en": "Please wait for the previous pipeline to finish",
+        "cn": "请等待上一个Pipeline完成"
+    },
+    "Pipeline has been executed": {
+        "en": "Pipeline has been executed",
+        "cn": "Pipeline已执行"
+    },
+    "Pipeline execution failed": {
+        "en": "Pipeline execution failed",
+        "cn": "Pipeline执行失败"
+    },
+    "Illegal connection": {
+        "en": "Illegal connection",
+        "cn": "非法连接"
+    },
+    "Are you sure to reset the flow?": {
+        "en": "Are you sure to reset the flow?",
+        "cn": "您确定要重置流量吗？"
+    },
+    "Add new serving information.": {
+        "en": "Add new serving information.",
+        "cn": "添加新的服务信息。"
+    },
+    "Serving Name": {
+        "en": "Serving Name",
+        "cn": "服务名称"
+    },
+    "Select CLS Name": {
+        "en": "Select CLS Name",
+        "cn": "选择 CLS 名称"
+    },
+    "Select Text2Sql Dataset": {
+        "en": "Select Text2Sql Dataset",
+        "cn": "选择 Text2Sql 数据集"
+    },
+    "Are you sure to delete this serving?": {
+        "en": "Are you sure to delete this serving?",
+        "cn": "您确定要删除此服务吗？"
+    },
+    "Delete Success": {
+        "en": "Delete Success",
+        "cn": "删除成功"
+    },
+    "Serving": {
+        "en": "Serving",
+        "cn": "服务"
+    },
+    "Serving Testing": {
+        "en": "Serving Testing",
+        "cn": "服务测试"
+    },
+    "Response": {
+        "en": "Response",
+        "cn": "回复"
+    },
+    "Settings": {
+        "en": "Settings",
+        "cn": "设置"
+    },
+    "Switch Theme": {
+        "en": "Switch Theme",
+        "cn": "切换主题"
+    },
+    "Change the theme of the DataFlow WebUI.": {
+        "en": "Change the theme of the DataFlow WebUI.",
+        "cn": "更改 DataFlow WebUI 的主题。"
+    },
+    "Language": {
+        "en": "Language",
+        "cn": "语言"
+    },
+    "Change the language of the DataFlow WebUI.": {
+        "en": "Change the language of the DataFlow WebUI.",
+        "cn": "更改 DataFlow WebUI 的语言。"
     }
 }

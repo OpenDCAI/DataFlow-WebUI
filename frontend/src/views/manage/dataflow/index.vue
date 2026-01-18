@@ -26,6 +26,7 @@
                         <div class="command-bar-right-space">
                             <fv-toggle-switch :theme="theme" v-model="isAutoConnectionModel" :width="75"
                                 :on="local('Auto')" :off="local('Manual')" :insideContent="true" :height="30"
+                                :off-foreground="theme === 'dark' ? 'rgba(255, 255, 255, 1)' : ''"
                                 borderColor="rgba(235, 235, 235, 1)" ring-background="rgba(180, 180, 180, 1)"
                                 :switch-on-background="gradient" :title="local('Whether Auto Connect Run Edges')">
                             </fv-toggle-switch>
@@ -744,6 +745,7 @@ export default {
         resetFlow() {
             this.$infoBox(this.local('Are you sure to reset the flow?'), {
                 status: 'error',
+                theme: this.theme,
                 confirm: () => {
                     const flow = useVueFlow(this.flowId)
                     flow.$reset()

@@ -1,14 +1,9 @@
 <template>
-    <div class="table-wrapper">
+    <div class="table-wrapper" :class="[{ dark: theme == 'dark' }]">
         <i v-show="!tableInfo.length" class="empty-icon ms-Icon ms-Icon--Important"></i>
         <p v-show="!tableInfo.length" class="empty-title">{{ local('No Data') }}</p>
-        <fv-details-list
-            v-show="tableInfo.length"
-            :model-value="tableInfo"
-            :head="heads"
-            ref="table"
-            style="width: 100%; height: 100%"
-        >
+        <fv-details-list :theme="theme" v-show="tableInfo.length" :model-value="tableInfo" :head="heads" ref="table"
+            style="width: 100%; height: 100%">
             <template v-for="(col, i) in heads" :key="i + 1" v-slot:[`column_${i}`]="x">
                 <p :title="i == 0 ? x.row_index + 1 : x.item[col.key] ? x.item[col.key] : ''">
                     {{ i == 0 ? x.row_index + 1 : x.item[col.key] ? x.item[col.key] : '' }}
@@ -21,6 +16,7 @@
 <script>
 import { mapState } from 'pinia'
 import { useAppConfig } from '@/stores/appConfig'
+import { useTheme } from '@/stores/theme';
 
 export default {
     props: {
@@ -43,7 +39,8 @@ export default {
         }
     },
     computed: {
-        ...mapState(useAppConfig, ['local'])
+        ...mapState(useAppConfig, ['local']),
+        ...mapState(useTheme, ['theme'])
     },
     mounted() {
         this.getHeads()
@@ -92,6 +89,12 @@ export default {
     justify-content: center;
     align-items: center;
     overflow: hidden;
+
+    .dark {
+        background: rgba(28, 30, 32, 1);
+        border: 1px solid rgba(120, 120, 120, 0.1);
+        box-shadow: 0px 1px 3px rgba(0, 0, 0, 0.1);
+    }
 
     .empty-icon {
         font-size: 40px;

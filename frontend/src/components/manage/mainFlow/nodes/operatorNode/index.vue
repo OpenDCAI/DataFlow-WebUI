@@ -1,14 +1,8 @@
 <template>
-    <base-node v-bind="props" :data="thisData">
+    <base-node v-bind="props" :data="thisData" :theme="theme">
         <div class="fv-loading-block">
-            <fv-progress-ring
-                v-if="loading"
-                :loading="true"
-                :r="18"
-                :border-width="3"
-                background="white"
-                :color="thisData.borderColor"
-            ></fv-progress-ring>
+            <fv-progress-ring v-if="loading" :loading="true" :r="18" :border-width="3" background="white"
+                :color="thisData.borderColor"></fv-progress-ring>
         </div>
         <div class="node-row-item">
             <span class="info-title" style="font-size: 13px; color: rgba(52, 199, 89, 1)">{{
@@ -16,39 +10,18 @@
             }}</span>
         </div>
         <hr />
-        <div
-            v-if="allowedPrompts.length > 0 && isPromptTemplate"
-            class="node-row-item col"
-            @mousedown.stop
-            @click.stop
-        >
+        <div v-if="allowedPrompts.length > 0 && isPromptTemplate" class="node-row-item col" @mousedown.stop @click.stop>
             <span class="info-title">{{ appConfig.local('Prompt Template') }}</span>
-            <fv-combobox
-                v-model="promptTemplateModel"
-                :placeholder="appConfig.local('Select Prompt')"
-                :options="allowedPrompts"
-                :choosen-slider-background="thisData.borderColor"
+            <fv-combobox :theme="theme" v-model="promptTemplateModel" :placeholder="appConfig.local('Select Prompt')"
+                :options="allowedPrompts" :choosen-slider-background="thisData.borderColor"
                 :reveal-background-color="[thisData.shadowColor, 'rgba(255, 255, 255, 1)']"
-                :reveal-border-color="thisData.borderColor"
-                border-radius="8"
-                style="width: 100%"
-            ></fv-combobox>
+                :reveal-border-color="thisData.borderColor" border-radius="8" style="width: 100%"></fv-combobox>
         </div>
-        <div
-            v-if="thisData.operatorParams"
-            v-show="item.show"
-            v-for="(item, index) in thisData.operatorParams.init"
-            :key="`init_${index}`"
-            class="node-row-item col"
-        >
+        <div v-if="thisData.operatorParams" v-show="item.show" v-for="(item, index) in thisData.operatorParams.init"
+            :key="`init_${index}`" class="node-row-item col">
             <span class="info-title">{{ item.name }}</span>
-            <value-input
-                v-model="item.value"
-                :item-obj="item"
-                :this-data="thisData"
-                @mousedown.stop
-                @click.stop
-            ></value-input>
+            <value-input :theme="theme" v-model="item.value" :item-obj="item" :this-data="thisData" @mousedown.stop
+                @click.stop></value-input>
         </div>
         <div class="node-row-item">
             <span class="info-title" style="font-size: 13px; color: rgba(0, 122, 255, 1)">{{
@@ -56,40 +29,17 @@
             }}</span>
         </div>
         <hr />
-        <div
-            v-if="thisData.operatorParams"
-            v-for="(item, index) in thisData.operatorParams.run"
-            :key="`run_${index}`"
-            class="node-row-item col"
-        >
+        <div v-if="thisData.operatorParams" v-for="(item, index) in thisData.operatorParams.run" :key="`run_${index}`"
+            class="node-row-item col">
             <span class="info-title">{{ item.name }}</span>
-            <Handle
-                :id="`${item.name}::target::run_key`"
-                type="target"
-                class="handle-item"
-                :position="Position.Left"
-            />
-            <Handle
-                :id="`${item.name}::source::run_key`"
-                type="source"
-                class="handle-item"
-                :position="Position.Right"
-            />
-            <fv-text-box
-                v-model="item.value"
-                :placeholder="appConfig.local('Please input') + ` ${item.name}`"
-                font-size="12"
-                border-radius="3"
-                :border-width="2"
-                :reveal-border="true"
-                :border-color="thisData.shadowColor"
-                :focus-border-color="thisData.borderColor"
-                underline
-                style="width: 100%; height: 35px"
-                @update:modelValue="emitUpdateRunValue(item)"
-                @mousedown.stop
-                @click.stop
-            ></fv-text-box>
+            <Handle :id="`${item.name}::target::run_key`" type="target" class="handle-item" :position="Position.Left" />
+            <Handle :id="`${item.name}::source::run_key`" type="source" class="handle-item"
+                :position="Position.Right" />
+            <fv-text-box :theme="theme" v-model="item.value"
+                :placeholder="appConfig.local('Please input') + ` ${item.name}`" font-size="12" border-radius="3"
+                :border-width="2" :reveal-border="true" :border-color="thisData.shadowColor"
+                :focus-border-color="thisData.borderColor" underline style="width: 100%; height: 35px"
+                @update:modelValue="emitUpdateRunValue(item)" @mousedown.stop @click.stop></fv-text-box>
         </div>
         <div v-if="currentLog" class="node-group-item">
             <p class="info-title">Execution Logs</p>
@@ -97,34 +47,12 @@
                 <p v-for="(text, index) in currentLog" :key="index">{{ text }}</p>
             </div>
             <div class="node-row-item" style="gap: 5px">
-                <fv-button
-                    v-show="isOverStep"
-                    theme="dark"
-                    icon="Diagnostic"
-                    :background="thisData.borderColor"
-                    border-radius="8"
-                    font-size="10"
-                    :is-box-shadow="true"
-                    style="width: 100%; margin-top: 5px"
-                    @mousedown.stop
-                    @click.stop
-                    @click="showDetails"
-                    >{{ appConfig.local('Show Details') }}</fv-button
-                >
-                <fv-button
-                    v-show="isOverStep"
-                    theme="dark"
-                    icon="Download"
-                    :background="thisData.borderColor"
-                    border-radius="8"
-                    font-size="10"
-                    :is-box-shadow="true"
-                    style="width: 100%; margin-top: 5px"
-                    @mousedown.stop
-                    @click.stop
-                    @click="downloadData"
-                    >{{ appConfig.local('Download Data') }}</fv-button
-                >
+                <fv-button v-show="isOverStep" theme="dark" icon="Diagnostic" :background="thisData.borderColor"
+                    border-radius="8" font-size="10" :is-box-shadow="true" style="width: 100%; margin-top: 5px"
+                    @mousedown.stop @click.stop @click="showDetails">{{ appConfig.local('Show Details') }}</fv-button>
+                <fv-button v-show="isOverStep" theme="dark" icon="Download" :background="thisData.borderColor"
+                    border-radius="8" font-size="10" :is-box-shadow="true" style="width: 100%; margin-top: 5px"
+                    @mousedown.stop @click.stop @click="downloadData">{{ appConfig.local('Download Data') }}</fv-button>
             </div>
         </div>
     </base-node>
@@ -135,6 +63,7 @@ import { computed, onMounted, onBeforeUnmount, ref, watch } from 'vue'
 import { useGlobal } from '@/hooks/general/useGlobal'
 import { useAppConfig } from '@/stores/appConfig'
 import { useDataflow } from '@/stores/dataflow'
+import { useTheme } from '@/stores/theme'
 import { Position, Handle } from '@vue-flow/core'
 
 import baseNode from '@/components/manage/mainFlow/nodes/baseNode.vue'
@@ -164,7 +93,12 @@ const props = defineProps({
 })
 
 const appConfig = useAppConfig()
+const _theme = useTheme()
 const dataflow = useDataflow()
+
+const theme = computed(() => {
+    return _theme.theme
+})
 
 const defaultData = {
     label: 'Operator',
@@ -307,7 +241,7 @@ const currentLog = computed(() => {
     if (!dataflow.execution) return null
     if (!dataflow.execution.task_id) return null
     let currentKey = `${thisData.value.label}_${thisData.value.pipeline_idx - 1}`
-    let currentOutput = dataflow.execution.operator_progress.run[currentKey]
+    let currentOutput = dataflow.execution.operator_logs[currentKey]
     if (!currentOutput) return null
     return currentOutput || []
 })

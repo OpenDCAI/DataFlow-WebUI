@@ -1,42 +1,20 @@
 <template>
     <div class="value-input">
-        <fv-text-box
-            v-if="computedUIType === 'text'"
-            v-model="thisValue"
-            :placeholder="local('Please input') + ` ${itemObj.name}`"
-            font-size="12"
-            border-radius="3"
-            border-width="2"
-            :reveal-border="true"
-            :border-color="thisData.shadowColor"
-            :focus-border-color="thisData.borderColor"
-            underline
-            style="width: 100%; height: 35px"
-        ></fv-text-box>
-        <fv-combobox
-            v-if="computedUIType === 'llm_serving'"
-            :model-value="computedServingItem(itemObj)"
-            @update:modelValue="setServingItem(itemObj, $event)"
-            :placeholder="local('Select Serving')"
-            :options="servingList"
-            :choosen-slider-background="thisData.borderColor"
+        <fv-text-box :theme="theme" v-if="computedUIType === 'text'" v-model="thisValue"
+            :placeholder="local('Please input') + ` ${itemObj.name}`" font-size="12" border-radius="3" border-width="2"
+            :reveal-border="true" :border-color="thisData.shadowColor" :focus-border-color="thisData.borderColor"
+            underline style="width: 100%; height: 35px"></fv-text-box>
+        <fv-combobox :theme="theme" v-if="computedUIType === 'llm_serving'" :model-value="computedServingItem(itemObj)"
+            @update:modelValue="setServingItem(itemObj, $event)" :placeholder="local('Select Serving')"
+            :options="servingList" :choosen-slider-background="thisData.borderColor"
             :reveal-background-color="[thisData.shadowColor, 'rgba(255, 255, 255, 1)']"
-            :reveal-border-color="thisData.borderColor"
-            border-radius="8"
-            style="width: 100%"
-        ></fv-combobox>
-        <fv-combobox
-            v-if="computedUIType === 'database_manager'"
+            :reveal-border-color="thisData.borderColor" border-radius="8" style="width: 100%"></fv-combobox>
+        <fv-combobox :theme="theme" v-if="computedUIType === 'database_manager'"
             :model-value="computedDatabaseManagerItem(itemObj)"
-            @update:modelValue="setDatabaseManagerItem(itemObj, $event)"
-            :placeholder="local('Select Database Manager')"
-            :options="dataManagerList"
-            :choosen-slider-background="thisData.borderColor"
+            @update:modelValue="setDatabaseManagerItem(itemObj, $event)" :placeholder="local('Select Database Manager')"
+            :options="dataManagerList" :choosen-slider-background="thisData.borderColor"
             :reveal-background-color="[thisData.shadowColor, 'rgba(255, 255, 255, 1)']"
-            :reveal-border-color="thisData.borderColor"
-            border-radius="8"
-            style="width: 100%"
-        ></fv-combobox>
+            :reveal-border-color="thisData.borderColor" border-radius="8" style="width: 100%"></fv-combobox>
     </div>
 </template>
 
@@ -57,6 +35,9 @@ export default {
         thisData: {
             type: Object,
             default: () => ({})
+        },
+        theme: {
+            default: 'light'
         }
     },
     data() {

@@ -5,7 +5,8 @@
                 v-model:expand="isExpand" :foreground="color"
                 :background="theme === 'dark' ? 'rgba(36, 36, 36, 1)' : ''" expand-width="300" :flyout-display="1368"
                 :mobile-display="1024" class="navigation-view" :show-back="false" :show-search="false"
-                @item-click="handleItemClick" @setting-click="handleSettingClick" @back="$Back()">
+                :setting-title="local('Settings')" @item-click="handleItemClick" @setting-click="handleSettingClick"
+                @back="$Back()">
                 <template v-slot:banner>
                     <div class="title-block name">
                         <img class="nav-icon" :src="img.logo" alt="" />

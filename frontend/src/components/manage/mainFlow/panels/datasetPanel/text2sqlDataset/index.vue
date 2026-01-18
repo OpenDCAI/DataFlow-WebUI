@@ -195,6 +195,7 @@ export default {
             event.stopPropagation()
             this.$infoBox(this.local('Confirm Delete Database') + ': ' + item.name, {
                 status: 'error',
+                theme: this.theme,
                 confirm: () => {
                     this.$api.text2sql_database.delete_database(item.id).then((res) => {
                         if (res.code === 200) {

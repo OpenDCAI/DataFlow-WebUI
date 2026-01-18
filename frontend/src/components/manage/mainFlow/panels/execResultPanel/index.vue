@@ -9,7 +9,7 @@
                         style="width: auto"></time-rounder>
                 </div>
                 <span class="title-block">{{ local('Execution Sampled Data') }}</span>
-                <table-info v-if="runningResult && runningResult.sample_data"
+                <table-info :theme="theme" v-if="runningResult && runningResult.sample_data"
                     :table-info="runningResult.sample_data"></table-info>
                 <span class="title-block">{{ local('Logs') }}</span>
                 <div v-if="runningResult" class="log-container">
@@ -20,8 +20,9 @@
             </div>
         </template>
         <template v-slot:control="{ close }">
-            <fv-button :borderRadius="8" :isBoxShadow="true" style="width: 120px; margin-right: 8px" @click="close">{{
-                local('Close') }}</fv-button>
+            <fv-button :theme="theme" :borderRadius="8" :isBoxShadow="true" style="width: 120px; margin-right: 8px"
+                @click="close">{{
+                    local('Close') }}</fv-button>
         </template>
     </basePanel>
 </template>

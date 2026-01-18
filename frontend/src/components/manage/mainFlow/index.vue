@@ -1,47 +1,22 @@
 <template>
     <div class="df-main-flow-container">
-        <VueFlow
-            class="main-flow"
-            :id="id"
-            v-model:nodes="thisNodes"
-            v-model:edges="thisEdges"
-            @dragover="dragOver"
-            @drop="drop"
-            @dragleave="dragLeave"
-            @connect="$emit('connect', $event)"
-            @connect-end="$emit('connect-end', $event)"
-            @connect-start="$emit('connect-start', $event)"
-        >
-            <Background
-                variant="dots"
-                gap="20"
-                size="3"
-                :color="'rgba(200, 200, 200, 0.3)'"
-                :style="{
-                    backgroundColor: isDragOver ? 'rgba(87, 99, 206, 0.05)' : 'transparent',
-                    transition: 'background-color 0.2s ease'
-                }"
-            ></Background>
+        <VueFlow class="main-flow" :id="id" v-model:nodes="thisNodes" v-model:edges="thisEdges" @dragover="dragOver"
+            @drop="drop" @dragleave="dragLeave" @connect="$emit('connect', $event)"
+            @connect-end="$emit('connect-end', $event)" @connect-start="$emit('connect-start', $event)">
+            <Background variant="dots" gap="20" size="3" :color="'rgba(200, 200, 200, 0.3)'" :style="{
+                backgroundColor: isDragOver ? 'rgba(87, 99, 206, 0.05)' : 'transparent',
+                transition: 'background-color 0.2s ease'
+            }"></Background>
             <template #node-base-node="nodeProps">
                 <baseNode v-bind="nodeProps" @delete-node="deleteNode" />
             </template>
             <template #node-database-node="nodeProps">
-                <databaseNode
-                    v-bind="nodeProps"
-                    @delete-node="deleteNode"
-                    @switch-database="switchDatabase"
-                    @update-node-data="updateNodeData"
-                />
+                <databaseNode v-bind="nodeProps" @delete-node="deleteNode" @switch-database="switchDatabase"
+                    @update-node-data="updateNodeData" />
             </template>
             <template #node-operator-node="nodeProps">
-                <operatorNode
-                    v-bind="nodeProps"
-                    @delete-node="deleteNode"
-                    @update-node-data="updateNodeData"
-                    @update-run-value="updateRunValue"
-                    @show-details="showDetails"
-                    @download-data="downloadData"
-                />
+                <operatorNode v-bind="nodeProps" @delete-node="deleteNode" @update-node-data="updateNodeData"
+                    @update-run-value="updateRunValue" @show-details="showDetails" @download-data="downloadData" />
             </template>
 
             <template #connection-line="connectionLineProps">
@@ -55,9 +30,10 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue'
+import { ref, watch, computed } from 'vue'
 import { VueFlow, useVueFlow } from '@vue-flow/core'
 import { useGlobal } from '@/hooks/general/useGlobal'
+import { useTheme } from '@/stores/theme'
 import { useAppConfig } from '@/stores/appConfig'
 import { Background } from '@vue-flow/background'
 import baseNode from './nodes/baseNode.vue'
@@ -68,6 +44,8 @@ import baseConnectionLine from './edges/baseConnectionLine.vue'
 
 const { $Guid, $infoBox } = useGlobal()
 const appConfig = useAppConfig()
+const _theme = useTheme()
+const theme = computed(() => _theme.theme)
 const emits = defineEmits([
     'switch-database',
     'update:nodes',
@@ -177,6 +155,7 @@ const dragLeave = (event) => {
 const deleteNode = (nodeInfo) => {
     $infoBox(appConfig.local(`Are you sure to delete this node?`), {
         status: 'error',
+        theme: theme.value,
         confirm: () => {
             const flow = useVueFlow(props.id)
             flow.removeNodes(nodeInfo.id)

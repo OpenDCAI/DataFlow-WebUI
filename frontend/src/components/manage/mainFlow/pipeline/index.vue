@@ -32,15 +32,15 @@
                 </div>
                 <hr />
                 <fv-button :theme="theme" icon="Add"
-                    :background="theme === 'dark' ? 'rgba(40, 40, 40, 1)' : 'rgba(255, 255, 255, 0.6)'"
-                    foreground="rgba(90, 90, 90, 1)" border-radius="8" :is-box-shadow="true"
-                    style="width: calc(100% - 20px); height: 40px; margin-left: 10px"
+                    :background="theme === 'dark' ? 'rgba(40, 40, 40, 0.6)' : 'rgba(255, 255, 255, 0.6)'"
+                    :foreground="theme === 'dark' ? 'rgba(255, 255, 255, 1)' : 'rgba(90, 90, 90, 1)'" border-radius="8"
+                    :is-box-shadow="true" style="width: calc(100% - 20px); height: 40px; margin-left: 10px"
                     @click="(show.add = true), (addPanelMode = 'add')">{{ local('New Pipeline') }}</fv-button>
                 <div v-show="!lock.pipeline" class="pipeline-list-loading">
                     <fv-progress-ring loading="true" :r="20" :border-width="3" :color="color"
                         :background="'rgba(245, 245, 245, 1)'"></fv-progress-ring>
                 </div>
-                <div class="pipeline-list-block">
+                <div class="pipeline-list-block" :class="[{ dark: theme === 'dark' }]">
                     <div v-show="item.show" v-for="(item, index) in filteredPipelines" :key="item.id"
                         class="pipeline-item" :class="[{ choosen: thisPipeline === item }]"
                         @click="selectPipeline(item)" @contextmenu="showRightMenu($event, item)">
@@ -273,6 +273,7 @@ export default {
             if (!item) return
             this.$infoBox(this.local('Are you sure to delete this pipeline?'), {
                 status: 'error',
+                theme: this.theme,
                 confirm: () => {
                     this.$api.pipelines.delete_pipeline(item.id).then((res) => {
                         if (res.code === 200) {
@@ -413,6 +414,46 @@ export default {
             flex: 1;
             margin-top: 5px;
             overflow: overlay;
+
+            &.dark {
+                .pipeline-item {
+
+
+                    &:hover {
+                        background: rgba(79, 80, 89, 0.6);
+
+                        .pipeline-item-main {
+                            .content-block {
+                                .pipeline-name {
+                                    color: rgba(115, 186, 241, 1);
+                                }
+                            }
+                        }
+                    }
+
+                    &:active {
+                        background: rgba(103, 106, 116, 0.8);
+                    }
+
+                    &.choosen {
+                        background: rgba(149, 152, 172, 0.6);
+                    }
+
+                    .pipeline-item-main {
+
+                        .content-block {
+
+                            .pipeline-name {
+                                color: rgb(245, 245, 245, 1);
+                            }
+
+                            .pipeline-info {
+                                color: rgba(200, 200, 200, 1);
+                            }
+                        }
+                    }
+                }
+            }
 
             .pipeline-item {
                 position: relative;

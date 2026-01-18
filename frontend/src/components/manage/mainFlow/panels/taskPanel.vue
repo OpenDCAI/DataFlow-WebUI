@@ -2,9 +2,10 @@
     <basePanel v-model="thisValue" :title="title" width="800px" height="80%" :theme="theme">
         <template v-slot:content>
             <div v-show="thisValue" class="panel-task-content-block">
-                <fv-Collapse v-for="(item, index) in filteredTasks" :key="index" class="task-item" :title="item.task_id"
-                    :content="formatTime(item.completed_at)" :maxHeight="item.showPreview ? 690 : 380"
-                    background="rgba(251, 251, 251, 1)" :disabled-collapse="true">
+                <fv-Collapse :theme="theme" v-for="(item, index) in filteredTasks" :key="index" class="task-item"
+                    :title="item.task_id" :content="formatTime(item.completed_at)"
+                    :maxHeight="item.showPreview ? 690 : 380" background="rgba(251, 251, 251, 1)"
+                    :disabled-collapse="true">
                     <template v-slot:icon>
                         <fv-img :src="img.task" style="width: auto; height: 30px; margin: 0px 5px"></fv-img>
                     </template>
@@ -22,8 +23,9 @@
             </div>
         </template>
         <template v-slot:control="{ close }">
-            <fv-button :borderRadius="8" :isBoxShadow="true" style="width: 120px; margin-right: 8px" @click="close">{{
-                local('Close') }}</fv-button>
+            <fv-button :theme="theme" :borderRadius="8" :isBoxShadow="true" style="width: 120px; margin-right: 8px"
+                @click="close">{{
+                    local('Close') }}</fv-button>
         </template>
     </basePanel>
 </template>

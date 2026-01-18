@@ -314,6 +314,7 @@ export default {
         delServing(item) {
             this.$infoBox(this.local('Are you sure to delete this serving?'), {
                 status: 'error',
+                theme: this.theme,
                 confirm: () => {
                     if (!this.lock.delete) return
                     this.lock.delete = false
