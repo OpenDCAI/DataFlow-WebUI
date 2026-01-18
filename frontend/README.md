@@ -24,15 +24,13 @@ yarn dev
 
 ### Compile and Minify for Production
 
+在`.env.production`中设定`VITE_BACKEND_URL`为后端FastAPI地址.
+
 ```sh
 yarn build
 ```
 
-### Lint with [ESLint](https://eslint.org/)
-
-```sh
-yarn lint
-```
+生成dist目录用于部署.
 
 ## 项目结构
 
