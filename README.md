@@ -20,7 +20,7 @@ npm -v
 ```
 # maybe conda scripts...
 # Please install DataFlow(https://github.com/OpenDCAI/DataFlow) first, and then
-pip install -r /backend/requirements.txt
+pip install -r backend/requirements.txt
 ```
 
 ## Quick Start
