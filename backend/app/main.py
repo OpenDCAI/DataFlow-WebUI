@@ -6,6 +6,15 @@ from app.api.v1.handlers import install_exception_handlers
 from app.api.v1.router import api_router as api_v1
 
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+from starlette.responses import Response
+from pathlib import Path
+
+app = FastAPI()
+
+
 
 def create_app() -> FastAPI:
     setup_dataflow_core()
@@ -20,7 +29,18 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+    DIST_DIR = Path(__file__).resolve().parent.parent.parent / "frontend" / "dist"
+    INDEX_FILE = DIST_DIR / "index.html"
+    app.mount("/ui", StaticFiles(directory=DIST_DIR, html=True), name="ui")
     install_exception_handlers(app)
     return app
 
 app = create_app()
+
+@app.get("/ui/{full_path:path}")
+def spa_fallback(full_path: str):
+    target = DIST_DIR / full_path
+    if target.exists() and target.is_file():
+        # 例如 /ui/assets/xxx.js 这种静态文件会被直接命中
+        return FileResponse(target)
+    return FileResponse(INDEX_FILE)
