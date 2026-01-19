@@ -346,26 +346,34 @@ class PipelineRegistry:
             match = re.search(r'first_entry_file_name\s*=\s*["\']([^"\']+)["\']', content)
             if match:
                 relative_path = match.group(1)
-                # 解析绝对路径
+                # 解析绝对路径（相对于当前 pipeline 文件所在目录）
                 pipeline_dir = os.path.dirname(pipeline_file_path)
                 abs_path = os.path.normpath(os.path.join(pipeline_dir, relative_path))
-                
-                # 转换为相对于CWD (backend/) 的路径
-                cwd = os.getcwd()
-                rel_path_from_cwd = os.path.relpath(abs_path, cwd)
+
+                # 使用 DATAFLOW_CORE_DIR 进行规范化，得到形如：
+                #   dataflow_core/example_data/ReasoningPipeline/pipeline_general.json
+                # 这样的相对路径（相对于 backend/data/）
+                data_parent_dir = os.path.dirname(settings.DATAFLOW_CORE_DIR)  # .../backend/data
+                rel_path_from_data_root = os.path.relpath(abs_path, data_parent_dir)
                 
                 # 尝试从DatasetRegistry中查找
                 
                 # 1. 尝试通过路径匹配
                 all_datasets = container.dataset_registry.list()
                 for ds in all_datasets:
-                    if ds.get("root") == rel_path_from_cwd:
+                    root = ds.get("root")
+                    # 兼容两种存储方式：
+                    # 1) 绝对路径（scan_all_datasets 自动注册）
+                    # 2) 相对于 backend/data/ 的路径（例如 dataflow_core/example_data/...）
+                    if root == abs_path or root == rel_path_from_data_root:
                         return {"id": ds.get("id"), "location": [0, 0]}
                 
-                # 2. 如果没找到，尝试计算ID查找 (作为备选)
-                ds_id = hashlib.md5(rel_path_from_cwd.encode("utf-8")).hexdigest()[:10]
-                if container.dataset_registry.get(ds_id):
-                    return {"id": ds_id, "location": [0, 0]}
+                # 2. 如果没找到，尝试计算ID查找 (作为备选)，同时兼容绝对路径和相对路径两种情况
+                candidate_paths = [abs_path, rel_path_from_data_root]
+                for p in candidate_paths:
+                    ds_id = hashlib.md5(str(p).encode("utf-8")).hexdigest()[:10]
+                    if container.dataset_registry.get(ds_id):
+                        return {"id": ds_id, "location": [0, 0]}
                     
         except Exception as e:
             logger.warning(f"Failed to find dataset for pipeline {pipeline_file_path}: {e}")
