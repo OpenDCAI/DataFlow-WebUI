@@ -1,0 +1,16 @@
+{
+    "compilerOptions": {
+        "paths": {
+            "@/*": [
+                "./src/*"
+            ]
+        },
+        "types": [
+            "@creatorsn/vfluent3"
+        ]
+    },
+    "exclude": [
+        "node_modules",
+        "dist"
+    ]
+}

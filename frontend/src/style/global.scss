@@ -1,0 +1,142 @@
+@use "./dataflow.scss" as *;
+
+@forward "./dataflow.scss";
+
+@mixin app {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+}
+@mixin FullRelative() {
+    position: relative;
+    width: 100%;
+    height: 100%;
+}
+@mixin FullAbsolute() {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+}
+@mixin FlexC() {
+    display: flex;
+    flex-direction: column;
+}
+@mixin Hstart() {
+    display: flex;
+    justify-content: flex-start;
+    align-items: flex-start;
+}
+@mixin HstartC() {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: flex-start;
+}
+@mixin Vstart() {
+    display: flex;
+    justify-content: flex-start;
+    align-items: flex-start;
+}
+@mixin VstartC() {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: flex-start;
+}
+@mixin Hcenter() {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+}
+@mixin HcenterC() {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: center;
+}
+@mixin Vcenter() {
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
+}
+@mixin VcenterC() {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-start;
+}
+@mixin Hend() {
+    display: flex;
+    justify-content: flex-end;
+    align-items: flex-start;
+}
+@mixin HendC() {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: flex-end;
+}
+@mixin Vend() {
+    display: flex;
+    justify-content: flex-start;
+    align-items: flex-end;
+}
+@mixin VendC() {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    align-items: flex-start;
+}
+@mixin HcenterVcenter() {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+@mixin HcenterVcenterC() {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+@mixin HendVcenter() {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+}
+@mixin HendVend() {
+    display: flex;
+    justify-content: flex-end;
+    align-items: flex-end;
+}
+@mixin HcenterVtopC() {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: center;
+}
+@mixin HbetweenVcenter() {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+@mixin HaroundVcenter() {
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+}
+@mixin HaroundVstart {
+    display: flex;
+    justify-content: space-around;
+    align-items: flex-start;
+}
+@mixin HbetweenVstart {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+}
+@mixin nowrap {
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    overflow: hidden;
+}
