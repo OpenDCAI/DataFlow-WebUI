@@ -134,7 +134,16 @@ export default {
             formatValues: {
                 str: (val) => val.toString(),
                 int: (val) => parseInt(val),
-                Any: (val) => val.toString()
+                Any: (val) => val.toString(),
+                float: (val) => parseFloat(val),
+                'dict': (val) => {
+                    try {
+                        return JSON.stringify(JSON.parse(val))
+                    }
+                    catch (error) {
+                        return '{}'
+                    }
+                }
             },
             show: {
                 add: false
