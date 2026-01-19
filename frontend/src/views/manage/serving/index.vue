@@ -136,7 +136,7 @@ export default {
                 int: (val) => parseInt(val),
                 Any: (val) => val.toString(),
                 float: (val) => parseFloat(val),
-                'Dict': (val) => {
+                'dict': (val) => {
                     try {
                         return JSON.stringify(JSON.parse(val))
                     }
