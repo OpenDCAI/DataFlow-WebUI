@@ -14,12 +14,16 @@ See [Vite Configuration Reference](https://vitejs.dev/config/).
 
 ```sh
 yarn
+## or use npm
+npm i
 ```
 
 ### Compile and Hot-Reload for Development
 
 ```sh
 yarn dev
+## or use npm
+npm run dev
 ```
 
 ### Compile and Minify for Production
@@ -28,6 +32,8 @@ yarn dev
 
 ```sh
 yarn build
+## or use npm
+npm run build
 ```
 
 生成dist目录用于部署.
