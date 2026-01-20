@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from app.core.config import settings
+from app.core.logger_setup import logger
 from app.core.dataflow_setup import setup_dataflow_core
 from app.core.container import container
 from app.api.v1.handlers import install_exception_handlers
@@ -14,6 +15,8 @@ from pathlib import Path
 
 app = FastAPI()
 
+DIST_DIR = Path(__file__).resolve().parent.parent.parent / "frontend" / "dist"
+INDEX_FILE = DIST_DIR / "index.html"
 
 
 def create_app() -> FastAPI:
@@ -31,7 +34,10 @@ def create_app() -> FastAPI:
     )
     DIST_DIR = Path(__file__).resolve().parent.parent.parent / "frontend" / "dist"
     INDEX_FILE = DIST_DIR / "index.html"
-    app.mount("/ui", StaticFiles(directory=DIST_DIR, html=True), name="ui")
+    if not INDEX_FILE.exists():
+        logger.warning("Warning: UI index file not found, please build the frontend first")
+    else:
+        app.mount("/ui", StaticFiles(directory=DIST_DIR, html=True), name="ui")
     install_exception_handlers(app)
     return app
 
