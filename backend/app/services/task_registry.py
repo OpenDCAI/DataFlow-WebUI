@@ -481,7 +481,7 @@ class TaskRegistry:
         data = self._read()
         data["tasks"][task_id] = initial_result
         self._write(data)
-        dataflow_runtime = DataFlowEngine.decode_hashed_arguments(pipeline_config)
+        dataflow_runtime = DataFlowEngine.decode_hashed_arguments(pipeline_config, task_id)
         
         # 提交到 Ray 异步执行
         await ray_executor.submit_execution(

@@ -163,7 +163,7 @@ class DataFlowEngine:
         return db_manager_instance
 
     @staticmethod
-    def decode_hashed_arguments(pipeline_config: Dict[str, Any]) -> Dict[str, Any]:
+    def decode_hashed_arguments(pipeline_config: Dict[str, Any], task_id: str) -> Dict[str, Any]:
         """
         解码哈希化的参数
         """
@@ -204,7 +204,7 @@ class DataFlowEngine:
             dataflow_runtime["storage"] = {
                 "type": "file",
                 "first_entry_file_name": os.path.abspath(dataset['root']),
-                "cache_path": os.path.join(settings.BASE_DIR, "cache_local"),
+                "cache_path": os.path.join(settings.BASE_DIR, "cache_local", f"{task_id}_output"),
                 "file_name_prefix": "dataflow_cache_step",
                 "cache_type": "jsonl",
             }
