@@ -259,7 +259,23 @@ class PipelineRegistry:
         确保注册表文件存在，并加载api_pipelines目录中的所有py文件
         """
         logger.info("初始化Pipeline Registry的注册表和执行结果表...")
+
+        # only re-init when the registry file does not exist or this json is empty, like { "pipelines": {} }
+        need_init_flag = False
         if not os.path.exists(self.path):
+            need_init_flag = True
+        else:
+            with open(self.path, "r", encoding="utf-8") as f:
+                try:
+                    content = json.load(f)
+                    if not content.get("pipelines"):
+                        need_init_flag = True
+                    elif len(content.get("pipelines")) == 0:
+                        need_init_flag = True
+                except Exception:
+                    need_init_flag = True
+
+        if need_init_flag:
             os.makedirs(os.path.dirname(self.path), exist_ok=True)
 
             # 创建初始数据结构
