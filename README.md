@@ -35,6 +35,8 @@ npm run build
 ```
 cd backend/
 make dev
+# Windows
+# uvicorn app.main:app --reload --port 8000  --reload-dir app --host=0.0.0.0
 ```
 
 Then you can visit `http://localhost:<backend port>/ui/` for webui usage.
