@@ -1,0 +1,47 @@
+name: build-and-release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          # 如果你没有 frontend/package-lock.json，这行可以删掉
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install system deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y zip rsync
+
+      - name: Build release zip (single source of truth)
+        run: |
+          chmod +x scripts/build_release.sh
+          ./scripts/build_release.sh "${GITHUB_REF_NAME}"
+
+      - name: Create GitHub Release & upload asset
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            DataFlow-WebUI-*.zip
+          generate_release_notes: true
