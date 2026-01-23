@@ -134,6 +134,7 @@ import saveIcon from '@/assets/flow/save.svg'
 import axios from '@/axios/config'
 
 export default {
+    name: "dataflowPage",
     components: {
         mainFlow,
         pipeline,

@@ -2876,18 +2876,18 @@ export class preferences {
  
   /**
   * @summary 更新全局用户偏好配置（直接覆盖）
-  * @param {UserModel.UserPreferences} [userpreferences] 
+  * @param {object} [object] 
   * @param {CancelTokenSource} [cancelSource] Axios Cancel Source 对象，可以取消该请求
   * @param {Function} [uploadProgress] 上传回调函数
   * @param {Function} [downloadProgress] 下载回调函数
   */
-  static async set_preferences_api_v1_preferences__post(userpreferences,cancelSource,uploadProgress,downloadProgress){
+  static async set_preferences_api_v1_preferences__post(object,cancelSource,uploadProgress,downloadProgress){
     return await new Promise((resolve,reject)=>{
       let responseType = "json";
       let options = {
         method:'post',
         url:'/api/v1/preferences/',
-        data:userpreferences,
+        data:object,
         params:{},
         headers:{
           "Content-Type":"application/json"
@@ -2943,3 +2943,67 @@ preferences.set_preferences_api_v1_preferences__post.fullPath=`${axios.defaults.
 * @description set_preferences_api_v1_preferences__post url链接，不包含baseURL
 */
 preferences.set_preferences_api_v1_preferences__post.path=`/api/v1/preferences/`
+
+export class common {
+ 
+  /**
+  * @summary Spa Fallback
+  * @param {String} [pathfull_path] 
+  * @param {CancelTokenSource} [cancelSource] Axios Cancel Source 对象，可以取消该请求
+  * @param {Function} [uploadProgress] 上传回调函数
+  * @param {Function} [downloadProgress] 下载回调函数
+  */
+  static async spa_fallback_ui__full_path__get(pathfull_path,cancelSource,uploadProgress,downloadProgress){
+    return await new Promise((resolve,reject)=>{
+      let responseType = "json";
+      let options = {
+        method:'get',
+        url:'/ui/'+pathfull_path+'',
+        data:{},
+        params:{},
+        headers:{
+          "Content-Type":""
+        },
+        onUploadProgress:uploadProgress,
+        onDownloadProgress:downloadProgress
+      }
+      // support wechat mini program
+      if (cancelSource!=undefined){
+        options.cancelToken = cancelSource.token
+      }
+      if (responseType != "json"){
+        options.responseType = responseType;
+      }
+      axios(options)
+      .then(res=>{
+        if (res.config.responseType=="blob"){
+          resolve(new Blob([res.data],{
+            type: res.headers["content-type"].split(";")[0]
+          }))
+        }else{
+          resolve(res.data);
+          return res.data
+        }
+      }).catch(err=>{
+        if (err.response){
+          if (err.response.data)
+            reject(err.response.data)
+          else
+            reject(err.response);
+        }else{
+          reject(err)
+        }
+      })
+    })
+  }
+}
+
+// class common static method properties bind
+/**
+* @description spa_fallback_ui__full_path__get url链接，包含baseURL
+*/
+common.spa_fallback_ui__full_path__get.fullPath=`${axios.defaults.baseURL}/ui/{full_path}`
+/**
+* @description spa_fallback_ui__full_path__get url链接，不包含baseURL
+*/
+common.spa_fallback_ui__full_path__get.path=`/ui/{full_path}`
