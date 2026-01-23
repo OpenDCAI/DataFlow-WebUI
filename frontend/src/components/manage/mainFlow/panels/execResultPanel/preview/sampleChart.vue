@@ -46,7 +46,7 @@ function updateChart() {
     const steps = Object.values(props.rawData)
         .sort((a, b) => a.index - b.index)
 
-    const labels = steps.map(i => `Step ${i.index}`)
+    const labels = steps.map(i => `S${i.index + 1}: ${i.name}`)
     const values = steps.map(i => i.sample_count)
 
     chartInstance = new Chart(canvasRef.value, {
@@ -82,7 +82,7 @@ function updateChart() {
                     callbacks: {
                         title: ctx => {
                             const step = steps[ctx[0].dataIndex]
-                            return `Step: ${step.index}\n${step.name}`
+                            return `Step: ${step.index + 1}\n${step.name}`
                         },
                         label: ctx => `Samples: ${ctx.parsed.y}`
                     }
@@ -91,17 +91,24 @@ function updateChart() {
             scales: {
                 x: {
                     grid: {
-                        color: props.theme === 'dark' ? 'rgba(200, 200, 200, 0.1)' : 'rgba(0, 0, 0, 0.7)'
+                        color: props.theme === 'dark' ? 'rgba(200, 200, 200, 0.1)' : 'rgba(120, 120, 120, 0.1)'
                     },
                     ticks: {
-                        maxRotation: 30,
-                        minRotation: 30,
-                        color: props.theme === 'dark' ? 'whitesmoke' : 'rgba(0, 0, 0, 0.7)'
+                        maxRotation: 0, // 最大旋转角度
+                        minRotation: 0, // 最小旋转角度
+                        color: props.theme === 'dark' ? 'whitesmoke' : 'rgba(0, 0, 0, 0.7)',
+                        callback: function (value) {
+                            const label = this.getLabelForValue(value)
+                            const maxLen = 16
+                            return label.length > maxLen
+                                ? label.slice(0, maxLen) + '…'
+                                : label
+                        }
                     }
                 },
                 y: {
                     grid: {
-                        color: props.theme === 'dark' ? 'rgba(200, 200, 200, 0.1)' : 'rgba(0, 0, 0, 0.7)'
+                        color: props.theme === 'dark' ? 'rgba(200, 200, 200, 0.1)' : 'rgba(120, 120, 120, 0.1)'
                     },
                     beginAtZero: true,
                     ticks: {

@@ -44,7 +44,7 @@
         <div v-if="currentLog" class="node-group-item"
             :style="{ background: theme === 'dark' ? 'rgba(0, 0, 0, 1)' : '' }">
             <p class="info-title">Execution Logs</p>
-            <div class="log-list">
+            <div class="log-list" @wheel.stop>
                 <p v-for="(text, index) in currentLog" :key="index">{{ text }}</p>
             </div>
             <div class="node-row-item" style="gap: 5px">
@@ -297,11 +297,13 @@ const emitUpdateRunValue = (item) => {
         position: relative;
         width: 100%;
         height: auto;
+        max-height: 200px;
         padding: 3px;
         background: black;
         font-size: 8px;
         color: rgba(193, 252, 167, 1);
         border-radius: 3px;
+        overflow: overlay;
     }
 }
 </style>
