@@ -291,7 +291,7 @@ def dataflow_pipeline_execute(pipeline_config: Dict[str, Any], dataflow_runtime:
                             prompt_cls = PROMPT_REGISTRY.get(prompt_cls_name)
                             if not prompt_cls:
                                 raise DataFlowEngineError(
-                                    f"Prompt类未找到: {prompt_cls_name}",
+                                    f"Prompt class not found: {prompt_cls_name}",
                                     context={"operator": op_name, "param": param_name}
                                 )
                             param_value = prompt_cls()
@@ -302,7 +302,7 @@ def dataflow_pipeline_execute(pipeline_config: Dict[str, Any], dataflow_runtime:
                         raise
                     except Exception as e:
                         raise DataFlowEngineError(
-                            f"处理参数失败: {param_name}",
+                            f"Failed to process parameter: {param_name}",
                             context={
                                 "operator": op_name,
                                 "operator_index": op_idx,
@@ -324,7 +324,7 @@ def dataflow_pipeline_execute(pipeline_config: Dict[str, Any], dataflow_runtime:
                 
                 if not operator_cls:
                     raise DataFlowEngineError(
-                        f"Operator类未找到: {operator_cls_name}",
+                        f"Operator class not found: {operator_cls_name}",
                         context={"operator": op_name, "operator_index": op_idx}
                     )
                 
@@ -341,7 +341,7 @@ def dataflow_pipeline_execute(pipeline_config: Dict[str, Any], dataflow_runtime:
             except Exception as e:
                 operators_detail[op_key]["status"] = "failed"
                 raise DataFlowEngineError(
-                    f"初始化Operator失败: {op_name}",
+                    f"Failed to initialize Operator: {op_name}",
                     context={
                         "operator": op_name,
                         "operator_index": op_idx,

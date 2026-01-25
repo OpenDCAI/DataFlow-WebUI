@@ -80,7 +80,7 @@ class DataFlowEngine:
                     all_servings = container.serving_registry._get_all()
                     if not all_servings:
                         raise DataFlowEngineError(
-                            f"没有可用的Serving配置",
+                            f"No available Serving configuration",
                             context={"serving_id": serving_id}
                         )
                     # Get the first serving ID from the dictionary
@@ -92,7 +92,7 @@ class DataFlowEngine:
                     logger.info(f"Using default serving: {first_serving_id}", serving_info)
                 else:
                     raise DataFlowEngineError(
-                        f"Serving配置未找到",
+                        f"Serving configuration not found",
                         context={"serving_id": serving_id}
                     )
             else:
@@ -132,7 +132,7 @@ class DataFlowEngine:
             raise
         except Exception as e:
             raise DataFlowEngineError(
-                f"初始化Serving实例失败",
+                f"Failed to initialize Serving instance",
                 context={
                     "serving_id": serving_id,
                     "serving_info": serving_info if 'serving_info' in locals() else None,
@@ -182,14 +182,14 @@ class DataFlowEngine:
                 
             if not input_dataset_id:
                 raise DataFlowEngineError(
-                    "Pipeline配置缺少input_dataset",
+                    "Pipeline configuration missing input_dataset",
                     context={"pipeline_config": pipeline_config}
                 )
             
             dataset = container.dataset_registry.get(input_dataset_id)
             if not dataset:
                 raise DataFlowEngineError(
-                    f"数据集未找到",
+                    f"Dataset not found",
                     context={"dataset_id": input_dataset_id}
                 )
             
@@ -215,7 +215,7 @@ class DataFlowEngine:
             raise
         except Exception as e:
             raise DataFlowEngineError(
-                "初始化Storage失败",
+                "Failed to initialize Storage",
                 context={
                     "input_dataset": input_dataset_id if 'input_dataset_id' in locals() else None,
                     "dataset": dataset if 'dataset' in locals() else None
@@ -244,7 +244,7 @@ class DataFlowEngine:
                                     all_servings = container.serving_registry._get_all()
                                     if not all_servings:
                                         raise DataFlowEngineError(
-                                            f"没有可用的Serving配置",
+                                            f"No available Serving configuration",
                                             context={"serving_id": serving_id}
                                         )
                                     first_serving_id = next(iter(all_servings))
@@ -252,7 +252,7 @@ class DataFlowEngine:
                                     logger.info(f"Using default serving: {first_serving_id}", serving_info)
                                 else:
                                     raise DataFlowEngineError(
-                                        f"Serving配置未找到",
+                                        f"Serving configuration not found",
                                         context={"serving_id": serving_id}
                                     )
                             else:
@@ -269,7 +269,7 @@ class DataFlowEngine:
                                     all_servings = container.serving_registry._get_all()
                                     if not all_servings:
                                         raise DataFlowEngineError(
-                                            f"没有可用的Serving配置",
+                                            f"No available Serving configuration",
                                             context={"serving_id": serving_id}
                                         )
                                     first_serving_id = list(all_servings.keys())[1]
@@ -277,7 +277,7 @@ class DataFlowEngine:
                                     logger.info(f"Using default serving: {first_serving_id}", serving_info)
                                 else:
                                     raise DataFlowEngineError(
-                                        f"Serving配置未找到",
+                                        f"Serving configuration not found",
                                         context={"serving_id": serving_id}
                                     )
                             else:
@@ -302,7 +302,7 @@ class DataFlowEngine:
                     raise
                 except Exception as e:
                     raise DataFlowEngineError(
-                        f"处理参数失败: {param_name}",
+                        f"Failed to process parameter: {param_name}",
                         context={
                             "operator": op_name,
                             "operator_index": op_idx,
@@ -427,7 +427,7 @@ class DataFlowEngine:
                 raise
             except Exception as e:
                 raise DataFlowEngineError(
-                    "初始化Storage失败",
+                    "Failed to initialize Storage",
                     context={
                         "input_dataset": input_dataset_id if 'input_dataset_id' in locals() else None,
                         "dataset": dataset if 'dataset' in locals() else None
@@ -556,7 +556,7 @@ class DataFlowEngine:
                 except Exception as e:
                     operators_detail[op_key]["status"] = "failed"
                     raise DataFlowEngineError(
-                        f"初始化Operator失败: {op_name}",
+                        f"Failed to initialize Operator: {op_name}",
                         context={
                             "operator": op_name,
                             "operator_index": op_idx,

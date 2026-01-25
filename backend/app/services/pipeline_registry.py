@@ -256,9 +256,9 @@ class PipelineRegistry:
 
     def _init_registry_file(self):
         """
-        确保注册表文件存在，并加载api_pipelines目录中的所有py文件
+        Ensure registry file exists, and load all py files in api_pipelines directory
         """
-        logger.info("初始化Pipeline Registry的注册表和执行结果表...")
+        logger.info("Initializing Pipeline Registry and Execution Result Table...")
 
         # only re-init when the registry file does not exist or this json is empty, like { "pipelines": {} }
         need_init_flag = False
