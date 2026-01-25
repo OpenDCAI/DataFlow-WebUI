@@ -59,21 +59,24 @@ def extract_class_name(value: Any) -> Any:
     return value
 
 
-def parse_and_clean_logs(log_content: str) -> tuple[List[str], Optional[str]]:
+def parse_and_clean_logs(log_content: str) -> tuple[List[str], Optional[str], Optional[float]]:
     """
     Parse logs to extract last progress bar and remove repetitive progress lines.
-    Returns: (cleaned_log_lines, last_progress_info)
+    Returns: (cleaned_log_lines, last_progress_info, last_percentage)
     """
     if not log_content:
-        return [], None
+        return [], None, None
         
     lines = log_content.splitlines()
     cleaned_lines = []
     last_progress = None
+    last_percentage = None
     
     # Regex for typical progress bars (including tqdm):
     # Matches lines with percentage start OR rate info, usually containing a pipe
     progress_pattern = re.compile(r'(\d+%\|)|(it/s)|(s/it)')
+    # Regex to extract numeric percentage (e.g., 45% or 45.5%)
+    percentage_pattern = re.compile(r'(\d+(?:\.\d+)?)%')
     
     for line in lines:
         stripped = line.strip()
@@ -83,10 +86,17 @@ def parse_and_clean_logs(log_content: str) -> tuple[List[str], Optional[str]]:
         # Heuristic: line contains progress indicators AND a pipe (common in tqdm)
         if progress_pattern.search(stripped) and "|" in stripped:
             last_progress = stripped
+            # Try extract percentage
+            match = percentage_pattern.search(stripped)
+            if match:
+                try:
+                    last_percentage = float(match.group(1))
+                except ValueError:
+                    pass
         else:
             cleaned_lines.append(line)
             
-    return cleaned_lines, last_progress
+    return cleaned_lines, last_progress, last_percentage
 
 
 def dataflow_pipeline_execute(pipeline_config: Dict[str, Any], dataflow_runtime: Dict[str, Any], task_id: str, execution_path: str):
@@ -419,16 +429,20 @@ def dataflow_pipeline_execute(pipeline_config: Dict[str, Any], dataflow_runtime:
                     last_progress_info = None
                     
                     if stdout_str:
-                        cleaned_stdout, p_out = parse_and_clean_logs(stdout_str)
+                        cleaned_stdout, p_out, pct_out = parse_and_clean_logs(stdout_str)
                         if p_out:
                             last_progress_info = p_out
+                            if pct_out is not None:
+                                operators_detail[op_key]["progress_percentage"] = pct_out
                         for line in cleaned_stdout:
                             add_log("run", f"[STDOUT] {line}", op_key)
                             
                     if stderr_str:
-                        cleaned_stderr, p_err = parse_and_clean_logs(stderr_str)
+                        cleaned_stderr, p_err, pct_err = parse_and_clean_logs(stderr_str)
                         if p_err:
                             last_progress_info = p_err
+                            if pct_err is not None:
+                                operators_detail[op_key]["progress_percentage"] = pct_err
                         for line in cleaned_stderr:
                             add_log("run", f"[STDERR] {line}", op_key)
 
