@@ -14,6 +14,7 @@ from datetime import datetime
 import traceback
 import io
 import sys
+import re
 from contextlib import redirect_stdout, redirect_stderr
 
 logger = get_logger(__name__)
@@ -56,6 +57,36 @@ def extract_class_name(value: Any) -> Any:
         except (IndexError, AttributeError):
             return value
     return value
+
+
+def parse_and_clean_logs(log_content: str) -> tuple[List[str], Optional[str]]:
+    """
+    Parse logs to extract last progress bar and remove repetitive progress lines.
+    Returns: (cleaned_log_lines, last_progress_info)
+    """
+    if not log_content:
+        return [], None
+        
+    lines = log_content.splitlines()
+    cleaned_lines = []
+    last_progress = None
+    
+    # Regex for typical progress bars (including tqdm):
+    # Matches lines with percentage start OR rate info, usually containing a pipe
+    progress_pattern = re.compile(r'(\d+%\|)|(it/s)|(s/it)')
+    
+    for line in lines:
+        stripped = line.strip()
+        if not stripped:
+            continue
+            
+        # Heuristic: line contains progress indicators AND a pipe (common in tqdm)
+        if progress_pattern.search(stripped) and "|" in stripped:
+            last_progress = stripped
+        else:
+            cleaned_lines.append(line)
+            
+    return cleaned_lines, last_progress
 
 
 def dataflow_pipeline_execute(pipeline_config: Dict[str, Any], dataflow_runtime: Dict[str, Any], task_id: str, execution_path: str):
@@ -384,15 +415,25 @@ def dataflow_pipeline_execute(pipeline_config: Dict[str, Any], dataflow_runtime:
                 finally:
                     stdout_str = f_stdout.getvalue()
                     stderr_str = f_stderr.getvalue()
+
+                    last_progress_info = None
                     
                     if stdout_str:
-                        for line in stdout_str.splitlines():
-                            if line.strip():
-                                add_log("run", f"[STDOUT] {line}", op_key)
+                        cleaned_stdout, p_out = parse_and_clean_logs(stdout_str)
+                        if p_out:
+                            last_progress_info = p_out
+                        for line in cleaned_stdout:
+                            add_log("run", f"[STDOUT] {line}", op_key)
+                            
                     if stderr_str:
-                        for line in stderr_str.splitlines():
-                            if line.strip():
-                                add_log("run", f"[STDERR] {line}", op_key)
+                        cleaned_stderr, p_err = parse_and_clean_logs(stderr_str)
+                        if p_err:
+                            last_progress_info = p_err
+                        for line in cleaned_stderr:
+                            add_log("run", f"[STDERR] {line}", op_key)
+
+                    if last_progress_info:
+                        operators_detail[op_key]["progress"] = last_progress_info
 
                 os.chdir(settings.BASE_DIR)
 
