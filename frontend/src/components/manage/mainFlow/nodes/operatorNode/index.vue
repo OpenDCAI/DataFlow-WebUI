@@ -44,6 +44,8 @@
         <div v-if="currentLog" class="node-group-item"
             :style="{ background: theme === 'dark' ? 'rgba(0, 0, 0, 1)' : '' }">
             <p class="info-title">Execution Logs</p>
+            <fv-progress-bar v-show="currentProgress > -1 && currentProgress < 100" :model-value="currentProgress"
+                :foreground="thisData.borderColor" style="width: 100%; margin: 5px 0px;"></fv-progress-bar>
             <div class="log-list" @wheel.stop>
                 <p v-for="(text, index) in currentLog" :key="index">{{ text }}</p>
             </div>
@@ -251,6 +253,15 @@ const currentLog = computed(() => {
     if (!currentOutput) return null
     return currentOutput || []
 })
+const currentProgress = computed(() => {
+    if (!dataflow.execution) return null
+    if (!dataflow.execution.task_id) return null
+    let currentKey = `${thisData.value.label}_${thisData.value.pipeline_idx - 1}`
+    let currentDetail = dataflow.execution.operators_detail[currentKey]
+    if (!currentDetail) return null
+    if (!currentDetail.progress_percentage) return -1
+    return currentDetail.progress_percentage
+})
 const isOverStep = computed(() => {
     if (!dataflow.execution) return null
     if (!dataflow.execution.task_id) return null
@@ -280,8 +291,9 @@ const downloadData = () => {
     })
 }
 
-onMounted(() => {
-    getNodeDetail()
+onMounted(async () => {
+    await getNodeDetail()
+    syncLoading()
 })
 
 const emitUpdateRunValue = (item) => {

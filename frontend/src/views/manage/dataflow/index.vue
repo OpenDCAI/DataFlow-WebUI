@@ -56,6 +56,12 @@
                                     style="margin-right: 5px"></fv-progress-ring>
                                 <p>{{ this.local('Save & Run') }}</p>
                             </fv-button>
+                            <fv-button v-show="!lock.running && executionInfo.task_id" theme="dark"
+                                background="rgba(200, 38, 95, 0.9)" font-size="10" foreground="rgba(255, 255, 255, 1)"
+                                border-color="whitesmoke" border-radius="30" :title="local('Stop')"
+                                style="width: 30px; height: 30px" @click="stopExecution">
+                                <i class="ms-Icon ms-Icon--StopSolid"></i>
+                            </fv-button>
                             <fv-button theme="dark" background="rgba(191, 95, 95, 0.6)"
                                 foreground="rgba(255, 255, 255, 1)" border-color="whitesmoke" border-radius="30"
                                 :title="local('Delete')" style="width: 30px; height: 30px" @click="resetFlow">
@@ -548,14 +554,14 @@ export default {
                     }
                 })
         },
-        executePipeline() {
+        async executePipeline() {
             if (!this.currentPipeline || !this.currentPipeline.id) {
                 this.$barWarning(this.local('Please select a pipeline'), {
                     status: 'warning'
                 })
                 return
             }
-            this.$api.tasks
+            await this.$api.tasks
                 .execute_pipeline_async(this.currentPipeline.id)
                 .then((res) => {
                     if (res.code === 200) {
@@ -585,8 +591,7 @@ export default {
                 this.lock.running = true
                 return;
             }
-            this.executePipeline()
-            this.lock.running = true
+            await this.executePipeline()
         },
         showExecDetails(pipeline_idx) {
             if (!this.executionInfo.task_id) return
@@ -681,6 +686,24 @@ export default {
                     )
                 }
             }, 3000)
+        },
+        stopExecution() {
+            if (!this.currentPipeline || !this.currentPipeline.config) return
+            if (!this.executionInfo.task_id) return
+            if (this.execution.status !== 'running') {
+                this.$barWarning(this.local('Pipeline execution not running'), {
+                    status: 'warning'
+                })
+                return
+            }
+            this.$api.tasks.kill_execution(this.executionInfo.task_id).then((res) => {
+                if (res.code === 200) {
+                    this.lock.running = true
+                    this.$barWarning(this.local('Pipeline execution stopped'), {
+                        status: 'correct'
+                    })
+                }
+            })
         },
         onConnect(connection) {
             const { source, sourceHandle, target, targetHandle } = connection
