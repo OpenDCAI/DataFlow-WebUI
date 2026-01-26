@@ -116,7 +116,7 @@ class ServingRegistry:
                                 p_type = str(param.annotation)
                         else:
                             p_type = "Any"
-                            
+                                                        
                         # Get default value
                         default_val = None
                         required = True
@@ -132,6 +132,12 @@ class ServingRegistry:
                                 json.dumps(default_val)
                             except:
                                 default_val = str(default_val)
+                        if param.kind == inspect.Parameter.VAR_KEYWORD:
+                            p_type = "dict"
+                            ## default value is {}
+                            default_val = {}
+                            required = False
+
                         
                         params.append({
                             "name": name,
