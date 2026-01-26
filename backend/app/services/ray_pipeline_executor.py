@@ -811,17 +811,18 @@ class RayPipelineExecutor:
         try:
             task_ref = self._task_refs[task_id]
             
-            # 使用 ray.kill() 终止任务
-            ray.kill(task_ref)
+            # force=True 确保即使任务已经在运行也会被强制终止
+            # recursive=True 确保取消所有子任务
+            ray.cancel(task_ref, force=True, recursive=True)
             
             # 从追踪字典中移除
             del self._task_refs[task_id]
             
-            logger.info(f"Successfully killed task {task_id}")
+            logger.info(f"Successfully cancelled task {task_id}")
             return True
             
         except Exception as e:
-            logger.error(f"Failed to kill task {task_id}: {e}")
+            logger.error(f"Failed to cancel task {task_id}: {e}")
             import traceback
             logger.error(traceback.format_exc())
             return False
