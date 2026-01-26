@@ -42,7 +42,7 @@
                 </div>
                 <div class="pipeline-list-block" :class="[{ dark: theme === 'dark' }]">
                     <div v-show="item.show" v-for="(item, index) in filteredPipelines" :key="item.id"
-                        class="pipeline-item" :class="[{ choosen: thisPipeline === item }]"
+                        class="pipeline-item" :class="[{ choosen: thisPipeline && thisPipeline.id === item.id }]"
                         @click="selectPipeline(item)" @contextmenu="showRightMenu($event, item)">
                         <div class="pipeline-item-main">
                             <div class="main-icon" :style="{

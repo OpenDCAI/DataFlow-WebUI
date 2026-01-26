@@ -7,7 +7,7 @@
         <div class="node-row-item">
             <span class="info-title" style="font-size: 13px; color: rgba(52, 199, 89, 1)">{{
                 appConfig.local('Init. Parameters')
-                }}</span>
+            }}</span>
         </div>
         <hr />
         <div v-if="allowedPrompts.length > 0 && isPromptTemplate" class="node-row-item col" @mousedown.stop @click.stop>
@@ -26,11 +26,11 @@
         <div class="node-row-item">
             <span class="info-title" style="font-size: 13px; color: rgba(0, 122, 255, 1)">{{
                 appConfig.local('Run Parameters')
-                }}</span>
+            }}</span>
         </div>
         <hr />
-        <div v-if="thisData.operatorParams" v-for="(item, index) in thisData.operatorParams.run" :key="`run_${index}`"
-            class="node-row-item col">
+        <div v-if="thisData.operatorParams" v-show="hiddenParam(item)"
+            v-for="(item, index) in thisData.operatorParams.run" :key="`run_${index}`" class="node-row-item col">
             <span class="info-title">{{ item.name }}</span>
             <Handle :id="`${item.name}::target::run_key`" type="target" class="handle-item" :position="Position.Left" />
             <Handle :id="`${item.name}::source::run_key`" type="source" class="handle-item"
@@ -164,6 +164,11 @@ const promptTemplateModel = computed({
         }
     }
 })
+const hiddenParam = (item) => {
+    let filter_keys = ['storage'];
+    if (filter_keys.includes(item.name)) return false
+    return true
+}
 
 const loading = ref(false) // for data loading display
 const paramsWrapper = (objs) => {

@@ -1,7 +1,7 @@
 <template>
     <div v-show="thisValue" class="panel-dataset-content-block">
         <fv-Collapse :theme="theme" v-model="show.add" class="db-add-item" icon="Marquee" :title="local('Add Database')"
-            :content="local('Add new Text2SQL database information.')" :disabled-collapse="true" :max-height="'auto'">
+            :content="local('Add new database information.')" :disabled-collapse="true" :max-height="'auto'">
             <template v-slot:icon>
                 <fv-img :src="img.database" style="width: auto; height: 30px; margin: 0px 5px"></fv-img>
             </template>

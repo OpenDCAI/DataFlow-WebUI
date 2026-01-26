@@ -7,7 +7,7 @@
             <mainFlow :id="flowId" v-model:nodes="nodes" v-model:edges="edges" @switch-database="show.dataset = true"
                 @connect="onConnect" @connect-start="onConnectStart" @connect-end="onConnectEnd"
                 @update-run-value="useEdgeSync.syncRunValue($event, flowId)" @show-details="showExecDetails"
-                @download-data="downloadData"></mainFlow>
+                @download-data="downloadData" @click="show.pipeline = false"></mainFlow>
             <div class="control-menu-block">
                 <fv-command-bar :theme="theme" v-model="value" :options="options" :item-border-radius="30"
                     :background="theme === 'dark' ? '' : 'rgba(250, 250, 250, 0.8)'" class="command-bar">
@@ -43,18 +43,18 @@
                                 <i v-show="false" class="ms-Icon"
                                     :class="[`ms-Icon--${currentServing ? 'DialShape4' : 'More'}`]"></i>
                             </fv-button>
-                            <fv-button v-show="!isTemplate" theme="dark"
+                            <fv-button theme="dark"
                                 background="linear-gradient(90deg, rgba(69, 98, 213, 1), rgba(161, 145, 206, 1))"
                                 foreground="rgba(255, 255, 255, 1)" border-color="rgba(255, 255, 255, 0.3)"
                                 border-radius="30" :disabled="!currentPipeline" :reveal-background-color="[
                                     'rgba(255, 255, 255, 0.5)',
                                     'rgba(103, 105, 251, 0.6)'
-                                ]" @click="executePipeline">
+                                ]" style="width: 120px;" @click="handleRunClick">
                                 <i v-show="lock.running" class="ms-Icon ms-Icon--Play" style="margin-right: 5px"></i>
                                 <fv-progress-ring v-show="!lock.running" loading="true" :r="10" :border-width="2"
                                     background="rgba(200, 200, 200, 1)" :color="'white'"
                                     style="margin-right: 5px"></fv-progress-ring>
-                                <p>{{ this.local('Run') }}</p>
+                                <p>{{ this.local('Save & Run') }}</p>
                             </fv-button>
                             <fv-button theme="dark" background="rgba(191, 95, 95, 0.6)"
                                 foreground="rgba(255, 255, 255, 1)" border-color="whitesmoke" border-radius="30"
@@ -440,18 +440,19 @@ export default {
             })
             return nodeOperators
         },
-        handleSaveClick() {
+        async handleSaveClick() {
             if (!this.currentPipeline || !this.currentPipeline.id) {
                 this.show.pipelinePanel = true
-                return
+                return false
             }
             let tags = this.currentPipeline.tags
             if (!Array.isArray(tags)) tags = []
             if (tags.includes('template')) {
                 this.show.pipelinePanel = true
-                return
+                return false
             }
-            this.savePipeline()
+            await this.savePipeline()
+            return true
         },
         async savePipeline() {
             if (!this.sourceDatabase) {
@@ -537,6 +538,9 @@ export default {
                 .then((res) => {
                     if (res.code === 200) {
                         this.getPipelines()
+                        if (!this.currentPipeline || !this.currentPipeline.id || this.isTemplate) {
+                            this.currentPipeline = res.data
+                        }
                         this.$barWarning(this.local('Pipeline has been created'), {
                             status: 'correct'
                         })
@@ -551,13 +555,6 @@ export default {
                 })
                 return
             }
-            if (!this.lock.running) {
-                this.$barWarning(this.local('Please wait for the previous pipeline to finish'), {
-                    status: 'warning'
-                })
-                return
-            }
-            this.lock.running = false
             this.$api.tasks
                 .execute_pipeline_async(this.currentPipeline.id)
                 .then((res) => {
@@ -568,14 +565,28 @@ export default {
                             status: 'correct'
                         })
                     }
-                    this.lock.running = true
                 })
                 .catch((err) => {
                     this.$barWarning(this.local('Pipeline execution failed'), {
                         status: 'error'
                     })
-                    this.lock.running = true
                 })
+        },
+        async handleRunClick() {
+            if (!this.lock.running) {
+                this.$barWarning(this.local('Please wait for the previous pipeline to finish'), {
+                    status: 'warning'
+                })
+                return
+            }
+            this.lock.running = false
+            let isSaved = await this.handleSaveClick()
+            if (!isSaved) {
+                this.lock.running = true
+                return;
+            }
+            this.executePipeline()
+            this.lock.running = true
         },
         showExecDetails(pipeline_idx) {
             if (!this.executionInfo.task_id) return
