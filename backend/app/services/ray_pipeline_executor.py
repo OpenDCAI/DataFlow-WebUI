@@ -626,6 +626,7 @@ class RayPipelineExecutor:
         self.max_concurrency = max_concurrency
         self._initialized = False
         self._semaphore = None
+        self._task_refs: Dict[str, ray.ObjectRef] = {}
         logger.info(f"RayPipelineExecutor initialized with max_concurrency={max_concurrency}")
     
     def _ensure_initialized(self):
@@ -801,6 +802,9 @@ class RayPipelineExecutor:
                 pipeline_execution_path
             )
             
+            # 保存任务引用，用于后续kill操作
+            self._task_refs[task_id] = future
+            
             logger.info(f"Pipeline execution submitted: {task_id}, future: {future}")
             logger.info(f"Ray cluster resources: {ray.cluster_resources()}")
             logger.info(f"Ray available resources: {ray.available_resources()}")
@@ -844,6 +848,39 @@ class RayPipelineExecutor:
             ray.shutdown()
             self._initialized = False
             logger.info("Ray shutdown completed")
+
+    def kill_execution(self, task_id: str) -> bool:
+        """
+        终止指定的 Pipeline 执行任务
+        
+        Args:
+            task_id: 执行 ID
+        
+        Returns:
+            是否成功终止
+        """
+        if task_id not in self._task_refs:
+            logger.warning(f"Task {task_id} not found in tracked tasks")
+            return False
+        
+        try:
+            task_ref = self._task_refs[task_id]
+            
+            # force=True 确保即使任务已经在运行也会被强制终止
+            # recursive=True 确保取消所有子任务
+            ray.cancel(task_ref, force=True, recursive=True)
+            
+            # 从追踪字典中移除
+            del self._task_refs[task_id]
+            
+            logger.info(f"Successfully cancelled task {task_id}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to cancel task {task_id}: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
+            return False
 
 
 # 创建全局 Ray 执行器实例
