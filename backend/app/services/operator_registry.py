@@ -92,7 +92,7 @@ def _call_get_desc_static(cls: type, lang: str = "zh") -> str | None:
     return "N/A (Call failed)"
 
 def _gather_single_operator(
-    op_name: str, cls: type, node_index: int
+    op_name: str, cls: type, node_index: int, lang: str = "zh"
 ) -> Tuple[str, Dict[str, Any]]:
     """
     收集单个算子的全部详细信息，用于生成缓存。
@@ -105,7 +105,7 @@ def _gather_single_operator(
             category = parts[2]
 
     # 2) 描述 (使用 staticmethod 逻辑)
-    description = _call_get_desc_static(cls, lang="zh") or ""
+    description = _call_get_desc_static(cls, lang=lang) or ""
 
     # 3) 简化信息里也有的 type（三级分类）和 allowed_prompts
     op_type_category = OPERATOR_REGISTRY.get_type_of_objects().get(op_name, "Unknown/Unknown")
@@ -202,12 +202,12 @@ class OperatorRegistry:
         return op_list
     
 
-    def dump_ops_to_json(self) -> Dict[str, List[Dict[str, Any]]]:
+    def dump_ops_to_json(self, lang: str = "zh") -> Dict[str, List[Dict[str, Any]]]:
         """
-        Execute a full operator scan, including detailed parameters, and write to ops.json cache file.
-        This is a time-consuming operation.
+        执行一次完整的算子扫描，包含详细参数，并写入 ops_{lang}.json 缓存文件。
+        这是一个耗时操作。
         """
-        log.info(f"Scanning operators (dump_ops_to_json) to generate {OPS_JSON_PATH} ...")
+        log.info(f"开始扫描算子 (dump_ops_to_json)，生成 {OPS_JSON_PATH.with_suffix(f'.{lang}.json')} ...")
         
         all_ops: Dict[str, List[Dict[str, Any]]] = {}
         default_bucket: List[Dict[str, Any]] = []
@@ -216,7 +216,7 @@ class OperatorRegistry:
         # 使用 __init__ 中加载好的 op_obj_map
         for op_name, cls in self.op_obj_map.items():
             # 调用私有辅助函数 _gather_single_operator
-            category, info = _gather_single_operator(op_name, cls, idx)
+            category, info = _gather_single_operator(op_name, cls, idx, lang=lang)
             
             all_ops.setdefault(category, []).append(info)   
             default_bucket.append(info)                     
@@ -227,16 +227,16 @@ class OperatorRegistry:
         # 确保目录存在
         RESOURCE_DIR.mkdir(parents=True, exist_ok=True)
         try:
-            with open(OPS_JSON_PATH, "w", encoding="utf-8") as f:
+            with open(OPS_JSON_PATH.with_suffix(f'.{lang}.json'), "w", encoding="utf-8") as f:
                 json.dump(all_ops, f, ensure_ascii=False, indent=2)
-            log.info(f"Operator info successfully written to {OPS_JSON_PATH} ({len(default_bucket)} records)")
+            log.info(f"算子信息已成功写入 {OPS_JSON_PATH.with_suffix(f'.{lang}.json')} (共 {len(default_bucket)} 个)")
         except Exception as e:
-            log.error(f"Failed to write {OPS_JSON_PATH}: {e}")
-            raise # Throw exception to be caught by API layer
+            log.error(f"写入 {OPS_JSON_PATH.with_suffix(f'.{lang}.json')} 失败: {e}")
+            raise # 抛出异常，让 API 层捕获
 
         return all_ops
 
-    def get_op_details(self, op_name: str) -> Optional[Dict[str, Any]]:
+    def get_op_details(self, op_name: str, lang: str = "zh") -> Optional[Dict[str, Any]]:
         """获取单个算子的详细信息 (包含参数默认值)"""
         cls = self.op_obj_map.get(op_name)
         if not cls:
@@ -244,5 +244,5 @@ class OperatorRegistry:
         
         # 使用模块内的 _gather_single_operator 函数
         # 注意：_gather_single_operator 需要 node_index，这里可以传 0 或 -1
-        category, info = _gather_single_operator(op_name, cls, -1)
+        category, info = _gather_single_operator(op_name, cls, -1, lang=lang)
         return info

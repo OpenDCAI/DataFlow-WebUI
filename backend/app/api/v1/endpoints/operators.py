@@ -26,10 +26,10 @@ router = APIRouter(tags=["operators"])
     operation_id="list_operators", 
     summary="Return list of registered operators (simplified)"
 )
-def list_operators():
+def list_operators(lang: str = "zh"):
     """Return all registered operators (simplified version)."""
     try:
-        op_list = container.operator_registry.get_op_list()
+        op_list = container.operator_registry.get_op_list(lang=lang)
         return ok(op_list)
     except Exception as e:
         log.error(f"Failed to get operator list: {e}")
@@ -42,17 +42,18 @@ def list_operators():
     operation_id="list_operators_details", 
     summary="Return all operator details (generated on first scan, then read from cache)"
 )
-def list_operators_details():
+def list_operators_details(lang: str = "zh"):
     """
     If cache file ops.json is missing, trigger operator scan and generate cache;
     If exists, read directly from cache and return detailed operator list.
     """
     try:
-        if not OPS_JSON_PATH.exists():
+        ops_json_path = OPS_JSON_PATH.with_suffix(f'.{lang}.json')
+        if not ops_json_path.exists():
             log.info("ops.json cache file not found, triggering automatic operator scan and generation...")
-            ops_data = container.operator_registry.dump_ops_to_json()
+            ops_data = container.operator_registry.dump_ops_to_json(lang=lang)
         else:
-            with open(OPS_JSON_PATH, "r", encoding="utf-8") as f:
+            with open(ops_json_path, "r", encoding="utf-8") as f:
                 ops_data = json.load(f)
 
         return ok(ops_data)
@@ -70,7 +71,7 @@ def list_operators_details():
     operation_id="get_operator_detail_by_name",
     summary="Get single operator details by name",
 )
-def get_operator_detail_by_name(op_name: str):
+def get_operator_detail_by_name(op_name: str, lang: str = "zh"):
     """Get detailed info for a single operator by name.
 
     Logic consistent with /details:
@@ -78,12 +79,13 @@ def get_operator_detail_by_name(op_name: str):
     - Then match name in all buckets and return.
     """
     try:
-        # Ensure cache exists
-        if not OPS_JSON_PATH.exists():
+        # 确保缓存存在
+        ops_json_path = OPS_JSON_PATH.with_suffix(f'.{lang}.json')
+        if not ops_json_path.exists():
             log.info("ops.json cache file not found, triggering automatic operator scan and generation...")
-            ops_data = container.operator_registry.dump_ops_to_json()
+            ops_data = container.operator_registry.dump_ops_to_json(lang=lang)
         else:
-            with open(OPS_JSON_PATH, "r", encoding="utf-8") as f:
+            with open(ops_json_path, "r", encoding="utf-8") as f:
                 ops_data = json.load(f)
 
         # 在所有 bucket 中查找指定算子
