@@ -15,6 +15,7 @@ import traceback
 import io
 import sys
 import re
+import time
 from contextlib import redirect_stdout, redirect_stderr
 
 logger = get_logger(__name__)
@@ -36,6 +37,61 @@ class DataFlowEngineError(Exception):
             "original_error": str(self.original_error) if self.original_error else None,
             "traceback": self.traceback_str
         }
+
+class LogStream(io.StringIO):
+    """
+    Custom stream to capture stdout/stderr in real-time, 
+    parse progress bars, and update execution status.
+    """
+    def __init__(self, op_key: str, operators_detail: Dict, operator_logs: Dict, update_func: callable, add_log_func: callable):
+        super().__init__()
+        self.op_key = op_key
+        self.operators_detail = operators_detail
+        self.operator_logs = operator_logs
+        self.update_func = update_func
+        self.add_log_func = add_log_func
+        
+        self.last_update_time = 0
+        self.update_interval = 0.5 # Update at most every 0.5s
+        
+        # Regex reusing from parse_and_clean_logs, but adaptable for fragments
+        self.progress_pattern = re.compile(r'(\d+%\|)|(it/s)|(s/it)')
+        self.percentage_pattern = re.compile(r'(\d+(?:\.\d+)?)%')
+        
+    def write(self, s: str):
+        # Write to internal buffer (standard StringIO behavior)
+        super().write(s)
+        
+        if "\r" in s or self.progress_pattern.search(s):
+            self._process_progress(s)
+            
+    def _process_progress(self, text: str): 
+        match = self.percentage_pattern.search(text)
+        if match:
+            try:
+                pct = float(match.group(1))
+                # Update in-memory dict
+                self.operators_detail[self.op_key]["progress_percentage"] = pct
+                
+                # Also try to capture the full progress line for "progress" field
+                # If text contains "it/s" or "|", use it as description
+                if "|" in text:
+                   # Clean up CRs for clean storage
+                   clean_text = text.replace('\r', '').strip()
+                   if clean_text:
+                       self.operators_detail[self.op_key]["progress"] = clean_text[-100:] # Keep last 100 chars to avoid huge strings
+                
+                # Throttle disk updates
+                now = time.time()
+                if now - self.last_update_time > self.update_interval:
+                    self.update_func("running", {
+                        "operators_detail": self.operators_detail,
+                        "operators_detail": self.operators_detail
+                    })
+                    self.last_update_time = now
+            except ValueError:
+                pass
+
 
 
 def extract_class_name(value: Any) -> Any:
@@ -416,8 +472,9 @@ def dataflow_pipeline_execute(pipeline_config: Dict[str, Any], dataflow_runtime:
                 os.chdir(api_pipeline_path)
                 
                 # ✅ 捕获 stdout/stderr
-                f_stdout = io.StringIO()
-                f_stderr = io.StringIO()
+                # 使用自定义 LogStream 以支持实时进度捕获
+                f_stdout = LogStream(op_key, operators_detail, operator_logs, update_execution_status, add_log)
+                f_stderr = LogStream(op_key, operators_detail, operator_logs, update_execution_status, add_log)
                 
                 try:    
                     with redirect_stdout(f_stdout), redirect_stderr(f_stderr):
