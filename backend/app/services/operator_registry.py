@@ -54,7 +54,7 @@ def _get_method_params(
             params = params[1:]
         return [_param_to_dict(p) for p in params]
     except Exception as e:
-        log.warning(f"获取方法 {method} 参数出错: {e}")
+        log.warning(f"Error getting method {method} parameters: {e}")
         return []
         
 def _call_get_desc_static(cls: type, lang: str = "zh") -> str | None:
@@ -87,9 +87,9 @@ def _call_get_desc_static(cls: type, lang: str = "zh") -> str | None:
         # --- 变更结束 ---
 
     except Exception as e:
-        log.warning(f"调用 {cls.__name__}.get_desc 失败: {e}")
+        log.warning(f"Failed to call {cls.__name__}.get_desc: {e}")
     
-    return "N/A (调用失败)"
+    return "N/A (Call failed)"
 
 def _gather_single_operator(
     op_name: str, cls: type, node_index: int
@@ -152,7 +152,7 @@ class OperatorRegistry:
         self._op_registry = OPERATOR_REGISTRY
         self._prompt_registry = PROMPT_REGISTRY
         
-        log.info("初始化 OperatorRegistry，开始加载所有算子...")
+        log.info("Initializing OperatorRegistry, loading all operators...")
         if hasattr(self._op_registry, "_init_loaders"):
             self._op_registry._init_loaders()
         if hasattr(self._op_registry, "_get_all"):
@@ -160,7 +160,7 @@ class OperatorRegistry:
         
         self.op_obj_map = self._op_registry.get_obj_map()
         self.op_to_type = self._op_registry.get_type_of_objects()
-        log.info(f"加载完成，共 {len(self.op_obj_map)} 个算子。")
+        log.info(f"Loaded {len(self.op_obj_map)} operators.")
 
 
     def get_op_list(self, lang: str = "zh") -> list[dict]:
@@ -204,10 +204,10 @@ class OperatorRegistry:
 
     def dump_ops_to_json(self) -> Dict[str, List[Dict[str, Any]]]:
         """
-        执行一次完整的算子扫描，包含详细参数，并写入 ops.json 缓存文件。
-        这是一个耗时操作。
+        Execute a full operator scan, including detailed parameters, and write to ops.json cache file.
+        This is a time-consuming operation.
         """
-        log.info(f"开始扫描算子 (dump_ops_to_json)，生成 {OPS_JSON_PATH} ...")
+        log.info(f"Scanning operators (dump_ops_to_json) to generate {OPS_JSON_PATH} ...")
         
         all_ops: Dict[str, List[Dict[str, Any]]] = {}
         default_bucket: List[Dict[str, Any]] = []
@@ -229,10 +229,10 @@ class OperatorRegistry:
         try:
             with open(OPS_JSON_PATH, "w", encoding="utf-8") as f:
                 json.dump(all_ops, f, ensure_ascii=False, indent=2)
-            log.info(f"算子信息已成功写入 {OPS_JSON_PATH} (共 {len(default_bucket)} 个)")
+            log.info(f"Operator info successfully written to {OPS_JSON_PATH} ({len(default_bucket)} records)")
         except Exception as e:
-            log.error(f"写入 {OPS_JSON_PATH} 失败: {e}")
-            raise # 抛出异常，让 API 层捕获
+            log.error(f"Failed to write {OPS_JSON_PATH}: {e}")
+            raise # Throw exception to be caught by API layer
 
         return all_ops
 

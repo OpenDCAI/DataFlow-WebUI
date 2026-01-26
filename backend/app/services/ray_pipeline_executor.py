@@ -14,6 +14,7 @@ from datetime import datetime
 import traceback
 import io
 import sys
+import re
 from contextlib import redirect_stdout, redirect_stderr
 
 logger = get_logger(__name__)
@@ -56,6 +57,46 @@ def extract_class_name(value: Any) -> Any:
         except (IndexError, AttributeError):
             return value
     return value
+
+
+def parse_and_clean_logs(log_content: str) -> tuple[List[str], Optional[str], Optional[float]]:
+    """
+    Parse logs to extract last progress bar and remove repetitive progress lines.
+    Returns: (cleaned_log_lines, last_progress_info, last_percentage)
+    """
+    if not log_content:
+        return [], None, None
+        
+    lines = log_content.splitlines()
+    cleaned_lines = []
+    last_progress = None
+    last_percentage = None
+    
+    # Regex for typical progress bars (including tqdm):
+    # Matches lines with percentage start OR rate info, usually containing a pipe
+    progress_pattern = re.compile(r'(\d+%\|)|(it/s)|(s/it)')
+    # Regex to extract numeric percentage (e.g., 45% or 45.5%)
+    percentage_pattern = re.compile(r'(\d+(?:\.\d+)?)%')
+    
+    for line in lines:
+        stripped = line.strip()
+        if not stripped:
+            continue
+            
+        # Heuristic: line contains progress indicators AND a pipe (common in tqdm)
+        if progress_pattern.search(stripped) and "|" in stripped:
+            last_progress = stripped
+            # Try extract percentage
+            match = percentage_pattern.search(stripped)
+            if match:
+                try:
+                    last_percentage = float(match.group(1))
+                except ValueError:
+                    pass
+        else:
+            cleaned_lines.append(line)
+            
+    return cleaned_lines, last_progress, last_percentage
 
 
 def dataflow_pipeline_execute(pipeline_config: Dict[str, Any], dataflow_runtime: Dict[str, Any], task_id: str, execution_path: str):
@@ -291,7 +332,7 @@ def dataflow_pipeline_execute(pipeline_config: Dict[str, Any], dataflow_runtime:
                             prompt_cls = PROMPT_REGISTRY.get(prompt_cls_name)
                             if not prompt_cls:
                                 raise DataFlowEngineError(
-                                    f"Prompt类未找到: {prompt_cls_name}",
+                                    f"Prompt class not found: {prompt_cls_name}",
                                     context={"operator": op_name, "param": param_name}
                                 )
                             param_value = prompt_cls()
@@ -302,7 +343,7 @@ def dataflow_pipeline_execute(pipeline_config: Dict[str, Any], dataflow_runtime:
                         raise
                     except Exception as e:
                         raise DataFlowEngineError(
-                            f"处理参数失败: {param_name}",
+                            f"Failed to process parameter: {param_name}",
                             context={
                                 "operator": op_name,
                                 "operator_index": op_idx,
@@ -324,7 +365,7 @@ def dataflow_pipeline_execute(pipeline_config: Dict[str, Any], dataflow_runtime:
                 
                 if not operator_cls:
                     raise DataFlowEngineError(
-                        f"Operator类未找到: {operator_cls_name}",
+                        f"Operator class not found: {operator_cls_name}",
                         context={"operator": op_name, "operator_index": op_idx}
                     )
                 
@@ -341,7 +382,7 @@ def dataflow_pipeline_execute(pipeline_config: Dict[str, Any], dataflow_runtime:
             except Exception as e:
                 operators_detail[op_key]["status"] = "failed"
                 raise DataFlowEngineError(
-                    f"初始化Operator失败: {op_name}",
+                    f"Failed to initialize Operator: {op_name}",
                     context={
                         "operator": op_name,
                         "operator_index": op_idx,
@@ -384,15 +425,29 @@ def dataflow_pipeline_execute(pipeline_config: Dict[str, Any], dataflow_runtime:
                 finally:
                     stdout_str = f_stdout.getvalue()
                     stderr_str = f_stderr.getvalue()
+
+                    last_progress_info = None
                     
                     if stdout_str:
-                        for line in stdout_str.splitlines():
-                            if line.strip():
-                                add_log("run", f"[STDOUT] {line}", op_key)
+                        cleaned_stdout, p_out, pct_out = parse_and_clean_logs(stdout_str)
+                        if p_out:
+                            last_progress_info = p_out
+                            if pct_out is not None:
+                                operators_detail[op_key]["progress_percentage"] = pct_out
+                        for line in cleaned_stdout:
+                            add_log("run", f"[STDOUT] {line}", op_key)
+                            
                     if stderr_str:
-                        for line in stderr_str.splitlines():
-                            if line.strip():
-                                add_log("run", f"[STDERR] {line}", op_key)
+                        cleaned_stderr, p_err, pct_err = parse_and_clean_logs(stderr_str)
+                        if p_err:
+                            last_progress_info = p_err
+                            if pct_err is not None:
+                                operators_detail[op_key]["progress_percentage"] = pct_err
+                        for line in cleaned_stderr:
+                            add_log("run", f"[STDERR] {line}", op_key)
+
+                    if last_progress_info:
+                        operators_detail[op_key]["progress"] = last_progress_info
 
                 os.chdir(settings.BASE_DIR)
 

@@ -23,11 +23,11 @@ def register_dataset(payload: DatasetIn):
         raise HTTPException(400, f"Failed to register dataset: {e}")
     return created(ds)
 
-@router.get("/list_dir", response_model=ApiResponse[list[dict]], operation_id="listDir", summary="列出目录下的文件, 且判定是否为文件夹")
+@router.get("/list_dir", response_model=ApiResponse[list[dict]], operation_id="listDir", summary="List files in directory")
 def list_dir(path: str):
-    """列出目录下的文件, 且判定是否为文件夹"""
+    """List files in directory and check if they are folders"""
     if not os.path.exists(path):
-        raise HTTPException(400, "目录不存在")
+        raise HTTPException(400, "Directory not found")
     files = os.listdir(path)
     res = []
     for file in files:
