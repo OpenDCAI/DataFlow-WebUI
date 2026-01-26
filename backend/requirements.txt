@@ -1,0 +1,6 @@
+fastapi[standard]
+uvicorn[standard]
+pydantic_settings
+pandas
+loguru
+ray
