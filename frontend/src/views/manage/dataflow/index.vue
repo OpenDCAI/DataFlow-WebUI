@@ -664,7 +664,6 @@ export default {
         },
         async handleWatchExecution({ task_id }) {
             this.executionInfo.task_id = task_id
-            clearInterval(this.timer.exec)
             await this.getExecution(this.executionInfo.task_id)
             await this.selectExecutionPipeline(this.execution.pipeline_config)
             this.watchExecution()
@@ -672,8 +671,8 @@ export default {
         watchExecution() {
             if (!this.executionInfo.task_id) return
             clearInterval(this.timer.exec)
-            this.timer.exec = setInterval(() => {
-                this.getExecution(this.executionInfo.task_id)
+            this.timer.exec = setInterval(async () => {
+                await this.getExecution(this.executionInfo.task_id)
                 this.lock.running = false
                 if (this.execution.status === 'completed') {
                     clearInterval(this.timer.exec)
