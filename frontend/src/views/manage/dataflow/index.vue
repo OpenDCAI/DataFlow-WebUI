@@ -672,6 +672,9 @@ export default {
                 if (this.execution.status === 'completed') {
                     clearInterval(this.timer.exec)
                     this.lock.running = true
+                } else if (this.execution.status === "cancelled") {
+                    clearInterval(this.timer.exec)
+                    this.lock.running = true
                 } else if (this.execution.status === 'failed') {
                     clearInterval(this.timer.exec)
                     this.lock.running = true
