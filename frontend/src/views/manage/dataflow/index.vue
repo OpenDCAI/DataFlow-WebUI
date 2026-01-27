@@ -457,15 +457,14 @@ export default {
                 this.show.pipelinePanel = true
                 return false
             }
-            await this.savePipeline()
-            return true
+            return await this.savePipeline()
         },
         async savePipeline() {
             if (!this.sourceDatabase) {
                 this.$barWarning(this.local('Please select a dataset'), {
                     status: 'warning'
                 })
-                return
+                return false
             }
             let cancel = false
             if (this.executionInfo.task_id) {
@@ -488,11 +487,11 @@ export default {
                     )
                 })
             }
-            if (cancel) return
+            if (cancel) return false
             let nodeOperators = this.sortPipeline()
             const flow = useVueFlow(this.flowId)
             let dbNode = flow.findNode('db-node')
-            this.$api.pipelines
+            await this.$api.pipelines
                 .update_pipeline(this.currentPipeline.id, {
                     name: this.currentPipeline.name,
                     config: {
@@ -512,6 +511,12 @@ export default {
                         })
                     }
                 })
+                .catch((err) => {
+                    this.$barWarning(this.local('Pipeline update failed'), {
+                        status: 'error'
+                    })
+                })
+            return true
         },
         addPipeline(name) {
             if (!this.sourceDatabase) {
@@ -659,6 +664,7 @@ export default {
         },
         async handleWatchExecution({ task_id }) {
             this.executionInfo.task_id = task_id
+            clearInterval(this.timer.exec)
             await this.getExecution(this.executionInfo.task_id)
             await this.selectExecutionPipeline(this.execution.pipeline_config)
             this.watchExecution()
