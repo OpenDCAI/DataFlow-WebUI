@@ -25,7 +25,11 @@
                     </div>
                 </template>
             </fv-navigation-view>
-            <router-view></router-view>
+            <router-view v-slot="{ Component }">
+                <KeepAlive>
+                    <component :is="Component" />
+                </KeepAlive>
+            </router-view>
         </div>
     </div>
 </template>

@@ -1,5 +1,5 @@
 <template>
-    <basePanel v-model="thisValue" :title="title" width="clamp(350px, 90%, 1200px)" height="clamp(500px, 90%, 800px)"
+    <basePanel v-model="thisValue" :title="title" width="clamp(350px, 90%, 1600px)" height="clamp(500px, 90%, 800px)"
         :theme="theme" :teleport="true">
         <template v-slot:content>
             <div class="panel-result-content-block">

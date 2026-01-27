@@ -31,6 +31,7 @@ class ExecutionStatus(str, Enum):
     running = "running"
     completed = "completed"
     failed = "failed"
+    cancelled = "cancelled"
 
 
 class PipelineOperator(BaseModel): # 画布上的pipeline类

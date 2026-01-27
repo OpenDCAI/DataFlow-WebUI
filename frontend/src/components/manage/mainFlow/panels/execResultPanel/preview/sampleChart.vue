@@ -3,7 +3,9 @@ import { onMounted, onBeforeUnmount, watch, ref } from 'vue'
 import {
     Chart,
     LineController,
+    BarController,
     LineElement,
+    BarElement,
     PointElement,
     LinearScale,
     CategoryScale,
@@ -13,7 +15,9 @@ import {
 // 注册必须组件（Tree Shaking 需要）
 Chart.register(
     LineController,
+    BarController,
     LineElement,
+    BarElement,
     PointElement,
     LinearScale,
     CategoryScale,
@@ -37,7 +41,6 @@ const props = defineProps({
 
 watch(() => props.rawData, (newVal, oldVal) => {
     if (newVal === oldVal) return
-
     chartInstance?.destroy()
     updateChart()
 })
@@ -46,26 +49,47 @@ function updateChart() {
     const steps = Object.values(props.rawData)
         .sort((a, b) => a.index - b.index)
 
-    const labels = steps.map(i => `Step ${i.index}`)
+    const labels = steps.map(i => `S${i.index + 1}: ${i.name}`)
     const values = steps.map(i => i.sample_count)
 
+    function genColorByIndex(index, alpha = 0.3) {
+        const hue = (index * 47) % 360   // 47 是经验值，分布很均匀
+        return `hsla(${hue}, 70%, 55%, ${alpha})`
+    }
+    const barColors = steps.map((_, idx) =>
+        genColorByIndex(idx, 0.35)
+    )
+
     chartInstance = new Chart(canvasRef.value, {
-        type: 'line',
         data: {
             labels,
             datasets: [
+                // ================= 柱状图 =================
                 {
+                    type: 'bar',
                     label: props.label,
                     data: values,
-                    tension: 0.4,     // 平滑曲线
-                    fill: true,       // 填充面积
-                    borderColor: '#4F46E5',        // 折线颜色
-                    backgroundColor: 'rgba(79, 70, 229, 0.15)', // 填充区域
+                    backgroundColor: barColors,
+                    borderRadius: 6,
+                    barThickness: 30,
+                    maxBarThickness: 36,
+                    order: 1
+                },
+
+                // ================= 折线图 =================
+                {
+                    type: 'line',
+                    label: props.label,
+                    data: values,
+                    tension: 0.4,
+                    fill: false,
+                    borderColor: '#4F46E5',
                     pointBackgroundColor: '#4F46E5',
                     pointBorderColor: '#ffffff',
                     pointRadius: 4,
                     pointHoverRadius: 6,
-                    borderWidth: 2
+                    borderWidth: 2,
+                    order: 2
                 }
             ]
         },
@@ -82,7 +106,7 @@ function updateChart() {
                     callbacks: {
                         title: ctx => {
                             const step = steps[ctx[0].dataIndex]
-                            return `Step: ${step.index}\n${step.name}`
+                            return `Step: ${step.index + 1}\n${step.name}`
                         },
                         label: ctx => `Samples: ${ctx.parsed.y}`
                     }
@@ -91,21 +115,36 @@ function updateChart() {
             scales: {
                 x: {
                     grid: {
-                        color: props.theme === 'dark' ? 'rgba(200, 200, 200, 0.1)' : 'rgba(0, 0, 0, 0.7)'
+                        color: props.theme === 'dark'
+                            ? 'rgba(200, 200, 200, 0.1)'
+                            : 'rgba(120, 120, 120, 0.1)'
                     },
                     ticks: {
-                        maxRotation: 30,
-                        minRotation: 30,
-                        color: props.theme === 'dark' ? 'whitesmoke' : 'rgba(0, 0, 0, 0.7)'
+                        maxRotation: 0,
+                        minRotation: 0,
+                        color: props.theme === 'dark'
+                            ? 'whitesmoke'
+                            : 'rgba(0, 0, 0, 0.7)',
+                        callback: function (value) {
+                            const label = this.getLabelForValue(value)
+                            const maxLen = 16
+                            return label.length > maxLen
+                                ? label.slice(0, maxLen) + '…'
+                                : label
+                        }
                     }
                 },
                 y: {
-                    grid: {
-                        color: props.theme === 'dark' ? 'rgba(200, 200, 200, 0.1)' : 'rgba(0, 0, 0, 0.7)'
-                    },
                     beginAtZero: true,
+                    grid: {
+                        color: props.theme === 'dark'
+                            ? 'rgba(200, 200, 200, 0.1)'
+                            : 'rgba(120, 120, 120, 0.1)'
+                    },
                     ticks: {
-                        color: props.theme === 'dark' ? 'whitesmoke' : 'rgba(0, 0, 0, 0.7)'
+                        color: props.theme === 'dark'
+                            ? 'whitesmoke'
+                            : 'rgba(0, 0, 0, 0.7)'
                     }
                 }
             }

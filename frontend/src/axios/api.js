@@ -112,7 +112,7 @@ export class datasets {
   }
  
   /**
-  * @summary 列出目录下的文件, 且判定是否为文件夹
+  * @summary List files in directory
   * @param {String} [path] 
   * @param {CancelTokenSource} [cancelSource] Axios Cancel Source 对象，可以取消该请求
   * @param {Function} [uploadProgress] 上传回调函数
@@ -609,19 +609,20 @@ datasets.upload_dataset.path=`/api/v1/datasets/upload`
 export class operators {
  
   /**
-  * @summary 返回注册算子列表 (简化版)
+  * @summary Return list of registered operators (simplified)
+  * @param {String} [lang] 
   * @param {CancelTokenSource} [cancelSource] Axios Cancel Source 对象，可以取消该请求
   * @param {Function} [uploadProgress] 上传回调函数
   * @param {Function} [downloadProgress] 下载回调函数
   */
-  static async list_operators(cancelSource,uploadProgress,downloadProgress){
+  static async list_operators(lang,cancelSource,uploadProgress,downloadProgress){
     return await new Promise((resolve,reject)=>{
       let responseType = "json";
       let options = {
         method:'get',
         url:'/api/v1/operators/',
         data:{},
-        params:{},
+        params:{lang},
         headers:{
           "Content-Type":""
         },
@@ -659,19 +660,20 @@ export class operators {
   }
  
   /**
-  * @summary 返回所有算子详细信息 (首次扫描生成，其后从缓存读取)
+  * @summary Return all operator details (generated on first scan, then read from cache)
+  * @param {String} [lang] 
   * @param {CancelTokenSource} [cancelSource] Axios Cancel Source 对象，可以取消该请求
   * @param {Function} [uploadProgress] 上传回调函数
   * @param {Function} [downloadProgress] 下载回调函数
   */
-  static async list_operators_details(cancelSource,uploadProgress,downloadProgress){
+  static async list_operators_details(lang,cancelSource,uploadProgress,downloadProgress){
     return await new Promise((resolve,reject)=>{
       let responseType = "json";
       let options = {
         method:'get',
         url:'/api/v1/operators/details',
         data:{},
-        params:{},
+        params:{lang},
         headers:{
           "Content-Type":""
         },
@@ -709,20 +711,21 @@ export class operators {
   }
  
   /**
-  * @summary 根据算子名称返回单个算子的详细信息
+  * @summary Get single operator details by name
   * @param {String} [pathop_name] 
+  * @param {String} [lang] 
   * @param {CancelTokenSource} [cancelSource] Axios Cancel Source 对象，可以取消该请求
   * @param {Function} [uploadProgress] 上传回调函数
   * @param {Function} [downloadProgress] 下载回调函数
   */
-  static async get_operator_detail_by_name(pathop_name,cancelSource,uploadProgress,downloadProgress){
+  static async get_operator_detail_by_name(pathop_name,lang,cancelSource,uploadProgress,downloadProgress){
     return await new Promise((resolve,reject)=>{
       let responseType = "json";
       let options = {
         method:'get',
         url:'/api/v1/operators/details/'+pathop_name+'',
         data:{},
-        params:{},
+        params:{lang},
         headers:{
           "Content-Type":""
         },
@@ -1147,6 +1150,57 @@ export class tasks {
       })
     })
   }
+ 
+  /**
+  * @summary 终止Pipeline执行
+  * @param {String} [pathtask_id] 
+  * @param {CancelTokenSource} [cancelSource] Axios Cancel Source 对象，可以取消该请求
+  * @param {Function} [uploadProgress] 上传回调函数
+  * @param {Function} [downloadProgress] 下载回调函数
+  */
+  static async kill_execution(pathtask_id,cancelSource,uploadProgress,downloadProgress){
+    return await new Promise((resolve,reject)=>{
+      let responseType = "json";
+      let options = {
+        method:'post',
+        url:'/api/v1/tasks/execution/'+pathtask_id+'/kill',
+        data:{},
+        params:{},
+        headers:{
+          "Content-Type":""
+        },
+        onUploadProgress:uploadProgress,
+        onDownloadProgress:downloadProgress
+      }
+      // support wechat mini program
+      if (cancelSource!=undefined){
+        options.cancelToken = cancelSource.token
+      }
+      if (responseType != "json"){
+        options.responseType = responseType;
+      }
+      axios(options)
+      .then(res=>{
+        if (res.config.responseType=="blob"){
+          resolve(new Blob([res.data],{
+            type: res.headers["content-type"].split(";")[0]
+          }))
+        }else{
+          resolve(res.data);
+          return res.data
+        }
+      }).catch(err=>{
+        if (err.response){
+          if (err.response.data)
+            reject(err.response.data)
+          else
+            reject(err.response);
+        }else{
+          reject(err)
+        }
+      })
+    })
+  }
 }
 
 // class tasks static method properties bind
@@ -1206,6 +1260,14 @@ tasks.execute_pipeline_async.fullPath=`${axios.defaults.baseURL}/api/v1/tasks/ex
 * @description execute_pipeline_async url链接，不包含baseURL
 */
 tasks.execute_pipeline_async.path=`/api/v1/tasks/execute-async`
+/**
+* @description kill_execution url链接，包含baseURL
+*/
+tasks.kill_execution.fullPath=`${axios.defaults.baseURL}/api/v1/tasks/execution/{task_id}/kill`
+/**
+* @description kill_execution url链接，不包含baseURL
+*/
+tasks.kill_execution.path=`/api/v1/tasks/execution/{task_id}/kill`
 
 export class pipelines {
  
@@ -2876,18 +2938,18 @@ export class preferences {
  
   /**
   * @summary 更新全局用户偏好配置（直接覆盖）
-  * @param {UserModel.UserPreferences} [userpreferences] 
+  * @param {object} [object] 
   * @param {CancelTokenSource} [cancelSource] Axios Cancel Source 对象，可以取消该请求
   * @param {Function} [uploadProgress] 上传回调函数
   * @param {Function} [downloadProgress] 下载回调函数
   */
-  static async set_preferences_api_v1_preferences__post(userpreferences,cancelSource,uploadProgress,downloadProgress){
+  static async set_preferences_api_v1_preferences__post(object,cancelSource,uploadProgress,downloadProgress){
     return await new Promise((resolve,reject)=>{
       let responseType = "json";
       let options = {
         method:'post',
         url:'/api/v1/preferences/',
-        data:userpreferences,
+        data:object,
         params:{},
         headers:{
           "Content-Type":"application/json"
@@ -2943,3 +3005,67 @@ preferences.set_preferences_api_v1_preferences__post.fullPath=`${axios.defaults.
 * @description set_preferences_api_v1_preferences__post url链接，不包含baseURL
 */
 preferences.set_preferences_api_v1_preferences__post.path=`/api/v1/preferences/`
+
+export class common {
+ 
+  /**
+  * @summary Spa Fallback
+  * @param {String} [pathfull_path] 
+  * @param {CancelTokenSource} [cancelSource] Axios Cancel Source 对象，可以取消该请求
+  * @param {Function} [uploadProgress] 上传回调函数
+  * @param {Function} [downloadProgress] 下载回调函数
+  */
+  static async spa_fallback_ui__full_path__get(pathfull_path,cancelSource,uploadProgress,downloadProgress){
+    return await new Promise((resolve,reject)=>{
+      let responseType = "json";
+      let options = {
+        method:'get',
+        url:'/ui/'+pathfull_path+'',
+        data:{},
+        params:{},
+        headers:{
+          "Content-Type":""
+        },
+        onUploadProgress:uploadProgress,
+        onDownloadProgress:downloadProgress
+      }
+      // support wechat mini program
+      if (cancelSource!=undefined){
+        options.cancelToken = cancelSource.token
+      }
+      if (responseType != "json"){
+        options.responseType = responseType;
+      }
+      axios(options)
+      .then(res=>{
+        if (res.config.responseType=="blob"){
+          resolve(new Blob([res.data],{
+            type: res.headers["content-type"].split(";")[0]
+          }))
+        }else{
+          resolve(res.data);
+          return res.data
+        }
+      }).catch(err=>{
+        if (err.response){
+          if (err.response.data)
+            reject(err.response.data)
+          else
+            reject(err.response);
+        }else{
+          reject(err)
+        }
+      })
+    })
+  }
+}
+
+// class common static method properties bind
+/**
+* @description spa_fallback_ui__full_path__get url链接，包含baseURL
+*/
+common.spa_fallback_ui__full_path__get.fullPath=`${axios.defaults.baseURL}/ui/{full_path}`
+/**
+* @description spa_fallback_ui__full_path__get url链接，不包含baseURL
+*/
+common.spa_fallback_ui__full_path__get.path=`/ui/{full_path}`
