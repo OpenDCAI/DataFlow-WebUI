@@ -69,8 +69,8 @@ export const useDataflow = defineStore('useDataflow', () => {
     })
     const operators = ref([])
     const groupOperators = ref({})
-    const getOperators = async () => {
-        await proxy.$api.operators.list_operators().then((res) => {
+    const getOperators = async (lang = 'zh') => {
+        await proxy.$api.operators.list_operators(lang).then((res) => {
             if (res.code === 200) {
                 operators.value = res.data
                 groupOperators.value = {}

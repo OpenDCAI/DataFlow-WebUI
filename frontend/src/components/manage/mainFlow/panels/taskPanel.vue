@@ -13,8 +13,9 @@
                         <fv-button theme="dark" :icon="'View'"
                             :background="'linear-gradient(130deg, rgba(229, 123, 67, 1), rgba(225, 107, 56, 1))'"
                             :borderRadius="8" :isBoxShadow="true" @click="confirmView(item)">
-                            <fv-progress-ring v-show="item.status !== 'completed'" loading="true" r="10"
-                                :border-width="2" background="rgba(255, 255, 255, 0.6)"
+                            <fv-progress-ring
+                                v-show="item.status !== 'completed' && item.status !== 'failed' && item.status !== 'cancelled'"
+                                loading="true" r="10" :border-width="2" background="rgba(255, 255, 255, 0.6)"
                                 color="rgba(255, 255, 255, 1)"></fv-progress-ring>
                             {{ local('View') }}
                         </fv-button>

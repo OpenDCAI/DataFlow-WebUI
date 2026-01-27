@@ -117,7 +117,7 @@ export default {
         modelValue(val) {
             this.thisValue = val
             if (val) {
-                this.getOperators()
+                this.getOperators(this.language === 'cn' ? 'zh' : 'en')
             }
         },
         thisValue(val) {
@@ -131,7 +131,7 @@ export default {
         }
     },
     computed: {
-        ...mapState(useAppConfig, ['local']),
+        ...mapState(useAppConfig, ['local', 'language']),
         ...mapState(useDataflow, ['operators', 'groupOperators']),
         ...mapState(useTheme, ['theme', 'color', 'gradient']),
         numSamples() {
@@ -155,7 +155,7 @@ export default {
         }
     },
     mounted() {
-        this.getOperators()
+        this.getOperators(this.getOperators(this.language === 'cn' ? 'zh' : 'en'))
     },
     methods: {
         ...mapActions(useDataflow, ['getOperators']),

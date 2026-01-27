@@ -7,7 +7,7 @@
             <mainFlow :id="flowId" v-model:nodes="nodes" v-model:edges="edges" @switch-database="show.dataset = true"
                 @connect="onConnect" @connect-start="onConnectStart" @connect-end="onConnectEnd"
                 @update-run-value="useEdgeSync.syncRunValue($event, flowId)" @show-details="showExecDetails"
-                @download-data="downloadData"></mainFlow>
+                @download-data="downloadData" @click="show.pipeline = false"></mainFlow>
             <div class="control-menu-block">
                 <fv-command-bar :theme="theme" v-model="value" :options="options" :item-border-radius="30"
                     :background="theme === 'dark' ? '' : 'rgba(250, 250, 250, 0.8)'" class="command-bar">
@@ -43,18 +43,24 @@
                                 <i v-show="false" class="ms-Icon"
                                     :class="[`ms-Icon--${currentServing ? 'DialShape4' : 'More'}`]"></i>
                             </fv-button>
-                            <fv-button v-show="!isTemplate" theme="dark"
+                            <fv-button theme="dark"
                                 background="linear-gradient(90deg, rgba(69, 98, 213, 1), rgba(161, 145, 206, 1))"
                                 foreground="rgba(255, 255, 255, 1)" border-color="rgba(255, 255, 255, 0.3)"
                                 border-radius="30" :disabled="!currentPipeline" :reveal-background-color="[
                                     'rgba(255, 255, 255, 0.5)',
                                     'rgba(103, 105, 251, 0.6)'
-                                ]" @click="executePipeline">
+                                ]" style="width: 120px;" @click="handleRunClick">
                                 <i v-show="lock.running" class="ms-Icon ms-Icon--Play" style="margin-right: 5px"></i>
                                 <fv-progress-ring v-show="!lock.running" loading="true" :r="10" :border-width="2"
                                     background="rgba(200, 200, 200, 1)" :color="'white'"
                                     style="margin-right: 5px"></fv-progress-ring>
-                                <p>{{ this.local('Run') }}</p>
+                                <p>{{ this.local('Save & Run') }}</p>
+                            </fv-button>
+                            <fv-button v-show="!lock.running && executionInfo.task_id" theme="dark"
+                                background="rgba(200, 38, 95, 0.9)" font-size="10" foreground="rgba(255, 255, 255, 1)"
+                                border-color="whitesmoke" border-radius="30" :title="local('Stop')"
+                                style="width: 30px; height: 30px" @click="stopExecution">
+                                <i class="ms-Icon ms-Icon--StopSolid"></i>
                             </fv-button>
                             <fv-button theme="dark" background="rgba(191, 95, 95, 0.6)"
                                 foreground="rgba(255, 255, 255, 1)" border-color="whitesmoke" border-radius="30"
@@ -134,6 +140,7 @@ import saveIcon from '@/assets/flow/save.svg'
 import axios from '@/axios/config'
 
 export default {
+    name: "dataflowPage",
     components: {
         mainFlow,
         pipeline,
@@ -439,25 +446,25 @@ export default {
             })
             return nodeOperators
         },
-        handleSaveClick() {
+        async handleSaveClick() {
             if (!this.currentPipeline || !this.currentPipeline.id) {
                 this.show.pipelinePanel = true
-                return
+                return false
             }
             let tags = this.currentPipeline.tags
             if (!Array.isArray(tags)) tags = []
             if (tags.includes('template')) {
                 this.show.pipelinePanel = true
-                return
+                return false
             }
-            this.savePipeline()
+            return await this.savePipeline()
         },
         async savePipeline() {
             if (!this.sourceDatabase) {
                 this.$barWarning(this.local('Please select a dataset'), {
                     status: 'warning'
                 })
-                return
+                return false
             }
             let cancel = false
             if (this.executionInfo.task_id) {
@@ -480,11 +487,11 @@ export default {
                     )
                 })
             }
-            if (cancel) return
+            if (cancel) return false
             let nodeOperators = this.sortPipeline()
             const flow = useVueFlow(this.flowId)
             let dbNode = flow.findNode('db-node')
-            this.$api.pipelines
+            await this.$api.pipelines
                 .update_pipeline(this.currentPipeline.id, {
                     name: this.currentPipeline.name,
                     config: {
@@ -504,6 +511,12 @@ export default {
                         })
                     }
                 })
+                .catch((err) => {
+                    this.$barWarning(this.local('Pipeline update failed'), {
+                        status: 'error'
+                    })
+                })
+            return true
         },
         addPipeline(name) {
             if (!this.sourceDatabase) {
@@ -536,6 +549,9 @@ export default {
                 .then((res) => {
                     if (res.code === 200) {
                         this.getPipelines()
+                        if (!this.currentPipeline || !this.currentPipeline.id || this.isTemplate) {
+                            this.currentPipeline = res.data
+                        }
                         this.$barWarning(this.local('Pipeline has been created'), {
                             status: 'correct'
                         })
@@ -543,21 +559,14 @@ export default {
                     }
                 })
         },
-        executePipeline() {
+        async executePipeline() {
             if (!this.currentPipeline || !this.currentPipeline.id) {
                 this.$barWarning(this.local('Please select a pipeline'), {
                     status: 'warning'
                 })
                 return
             }
-            if (!this.lock.running) {
-                this.$barWarning(this.local('Please wait for the previous pipeline to finish'), {
-                    status: 'warning'
-                })
-                return
-            }
-            this.lock.running = false
-            this.$api.tasks
+            await this.$api.tasks
                 .execute_pipeline_async(this.currentPipeline.id)
                 .then((res) => {
                     if (res.code === 200) {
@@ -567,14 +576,27 @@ export default {
                             status: 'correct'
                         })
                     }
-                    this.lock.running = true
                 })
                 .catch((err) => {
                     this.$barWarning(this.local('Pipeline execution failed'), {
                         status: 'error'
                     })
-                    this.lock.running = true
                 })
+        },
+        async handleRunClick() {
+            if (!this.lock.running) {
+                this.$barWarning(this.local('Please wait for the previous pipeline to finish'), {
+                    status: 'warning'
+                })
+                return
+            }
+            this.lock.running = false
+            let isSaved = await this.handleSaveClick()
+            if (!isSaved) {
+                this.lock.running = true
+                return;
+            }
+            await this.executePipeline()
         },
         showExecDetails(pipeline_idx) {
             if (!this.executionInfo.task_id) return
@@ -649,10 +671,13 @@ export default {
         watchExecution() {
             if (!this.executionInfo.task_id) return
             clearInterval(this.timer.exec)
-            this.timer.exec = setInterval(() => {
-                this.getExecution(this.executionInfo.task_id)
+            this.timer.exec = setInterval(async () => {
+                await this.getExecution(this.executionInfo.task_id)
                 this.lock.running = false
                 if (this.execution.status === 'completed') {
+                    clearInterval(this.timer.exec)
+                    this.lock.running = true
+                } else if (this.execution.status === "cancelled") {
                     clearInterval(this.timer.exec)
                     this.lock.running = true
                 } else if (this.execution.status === 'failed') {
@@ -669,6 +694,24 @@ export default {
                     )
                 }
             }, 3000)
+        },
+        stopExecution() {
+            if (!this.currentPipeline || !this.currentPipeline.config) return
+            if (!this.executionInfo.task_id) return
+            if (this.execution.status !== 'running') {
+                this.$barWarning(this.local('Pipeline execution not running'), {
+                    status: 'warning'
+                })
+                return
+            }
+            this.$api.tasks.kill_execution(this.executionInfo.task_id).then((res) => {
+                if (res.code === 200) {
+                    this.lock.running = true
+                    this.$barWarning(this.local('Pipeline execution stopped'), {
+                        status: 'correct'
+                    })
+                }
+            })
         },
         onConnect(connection) {
             const { source, sourceHandle, target, targetHandle } = connection

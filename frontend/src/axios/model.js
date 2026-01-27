@@ -823,39 +823,6 @@ export class ApiResponse_Text2SQLDatabaseSchema_ {
     message=undefined
     
 }
-export class ApiResponse_UserPreferences_ {
-  
-    /**
-     *
-     * @param {undefined} success 
-     * @param {Number} code 业务错误码，0 表示成功
-     * @param {String} message 
-     */ 
-    constructor(success = undefined,code = undefined,message = undefined,data = undefined,meta = undefined){
-        this.success = success
-        this.code = code
-        this.message = message
-        this.data = data
-        this.meta = meta
-    }
-       
-    /**
-     * 
-     * @type {undefined}
-     */
-    success=undefined   
-    /**
-     * 业务错误码，0 表示成功
-     * @type {Number}
-     */
-    code=undefined   
-    /**
-     * 
-     * @type {String}
-     */
-    message=undefined
-    
-}
 export class ApiResponse_dict_ {
   
     /**
@@ -1977,30 +1944,6 @@ export class Text2SQLDatabaseSchema {
      * @type {String}
      */
     id=undefined
-    
-}
-export class UserPreferences {
-  
-    /**
-     *
-     * @param {String} language 界面语言，zh 或 en
-     * @param {String} theme 主题模式，light(日间) 或 dark(夜间)
-     */ 
-    constructor(language = undefined,theme = undefined){
-        this.language = language
-        this.theme = theme
-    }
-       
-    /**
-     * 界面语言，zh 或 en
-     * @type {String}
-     */
-    language=undefined   
-    /**
-     * 主题模式，light(日间) 或 dark(夜间)
-     * @type {String}
-     */
-    theme=undefined
     
 }
 export class ValidationError {

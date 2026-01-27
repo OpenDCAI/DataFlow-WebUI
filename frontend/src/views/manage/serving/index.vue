@@ -129,7 +129,9 @@ export default {
             defaultValues: {
                 str: '',
                 int: '0',
-                Any: ''
+                Any: '',
+                float: '0.0',
+                'dict': {}
             },
             formatValues: {
                 str: (val) => val.toString(),
@@ -138,10 +140,10 @@ export default {
                 float: (val) => parseFloat(val),
                 'dict': (val) => {
                     try {
-                        return JSON.stringify(JSON.parse(val))
+                        return JSON.parse(val)
                     }
                     catch (error) {
-                        return '{}'
+                        return {}
                     }
                 }
             },
@@ -174,7 +176,7 @@ export default {
                         item.text = item.cls_name
                         for (let param of item.params) {
                             if (param.default_value !== null)
-                                param.value = param.default_value.toString()
+                                param.value = this.formatPropsValue(param.default_value)
                             else param.value = this.defaultValues[param.type]
                         }
                     })
@@ -193,11 +195,17 @@ export default {
                 }
             })
         },
+        formatPropsValue(val) {
+            if (val === null) return null
+            if (typeof val === 'string') return val
+            if (typeof val === 'object') return JSON.stringify(val)
+            return val.toString()
+        },
         resetAddParams() {
             this.servingName = ''
             if (this.choosenClsItem.params) {
                 for (let param of this.choosenClsItem.params) {
-                    if (param.default_value !== null) param.value = param.default_value.toString()
+                    if (param.default_value !== null) param.value = this.formatPropsValue(param.default_value)
                     else param.value = this.defaultValues[param.type]
                 }
             }
@@ -206,11 +214,12 @@ export default {
             item.serving_name = item.name
             if (item.params) {
                 for (let param of item.params) {
+                    param.value = this.formatPropsValue(param.value)
                     if (overide) {
-                        if (param.value) param.default_value = param.value
+                        if (param.value !== null) param.default_value = this.formatPropsValue(param.value)
                     } else {
                         if (param.default_value !== null)
-                            param.value = param.default_value.toString()
+                            param.value = this.formatPropsValue(param.default_value)
                         else param.value = this.defaultValues[param.type]
                     }
                 }

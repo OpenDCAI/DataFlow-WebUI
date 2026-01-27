@@ -7,7 +7,7 @@
         <div class="node-row-item">
             <span class="info-title" style="font-size: 13px; color: rgba(52, 199, 89, 1)">{{
                 appConfig.local('Init. Parameters')
-                }}</span>
+            }}</span>
         </div>
         <hr />
         <div v-if="allowedPrompts.length > 0 && isPromptTemplate" class="node-row-item col" @mousedown.stop @click.stop>
@@ -26,11 +26,11 @@
         <div class="node-row-item">
             <span class="info-title" style="font-size: 13px; color: rgba(0, 122, 255, 1)">{{
                 appConfig.local('Run Parameters')
-                }}</span>
+            }}</span>
         </div>
         <hr />
-        <div v-if="thisData.operatorParams" v-for="(item, index) in thisData.operatorParams.run" :key="`run_${index}`"
-            class="node-row-item col">
+        <div v-if="thisData.operatorParams" v-show="hiddenParam(item)"
+            v-for="(item, index) in thisData.operatorParams.run" :key="`run_${index}`" class="node-row-item col">
             <span class="info-title">{{ item.name }}</span>
             <Handle :id="`${item.name}::target::run_key`" type="target" class="handle-item" :position="Position.Left" />
             <Handle :id="`${item.name}::source::run_key`" type="source" class="handle-item"
@@ -44,7 +44,9 @@
         <div v-if="currentLog" class="node-group-item"
             :style="{ background: theme === 'dark' ? 'rgba(0, 0, 0, 1)' : '' }">
             <p class="info-title">Execution Logs</p>
-            <div class="log-list">
+            <fv-progress-bar v-show="currentProgress > -1 && currentProgress < 100" :model-value="currentProgress"
+                :foreground="thisData.borderColor" style="width: 100%; margin: 5px 0px;"></fv-progress-bar>
+            <div class="log-list" @wheel.stop>
                 <p v-for="(text, index) in currentLog" :key="index">{{ text }}</p>
             </div>
             <div class="node-row-item" style="gap: 5px">
@@ -164,6 +166,11 @@ const promptTemplateModel = computed({
         }
     }
 })
+const hiddenParam = (item) => {
+    let filter_keys = ['storage'];
+    if (filter_keys.includes(item.name)) return false
+    return true
+}
 
 const loading = ref(false) // for data loading display
 const paramsWrapper = (objs) => {
@@ -246,6 +253,15 @@ const currentLog = computed(() => {
     if (!currentOutput) return null
     return currentOutput || []
 })
+const currentProgress = computed(() => {
+    if (!dataflow.execution) return null
+    if (!dataflow.execution.task_id) return null
+    let currentKey = `${thisData.value.label}_${thisData.value.pipeline_idx - 1}`
+    let currentDetail = dataflow.execution.operators_detail[currentKey]
+    if (!currentDetail) return null
+    if (!currentDetail.progress_percentage) return -1
+    return currentDetail.progress_percentage
+})
 const isOverStep = computed(() => {
     if (!dataflow.execution) return null
     if (!dataflow.execution.task_id) return null
@@ -275,8 +291,9 @@ const downloadData = () => {
     })
 }
 
-onMounted(() => {
-    getNodeDetail()
+onMounted(async () => {
+    await getNodeDetail()
+    syncLoading()
 })
 
 const emitUpdateRunValue = (item) => {
@@ -297,11 +314,13 @@ const emitUpdateRunValue = (item) => {
         position: relative;
         width: 100%;
         height: auto;
+        max-height: 200px;
         padding: 3px;
         background: black;
         font-size: 8px;
         color: rgba(193, 252, 167, 1);
         border-radius: 3px;
+        overflow: overlay;
     }
 }
 </style>

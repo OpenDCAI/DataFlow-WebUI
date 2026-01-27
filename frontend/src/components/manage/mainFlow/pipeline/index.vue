@@ -42,7 +42,7 @@
                 </div>
                 <div class="pipeline-list-block" :class="[{ dark: theme === 'dark' }]">
                     <div v-show="item.show" v-for="(item, index) in filteredPipelines" :key="item.id"
-                        class="pipeline-item" :class="[{ choosen: thisPipeline === item }]"
+                        class="pipeline-item" :class="[{ choosen: thisPipeline && thisPipeline.id === item.id }]"
                         @click="selectPipeline(item)" @contextmenu="showRightMenu($event, item)">
                         <div class="pipeline-item-main">
                             <div class="main-icon" :style="{
@@ -166,7 +166,7 @@ export default {
             this.thisValue = newValue
             if (newValue) {
                 this.getDatasets()
-                this.getOperators()
+                this.getOperators(this.language === 'cn' ? 'zh' : 'en')
             }
         },
         thisValue(newValue) {
@@ -189,7 +189,7 @@ export default {
         }
     },
     computed: {
-        ...mapState(useAppConfig, ['local']),
+        ...mapState(useAppConfig, ['local', 'language']),
         ...mapState(useDataflow, ['datasets', 'groupOperators', 'pipelines']),
         ...mapState(useTheme, ['theme', 'color', 'gradient']),
         flatFormatedOperators() {
@@ -277,6 +277,9 @@ export default {
                 confirm: () => {
                     this.$api.pipelines.delete_pipeline(item.id).then((res) => {
                         if (res.code === 200) {
+                            if (item.id === this.thisPipeline.id) {
+                                this.thisPipeline = null
+                            }
                             this.getPipelineList()
                         } else
                             this.$barWarning(res.msg || this.local('Delete pipeline failed'), {
