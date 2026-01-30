@@ -37,7 +37,7 @@ def create_app() -> FastAPI:
     if not INDEX_FILE.exists():
         logger.warning("Warning: UI index file not found, please build the frontend first")
     else:
-        app.mount("/ui", StaticFiles(directory=DIST_DIR, html=True), name="ui")
+        app.mount("/", StaticFiles(directory=DIST_DIR, html=True), name="ui")
     install_exception_handlers(app)
     return app
 
