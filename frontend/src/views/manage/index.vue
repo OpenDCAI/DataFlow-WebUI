@@ -10,7 +10,7 @@
                 <template v-slot:banner>
                     <div class="title-block name">
                         <img class="nav-icon" :src="img.logo" alt="" />
-                        <p v-show="isExpand" class="title">{{ local(`Dataflow`) }}</p>
+                        <p v-show="isExpand" class="title">{{ local(`DataFlow`) }}</p>
                     </div>
                 </template>
                 <template v-slot:listItem="x">
@@ -49,7 +49,7 @@ export default {
         return {
             currentNav: {
                 key: 0,
-                name: () => this.local('Dataflow'),
+                name: () => this.local('DataFlow'),
                 icon: 'World',
                 route: '/m/'
             },
@@ -62,7 +62,7 @@ export default {
                 },
                 {
                     key: 0,
-                    name: () => this.local('Dataflow Hub'),
+                    name: () => this.local('DataFlow Hub'),
                     icon: 'World',
                     img: dataflow,
                     route: '/m/'
