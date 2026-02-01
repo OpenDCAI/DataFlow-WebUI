@@ -14,6 +14,8 @@ from datetime import datetime
 import traceback
 import io
 import sys
+import re
+import time
 from contextlib import redirect_stdout, redirect_stderr
 
 logger = get_logger(__name__)
@@ -36,6 +38,61 @@ class DataFlowEngineError(Exception):
             "traceback": self.traceback_str
         }
 
+class LogStream(io.StringIO):
+    """
+    Custom stream to capture stdout/stderr in real-time, 
+    parse progress bars, and update execution status.
+    """
+    def __init__(self, op_key: str, operators_detail: Dict, operator_logs: Dict, update_func: callable, add_log_func: callable):
+        super().__init__()
+        self.op_key = op_key
+        self.operators_detail = operators_detail
+        self.operator_logs = operator_logs
+        self.update_func = update_func
+        self.add_log_func = add_log_func
+        
+        self.last_update_time = 0
+        self.update_interval = 0.5 # Update at most every 0.5s
+        
+        # Regex reusing from parse_and_clean_logs, but adaptable for fragments
+        self.progress_pattern = re.compile(r'(\d+%\|)|(it/s)|(s/it)')
+        self.percentage_pattern = re.compile(r'(\d+(?:\.\d+)?)%')
+        
+    def write(self, s: str):
+        # Write to internal buffer (standard StringIO behavior)
+        super().write(s)
+        
+        if "\r" in s or self.progress_pattern.search(s):
+            self._process_progress(s)
+            
+    def _process_progress(self, text: str): 
+        match = self.percentage_pattern.search(text)
+        if match:
+            try:
+                pct = float(match.group(1))
+                # Update in-memory dict
+                self.operators_detail[self.op_key]["progress_percentage"] = pct
+                
+                # Also try to capture the full progress line for "progress" field
+                # If text contains "it/s" or "|", use it as description
+                if "|" in text:
+                   # Clean up CRs for clean storage
+                   clean_text = text.replace('\r', '').strip()
+                   if clean_text:
+                       self.operators_detail[self.op_key]["progress"] = clean_text[-100:] # Keep last 100 chars to avoid huge strings
+                
+                # Throttle disk updates
+                now = time.time()
+                if now - self.last_update_time > self.update_interval:
+                    self.update_func("running", {
+                        "operators_detail": self.operators_detail,
+                        "operators_detail": self.operators_detail
+                    })
+                    self.last_update_time = now
+            except ValueError:
+                pass
+
+
 
 def extract_class_name(value: Any) -> Any:
     """
@@ -56,6 +113,46 @@ def extract_class_name(value: Any) -> Any:
         except (IndexError, AttributeError):
             return value
     return value
+
+
+def parse_and_clean_logs(log_content: str) -> tuple[List[str], Optional[str], Optional[float]]:
+    """
+    Parse logs to extract last progress bar and remove repetitive progress lines.
+    Returns: (cleaned_log_lines, last_progress_info, last_percentage)
+    """
+    if not log_content:
+        return [], None, None
+        
+    lines = log_content.splitlines()
+    cleaned_lines = []
+    last_progress = None
+    last_percentage = None
+    
+    # Regex for typical progress bars (including tqdm):
+    # Matches lines with percentage start OR rate info, usually containing a pipe
+    progress_pattern = re.compile(r'(\d+%\|)|(it/s)|(s/it)')
+    # Regex to extract numeric percentage (e.g., 45% or 45.5%)
+    percentage_pattern = re.compile(r'(\d+(?:\.\d+)?)%')
+    
+    for line in lines:
+        stripped = line.strip()
+        if not stripped:
+            continue
+            
+        # Heuristic: line contains progress indicators AND a pipe (common in tqdm)
+        if progress_pattern.search(stripped) and "|" in stripped:
+            last_progress = stripped
+            # Try extract percentage
+            match = percentage_pattern.search(stripped)
+            if match:
+                try:
+                    last_percentage = float(match.group(1))
+                except ValueError:
+                    pass
+        else:
+            cleaned_lines.append(line)
+            
+    return cleaned_lines, last_progress, last_percentage
 
 
 def dataflow_pipeline_execute(pipeline_config: Dict[str, Any], dataflow_runtime: Dict[str, Any], task_id: str, execution_path: str):
@@ -291,7 +388,7 @@ def dataflow_pipeline_execute(pipeline_config: Dict[str, Any], dataflow_runtime:
                             prompt_cls = PROMPT_REGISTRY.get(prompt_cls_name)
                             if not prompt_cls:
                                 raise DataFlowEngineError(
-                                    f"Prompt类未找到: {prompt_cls_name}",
+                                    f"Prompt class not found: {prompt_cls_name}",
                                     context={"operator": op_name, "param": param_name}
                                 )
                             param_value = prompt_cls()
@@ -302,7 +399,7 @@ def dataflow_pipeline_execute(pipeline_config: Dict[str, Any], dataflow_runtime:
                         raise
                     except Exception as e:
                         raise DataFlowEngineError(
-                            f"处理参数失败: {param_name}",
+                            f"Failed to process parameter: {param_name}",
                             context={
                                 "operator": op_name,
                                 "operator_index": op_idx,
@@ -324,7 +421,7 @@ def dataflow_pipeline_execute(pipeline_config: Dict[str, Any], dataflow_runtime:
                 
                 if not operator_cls:
                     raise DataFlowEngineError(
-                        f"Operator类未找到: {operator_cls_name}",
+                        f"Operator class not found: {operator_cls_name}",
                         context={"operator": op_name, "operator_index": op_idx}
                     )
                 
@@ -341,7 +438,7 @@ def dataflow_pipeline_execute(pipeline_config: Dict[str, Any], dataflow_runtime:
             except Exception as e:
                 operators_detail[op_key]["status"] = "failed"
                 raise DataFlowEngineError(
-                    f"初始化Operator失败: {op_name}",
+                    f"Failed to initialize Operator: {op_name}",
                     context={
                         "operator": op_name,
                         "operator_index": op_idx,
@@ -375,8 +472,9 @@ def dataflow_pipeline_execute(pipeline_config: Dict[str, Any], dataflow_runtime:
                 os.chdir(api_pipeline_path)
                 
                 # ✅ 捕获 stdout/stderr
-                f_stdout = io.StringIO()
-                f_stderr = io.StringIO()
+                # 使用自定义 LogStream 以支持实时进度捕获
+                f_stdout = LogStream(op_key, operators_detail, operator_logs, update_execution_status, add_log)
+                f_stderr = LogStream(op_key, operators_detail, operator_logs, update_execution_status, add_log)
                 
                 try:    
                     with redirect_stdout(f_stdout), redirect_stderr(f_stderr):
@@ -384,15 +482,29 @@ def dataflow_pipeline_execute(pipeline_config: Dict[str, Any], dataflow_runtime:
                 finally:
                     stdout_str = f_stdout.getvalue()
                     stderr_str = f_stderr.getvalue()
+
+                    last_progress_info = None
                     
                     if stdout_str:
-                        for line in stdout_str.splitlines():
-                            if line.strip():
-                                add_log("run", f"[STDOUT] {line}", op_key)
+                        cleaned_stdout, p_out, pct_out = parse_and_clean_logs(stdout_str)
+                        if p_out:
+                            last_progress_info = p_out
+                            if pct_out is not None:
+                                operators_detail[op_key]["progress_percentage"] = pct_out
+                        for line in cleaned_stdout:
+                            add_log("run", f"[STDOUT] {line}", op_key)
+                            
                     if stderr_str:
-                        for line in stderr_str.splitlines():
-                            if line.strip():
-                                add_log("run", f"[STDERR] {line}", op_key)
+                        cleaned_stderr, p_err, pct_err = parse_and_clean_logs(stderr_str)
+                        if p_err:
+                            last_progress_info = p_err
+                            if pct_err is not None:
+                                operators_detail[op_key]["progress_percentage"] = pct_err
+                        for line in cleaned_stderr:
+                            add_log("run", f"[STDERR] {line}", op_key)
+
+                    if last_progress_info:
+                        operators_detail[op_key]["progress"] = last_progress_info
 
                 os.chdir(settings.BASE_DIR)
 
@@ -571,6 +683,7 @@ class RayPipelineExecutor:
         self.max_concurrency = max_concurrency
         self._initialized = False
         self._semaphore = None
+        self._task_refs: Dict[str, ray.ObjectRef] = {}
         logger.info(f"RayPipelineExecutor initialized with max_concurrency={max_concurrency}")
     
     def _ensure_initialized(self):
@@ -746,6 +859,9 @@ class RayPipelineExecutor:
                 pipeline_execution_path
             )
             
+            # 保存任务引用，用于后续kill操作
+            self._task_refs[task_id] = future
+            
             logger.info(f"Pipeline execution submitted: {task_id}, future: {future}")
             logger.info(f"Ray cluster resources: {ray.cluster_resources()}")
             logger.info(f"Ray available resources: {ray.available_resources()}")
@@ -789,6 +905,39 @@ class RayPipelineExecutor:
             ray.shutdown()
             self._initialized = False
             logger.info("Ray shutdown completed")
+
+    def kill_execution(self, task_id: str) -> bool:
+        """
+        终止指定的 Pipeline 执行任务
+        
+        Args:
+            task_id: 执行 ID
+        
+        Returns:
+            是否成功终止
+        """
+        if task_id not in self._task_refs:
+            logger.warning(f"Task {task_id} not found in tracked tasks")
+            return False
+        
+        try:
+            task_ref = self._task_refs[task_id]
+            
+            # force=True 确保即使任务已经在运行也会被强制终止
+            # recursive=True 确保取消所有子任务
+            ray.cancel(task_ref, force=True, recursive=True)
+            
+            # 从追踪字典中移除
+            del self._task_refs[task_id]
+            
+            logger.info(f"Successfully cancelled task {task_id}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to cancel task {task_id}: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
+            return False
 
 
 # 创建全局 Ray 执行器实例

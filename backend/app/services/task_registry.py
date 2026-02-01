@@ -497,3 +497,83 @@ class TaskRegistry:
         return {
             "task_id": task_id
         }
+
+    def kill_execution(self, task_id: str) -> bool:
+        """
+        终止指定的 Pipeline 执行任务
+        
+        Args:
+            task_id: 执行 ID
+        
+        Returns:
+            是否成功终止
+        """
+        from app.services.ray_pipeline_executor import ray_executor
+        from datetime import datetime
+        
+        # 1. 直接读取最新数据
+        data = self._read()
+        task_record = data.get("tasks", {}).get(task_id)
+        
+        if not task_record:
+            logger.warning(f"Task {task_id} not found")
+            return False
+        
+        # 检查任务状态
+        status = task_record.get("status", "pending")
+        if status in ["success", "failed", "cancelled"]:
+            logger.warning(f"Task {task_id} is already {status}, cannot kill")
+            return False
+        
+        try:
+            # 2. 物理 Kill
+            # 注意：先 Kill 进程，后改状态。
+            # 这样即使 Kill 之后 worker 还有最后一丝余力想写文件，也会因为进程被切断而停止
+            killed_via_ray = ray_executor.kill_execution(task_id)
+            
+            # 3. 构造状态更新
+            now = datetime.now().isoformat()
+            task_record["status"] = "cancelled"
+            task_record["finished_at"] = now
+            task_record["error_message"] = "Task was killed by user"
+            
+            # ✅ 关键：同步更新内部算子的状态，让 UI 显示更准确
+            if "output" in task_record and "operators_detail" in task_record["output"]:
+                for op_key, op_info in task_record["output"]["operators_detail"].items():
+                    if op_info.get("status") in ["running", "initializing"]:
+                        op_info["status"] = "cancelled"
+                        op_info["completed_at"] = now
+            
+            # 4. 强制写回磁盘（覆盖式更新）
+            data["tasks"][task_id] = task_record
+            self._write(data)
+            
+            logger.info(f"Task {task_id} killed. Ray_success: {killed_via_ray}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to kill task {task_id}: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
+            
+            # 即使发生异常，也尝试更新任务状态
+            try:
+                now = datetime.now().isoformat()
+                task_record["status"] = "cancelled"
+                task_record["finished_at"] = now
+                task_record["error_message"] = f"Task kill failed: {str(e)}"
+                
+                # 同步更新内部算子的状态
+                if "output" in task_record and "operators_detail" in task_record["output"]:
+                    for op_key, op_info in task_record["output"]["operators_detail"].items():
+                        if op_info.get("status") in ["running", "initializing"]:
+                            op_info["status"] = "cancelled"
+                            op_info["completed_at"] = now
+                
+                data["tasks"][task_id] = task_record
+                self._write(data)
+                logger.info(f"Task {task_id} status updated to cancelled despite error")
+                return True
+            except Exception as update_error:
+                logger.error(f"Failed to update task {task_id} status after kill failure: {update_error}")
+                return False

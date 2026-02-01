@@ -48,5 +48,5 @@ run.bat
 Open in browser:
 
 ```
-http://localhost:8000/ui/
+http://localhost:8000/
 ```

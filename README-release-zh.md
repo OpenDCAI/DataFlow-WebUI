@@ -46,5 +46,5 @@ run.bat
 然后在浏览器打开：
 
 ```
-http://localhost:8000/ui/
+http://localhost:8000/
 ```

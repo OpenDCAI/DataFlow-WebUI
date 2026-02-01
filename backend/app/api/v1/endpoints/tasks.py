@@ -299,3 +299,40 @@ async def execute_pipeline_async(request: Request, pipeline_id: str):
         import traceback
         logger.error(traceback.format_exc())
         raise HTTPException(500, f"Failed to submit pipeline execution: {str(e)}")
+
+
+@router.post("/execution/{task_id}/kill", response_model=ApiResponse[Dict], operation_id="kill_execution", summary="终止Pipeline执行")
+async def kill_execution(request: Request, task_id: str):
+    """
+    终止正在执行的 Pipeline 任务
+    
+    Args:
+        task_id: 任务 ID
+    
+    Returns:
+        操作结果
+    """
+    try:
+        logger.info(f"Request: {request.method} {request.url.path}, task_id: {task_id}")
+        
+        # 调用服务层终止任务
+        killed = container.task_registry.kill_execution(task_id)
+        
+        if not killed:
+            raise HTTPException(404, f"Task {task_id} not found or cannot be killed")
+        
+        logger.info(f"Task {task_id} killed successfully")
+        
+        return ok({
+            "task_id": task_id,
+            "status": "cancelled",
+            "message": "Task successfully killed"
+        })
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to kill task {task_id}: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        raise HTTPException(500, f"Failed to kill task: {str(e)}")

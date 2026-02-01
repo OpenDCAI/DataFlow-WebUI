@@ -155,7 +155,7 @@ class DatasetRegistry:
             return 0
     
     def list(self) -> List[Dict]:
-        logger.info("开始读取所有数据集信息")
+        logger.info("Starting to read all dataset information")
         """返回所有数据集列表，每个数据集包含条目数和文件大小信息"""
         datasets = list(self._read()["datasets"].values())
         return datasets
