@@ -5,7 +5,7 @@ from fastapi import APIRouter, HTTPException
 from typing import List, Dict, Any 
 from loguru import logger as log
 
-# --- 1. 导入所有需要的 Schema 和响应封装 ---
+# --- 1. Import required Schemas and response wrappers ---
 from app.schemas.operator import (
     OperatorSchema, 
     OperatorDetailSchema,
@@ -14,7 +14,7 @@ from app.schemas.operator import (
 from app.api.v1.resp import ok
 from app.api.v1.envelope import ApiResponse
 
-# --- 2. 导入服务层 ---
+# --- 2. Import service layer ---
 from app.services.operator_registry import OPS_JSON_PATH
 from app.core.container import container
 
@@ -79,7 +79,7 @@ def get_operator_detail_by_name(op_name: str, lang: str = "zh"):
     - Then match name in all buckets and return.
     """
     try:
-        # 确保缓存存在
+        # Ensure cache exists
         ops_json_path = OPS_JSON_PATH.with_suffix(f'.{lang}.json')
         if not ops_json_path.exists():
             log.info("ops.json cache file not found, triggering automatic operator scan and generation...")
@@ -88,7 +88,7 @@ def get_operator_detail_by_name(op_name: str, lang: str = "zh"):
             with open(ops_json_path, "r", encoding="utf-8") as f:
                 ops_data = json.load(f)
 
-        # 在所有 bucket 中查找指定算子
+        # Look up the operator in all buckets
         for bucket_name, items in ops_data.items():
             if not isinstance(items, list):
                 continue
@@ -98,7 +98,7 @@ def get_operator_detail_by_name(op_name: str, lang: str = "zh"):
                 if op.get("name") == op_name:
                     return ok(op)
 
-        # 未找到
+        # Not found
         raise HTTPException(status_code=404, detail=f"Operator '{op_name}' not found")
 
     except json.JSONDecodeError as e:

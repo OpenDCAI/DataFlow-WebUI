@@ -1,152 +1,292 @@
-# DataFlow-WebUI
+<p align="center">
+  <img src="src/assets/logo/logo.png" alt="Dataflow" width="120px"/>
+</p>
 
-This template should help get you started developing with Vue 3 in Vite.
+# DataFlow WebUI
 
-## Recommended IDE Setup
+中文版本：[README_zh.md](docs/README_zh.md)
 
-[VSCode](https://code.visualstudio.com/) + [Volar](https://marketplace.visualstudio.com/items?itemName=Vue.volar) (and disable Vetur).
+This is the **frontend interface** of DataFlow, built with **Vue 3 + Vite**.
+If you are not familiar with frontend development — no worries. Just follow the steps below **in order**.
 
-## Customize configuration
+---
 
-See [Vite Configuration Reference](https://vitejs.dev/config/).
+# 🧠 What You Are Setting Up (Big Picture)
 
-## Project Setup
+You are installing:
 
-```sh
+| Tool        | What it does            | Why you need it               |
+| ----------- | ----------------------- | ----------------------------- |
+| **Node.js** | Runs JavaScript tools   | Required to build the project |
+| **NVM**     | Manages Node versions   | Ensures correct Node version  |
+| **Yarn**    | Package manager         | Installs project dependencies |
+| **Vite**    | Dev server & build tool | Runs the frontend locally     |
+
+---
+
+# 🖥 0. Recommended Editor (Optional but helpful)
+
+Install:
+
+* **VS Code**: [https://code.visualstudio.com/](https://code.visualstudio.com/)
+* **Volar extension** (Vue support)
+* Disable **Vetur** if installed
+
+---
+
+# 🧩 1. Install NVM (Node Version Manager)
+
+NVM lets you install the correct Node version easily.
+
+### Mac / Linux
+
+```bash
+# Official
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+
+# Faster mirror in China
+curl -so- https://gitee.com/mirrors/nvm/raw/v0.39.7/install.sh | bash
+```
+
+### Then refresh terminal
+
+```bash
+# bash
+source ~/.bashrc
+
+# zsh
+source ~/.zshrc
+```
+
+---
+
+# 🟢 2. Install Node.js (Version 20)
+
+```bash
+nvm install 20
+nvm use 20
+nvm alias default 20
+```
+
+Check installation:
+
+```bash
+node -v   # should show v20.x.x
+npm -v
+```
+
+---
+
+# 📦 3. Install Yarn
+
+Yarn installs all project packages.
+
+```bash
+corepack enable
+corepack prepare yarn@stable --activate
+yarn -v
+```
+
+---
+
+# 📥 4. Download Project & Install Dependencies
+
+Go to the project folder:
+
+```bash
+cd DataFlow-WebUI/frontend
+```
+
+Install everything the project needs:
+
+```bash
 yarn
-## or use npm
-npm i
 ```
 
-### Compile and Hot-Reload for Development
+*(This may take a few minutes the first time.)*
 
-```sh
-yarn dev
-## or use npm
-npm run dev
-```
+---
 
-### Compile and Minify for Production
+# 🔌 5. Connect to the Backend API
 
-在`.env.production`中设定`VITE_BACKEND_URL`为后端FastAPI地址.
+The frontend talks to a backend server (FastAPI).
 
-```sh
-yarn build
-## or use npm
-npm run build
-```
-
-生成dist目录用于部署.
-
-## 项目结构
+Open:
 
 ```
-src/
-├── axios/ # 后端API调用配置
-│   ├── config.js
-│   └── index.js
-├── components/ # 前端组件
-│   ├── DataFlow.vue
-│   └── ...
-├── hooks/ # 前端钩子函数
-│   ├── general/
-│   │   └── useGlobal.js
-│   └── ...
-├── router/ # 前端路由配置
-│   ├── index.js
-│   └── ...
-├── views/ # 前端视图组件
-│   ├── DataFlow.vue
-│   └── ...
-├── App.vue # 前端入口组件
-├── main.js # 前端入口文件
-└── ...
+vite.config.js
 ```
 
-## 配置
+Find this section:
 
-### 更新后端API
-
-在`package.json`里头`scripts`设定后端Swagger API地址: "api": "api-cli get http://100.64.0.91:8000/openapi.json -d ./src/axios"
-
-然后运行:
-
-```sh
-yarn api
-```
-
-### 配置后端API
-
-`axios/config.js`里头设定`baseURL` (开启了反向代理, 指向`/api`路由, 一般不需要修改)
-
-`vite.config.js`:
-
-```javascript
+```js
 server: {
-        proxy: {
-            '/api': {
-                target: 'http://100.64.0.91:8000/', // 后端 FastAPI 地址
-                changeOrigin: true,
-                rewrite: path => path.replace(/^\/api/, '') // 如果后端没有 /api 前缀
-            }
+    host: '0.0.0.0',
+    proxy: {
+        '/api': {
+            target: 'http://100.64.0.91:8000/', // Backend address
+            changeOrigin: true,
+            rewrite: path => path.replace(/^\/api/, '')
         }
-    }
-```
-在这里, 我们将`/api`路由指向了`http://100.64.0.91:8000/`, 这是后端FastAPI的地址.
-
-### 使用后端API
-
-1. 选项式
-
-直接在代码中通过`this.$api`调用后端API.
-
-```javascript
-export default {
-    name: 'DataFlow',
-    mounted() {
-        this.$api.datasets.list_datasets().then((res) => {
-            console.log(res)
-        })
     }
 }
 ```
 
-2. 组合式
+🔁 **Replace the IP address** with your backend server address if different.
 
-```javascript
+---
+
+# ▶️ 6. Start Development Server
+
+Run:
+
+```bash
+yarn dev
+```
+
+You should see something like:
+
+```
+Local: http://localhost:5173/
+```
+
+Open that link in your browser 🎉
+
+The page will auto-reload when you change code.
+
+---
+
+# 🏗 7. Build for Production (Deployment)
+
+When you want to deploy:
+
+### Step 1: Set backend URL
+
+In `.env.production`:
+
+```
+VITE_BACKEND_URL=http://your-backend-address:8000
+```
+
+### Step 2: Build
+
+```bash
+yarn build
+```
+
+A `dist/` folder will be generated.
+This folder is what you deploy to a server.
+
+---
+
+# 📂 Project Structure (Simplified)
+
+```
+src/
+├── axios/        → API request setup
+├── components/   → Reusable UI components
+├── views/        → Page-level components
+├── router/       → Page routing
+├── hooks/        → Shared logic
+├── App.vue       → Root component
+└── main.js       → App entry point
+```
+
+---
+
+# 🔄 Update Backend API Automatically
+
+If backend API changes:
+
+In `package.json`:
+
+```json
+"api": "api-cli get http://100.64.0.91:8000/openapi.json -d ./src/axios"
+```
+
+Run:
+
+```bash
+yarn api
+```
+
+This regenerates API request code.
+
+---
+
+# 📡 How Frontend Calls Backend API
+
+### Option 1 — In Vue Options API
+
+```js
+mounted() {
+    this.$api.datasets.list_datasets().then(res => {
+        console.log(res)
+    })
+}
+```
+
+### Option 2 — In Vue Composition API
+
+```js
 import { useGlobal } from "@/hooks/general/useGlobal";
 const { $api } = useGlobal();
 
-$api.datasets.list_datasets().then((res) => {
+$api.datasets.list_datasets().then(res => {
     console.log(res)
-})
+});
 ```
 
-### 全局方法
+---
 
-除了`$api`, 还有一些全局方法可以在前端代码中使用.
+# 🧰 Global Utilities Available
 
-- `$api`: 后端API调用实例, 可以直接调用后端API.
-- `$axios`: Axios实例, 可以直接调用Axios API.
-- `$router`: 路由实例, 可以直接调用路由API.
-- `$Go`: 路由跳转方法, 可以直接调用路由跳转.
-- `$Back`: 路由返回方法, 可以直接调用路由返回.
-- `$Jump`: 路由跳转方法, 可以直接调用路由跳转, 类似于`window.open`.
+| Name      | Function          |
+| --------- | ----------------- |
+| `$api`    | Backend API calls |
+| `$axios`  | Axios instance    |
+| `$router` | Vue router        |
+| `$Go`     | Navigate to page  |
+| `$Back`   | Go back           |
+| `$Jump`   | Open new page     |
 
-要配置更多方法, 可以在`useGlobal.js`中添加.
+---
 
-## 设计规范
+# 🎨 Flow Design Rule
 
-### Flow
+Edge format:
 
-1. Handle
+```
+<property>::<source|target>::<edge_type>
+```
 
-<属性名>::<出边|入边>::<边类型>
+Examples:
 
-如节点边:
-
+```
 node::source::node
+key_name::source::run_key
+```
 
-参数边:
+---
 
-<key_name>::source::run_key
+# ✅ If Something Doesn’t Work
+
+Check:
+
+1. Node version = **v20**
+2. Backend server is running
+3. IP address in `vite.config.js` is correct
+4. Re-run:
+
+```bash
+rm -rf node_modules
+yarn
+```
+
+## 🔹 UI Component Library
+
+**English**
+
+This project uses **VFluent3**, a Vue 3 component library inspired by Microsoft’s Fluent Design. It provides a set of clean, consistent, and practical UI components that fit well with modern Vue + Vite workflows.
+
+GitHub: [https://github.com/Creator-SN/VFluent3](https://github.com/Creator-SN/VFluent3)
