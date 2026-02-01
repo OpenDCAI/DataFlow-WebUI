@@ -22,8 +22,8 @@ Before you begin, make sure you have:
 First, clone the **DataFlow-WebUI** repository and enter the project directory:
 
 ```shell
-git clone https://github.com/OpenDCAI/DataFlow-webui.git
-cd DataFlow-webui
+git clone https://github.com/OpenDCAI/DataFlow-WebUI.git
+cd DataFlow-WebUI
 ```
 
 ---
