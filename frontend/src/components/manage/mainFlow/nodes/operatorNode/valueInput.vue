@@ -57,7 +57,7 @@ export default {
         ...mapState(useAppConfig, ['local']),
         ...mapState(useDataflow, ['servingList', 'currentServing', 'dataManagerList']),
         computedUIType() {
-            if (this.itemObj.name === 'llm_serving') {
+            if (this.itemObj.name === 'llm_serving' || this.itemObj.name === 'embedding_serving') {
                 return 'llm_serving'
             }
             if (this.itemObj.name === 'database_manager') {
