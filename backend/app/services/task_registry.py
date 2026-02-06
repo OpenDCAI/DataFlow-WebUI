@@ -19,11 +19,28 @@ class TaskRegistry:
         self._ensure()
     
     def _ensure(self):
-        """确保注册表文件存在"""
-        os.makedirs(os.path.dirname(self.path), exist_ok=True)
-        initial_data = {"tasks": {}}
-        self._write(initial_data)   
-    
+        # 只在文件不存在时初始化
+        if not os.path.exists(self.path):
+            initial_data = {"tasks": {}}
+            self._write(initial_data)
+            return
+
+        # 文件存在但为空/损坏时兜底（可选）
+        try:
+            with open(self.path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            if not isinstance(data, dict) or "tasks" not in data:
+                self._write({"tasks": {}})
+        except Exception:
+            # 读取失败：备份旧文件再重建（推荐）
+            broken = self.path + f".broken.{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}"
+            try:
+                os.replace(self.path, broken)
+            except Exception:
+                pass
+            self._write({"tasks": {}})
+
+
     def _read(self) -> Dict:
         """读取注册表"""
         with open(self.path, "r", encoding="utf-8") as f:
