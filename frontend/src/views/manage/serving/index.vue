@@ -115,9 +115,10 @@
 </template>
 
 <script>
-import { mapState } from 'pinia'
+import { mapActions, mapState } from 'pinia'
 import { useAppConfig } from '@/stores/appConfig'
 import { useTheme } from '@/stores/theme'
+import { useDataflow } from '@/stores/dataflow';
 
 export default {
     data() {
@@ -167,6 +168,9 @@ export default {
         this.getServingList()
     },
     methods: {
+        ...mapActions(useDataflow, {
+            getGlobalServingList: 'getServingList',
+        }),
         getCreateProps() {
             this.$api.serving.list_serving_classes().then((res) => {
                 if (res.data) {
@@ -184,16 +188,15 @@ export default {
                 }
             })
         },
-        getServingList() {
-            this.$api.serving.list_serving_instances_api_v1_serving__get().then((res) => {
-                if (res.data) {
-                    let servingList = res.data
-                    servingList.forEach((item) => {
-                        this.resetEditParams(item, true)
-                    })
-                    this.servingList = servingList
-                }
-            })
+        async getServingList() {
+            let res = await this.getGlobalServingList()
+            if (res.data) {
+                let servingList = res.data
+                servingList.forEach((item) => {
+                    this.resetEditParams(item, true)
+                })
+                this.servingList = servingList
+            }
         },
         formatPropsValue(val) {
             if (val === null) return null

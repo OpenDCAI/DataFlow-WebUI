@@ -150,7 +150,7 @@ export const useDataflow = defineStore('useDataflow', () => {
     const servingList = ref([])
     const currentServing = ref(null)
     const getServingList = async () => {
-        await proxy.$api.serving.list_serving_instances_api_v1_serving__get().then((res) => {
+        return await proxy.$api.serving.list_serving_instances_api_v1_serving__get().then((res) => {
             if (res.code === 200) {
                 res.data.forEach((item) => {
                     item.key = item.id
@@ -162,6 +162,7 @@ export const useDataflow = defineStore('useDataflow', () => {
                     status: 'warning'
                 })
             }
+            return res
         })
     }
     const chooseServing = (item) => {
