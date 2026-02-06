@@ -115,7 +115,7 @@ def get_execution_log(task_id: str, operator_name: str = Query(None, description
         raise HTTPException(500, f"Failed to get task logs: {str(e)}")
 
 
-@router.get("/execution/{task_id}/download", operation_id="download_task_result", summary="下载任务执行结果文件")
+@router.get("/execution/{task_id}/download", operation_id="download_task_result", summary="下载任务执行结果文件,step从0开始计数，想请求第一个算子传step=0")
 def download_task_result(task_id: str, step: int = None):
     """
     下载任务执行结果文件
@@ -160,15 +160,20 @@ def download_task_result(task_id: str, step: int = None):
         # 构建缓存文件路径（使用绝对路径）
         from app.core.config import settings
         cache_path = settings.CACHE_DIR
+        cache_task_dir = f"{task_id}_output"
         cache_file_prefix = "dataflow_cache_step"
-        cache_file = os.path.join(cache_path, f"{cache_file_prefix}_step{step}.jsonl")
+        actual_step_for_json = step + 1
+
+        cache_file_name = f"{cache_file_prefix}_step{actual_step_for_json}.jsonl"
+
+        cache_file = os.path.join(cache_path, cache_task_dir, cache_file_name)
         
         # 检查文件是否存在
         if not os.path.exists(cache_file):
             raise HTTPException(404, f"Result file not found for step {step}: {cache_file}")
         
         # 返回文件下载
-        filename = f"{task_id}_{operator_name}_step{step}.jsonl"
+        filename = f"{task_id}_{operator_name}_step{actual_step_for_json}.jsonl"
         logger.info(f"Downloading file: {cache_file} as {filename}")
         
         return FileResponse(
