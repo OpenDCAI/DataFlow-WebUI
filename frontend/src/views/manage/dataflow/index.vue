@@ -610,12 +610,22 @@ export default {
                     }
                 })
         },
+        pathJoin(...parts) {
+            return parts
+                .map((part, index) => {
+                    if (index === 0) {
+                        return part.replace(/\/+$/, '')   // 去掉结尾 /
+                    }
+                    return part.replace(/^\/+|\/+$/g, '') // 去掉两边 /
+                })
+                .join('/')
+        },
         downloadData(pipeline_idx) {
             if (!this.executionInfo.task_id) return
             let baseURL = axios.defaults.baseURL
             let url =
-                baseURL +
-                `/api/v1/tasks/execution/${this.executionInfo.task_id}/download?step=${pipeline_idx - 1}`
+                this.pathJoin(baseURL,
+                    `/api/v1/tasks/execution/${this.executionInfo.task_id}/download?step=${pipeline_idx - 1}`)
             window.open(url, '_blank')
         },
         selectPipelineCallback() {
