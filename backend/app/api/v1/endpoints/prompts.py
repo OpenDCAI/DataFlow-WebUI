@@ -1,6 +1,6 @@
 
 from fastapi import APIRouter, HTTPException
-from app.schemas.prompt import GetPromptSchema, PromptSourceOut, OperatorPromptMapOut, PromptInfoMapOut
+from app.schemas.prompt import GetPromptSchema, PromptSourceOut, OperatorPromptMapOut, PromptInfoMapOut, PromptInfoOut
 # from app.services.prompt_registry import _PROMPT_REGISTRY
 from app.core.container import container
 from app.api.v1.resp import ok
@@ -24,6 +24,14 @@ def get_operator_prompt_mapping():
 )
 def get_prompt_info():
     return ok(container.prompt_registry.list_prompt_info())
+
+@router.get(
+    "/prompt-info/{prompt_name}",
+    response_model=ApiResponse[PromptInfoOut],
+    summary="根据 Prompt 名称获取 Prompt 信息"
+)
+def get_prompt_info(prompt_name: str):
+    return ok(container.prompt_registry.list_prompt_info().prompts[prompt_name])
 
 @router.get(
     "/{operator_name}",
