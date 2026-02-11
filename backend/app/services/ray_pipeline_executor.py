@@ -267,7 +267,8 @@ def dataflow_pipeline_execute(pipeline_config: Dict[str, Any], dataflow_runtime:
                 for param in op.get("params", {}).get("init", []):
                     param_name = param.get("name")
                     param_value = param.get("value")
-                    
+                    if isinstance(param_value, str) and param_value == "":
+                        param_value = None
                     try:
                         if param_name == "llm_serving":
                             serving_id = param_value

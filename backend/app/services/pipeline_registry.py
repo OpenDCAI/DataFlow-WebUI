@@ -667,6 +667,11 @@ class PipelineRegistry:
                     param["value"] = param_value
                 elif param.get('value') is None:
                     param["value"] = param.get("default_value", None)
+                    
+        old_run_params_name_list = [param.get("name") for param in old_params.get("run", [])]
+        for param_name, param_value in new_run_params.items():
+            if param_name is not None and param_name not in old_run_params_name_list:
+                old_params.get("run", []).append({"name": param_name, "value": param_value})
             
         return old_op_info
         
