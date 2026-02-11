@@ -427,7 +427,11 @@ def dataflow_pipeline_execute(pipeline_config: Dict[str, Any], dataflow_runtime:
                 for param in op.get("params", {}).get("run", []):
                     param_name = param.get("name")
                     param_value = param.get("value")
-                    run_params[param_name] = param_value
+                    if param.get('kind') == "VAR_KEYWORD" and isinstance(param_value, dict):
+                        for key, value in param_value.items():
+                            run_params[key] = value
+                    else:
+                        run_params[param_name] = param_value
                 
                 # 实例化 Operator
                 operator_cls_name = extract_class_name(op_name)
