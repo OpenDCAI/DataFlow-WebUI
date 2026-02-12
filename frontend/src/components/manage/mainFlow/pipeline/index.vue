@@ -167,6 +167,7 @@ export default {
             if (newValue) {
                 this.getDatasets()
                 this.getOperators(this.language === 'cn' ? 'zh' : 'en')
+                this.getPromptInfo()
             }
         },
         thisValue(newValue) {
@@ -216,7 +217,7 @@ export default {
         this.getPipelineList()
     },
     methods: {
-        ...mapActions(useDataflow, ['getDatasets', 'getOperators', 'getPipelines', 'getTasks']),
+        ...mapActions(useDataflow, ['getDatasets', 'getOperators', 'getPromptInfo', 'getPipelines', 'getTasks']),
         async getPipelineList() {
             if (!this.lock.pipeline) return
             this.lock.pipeline = false

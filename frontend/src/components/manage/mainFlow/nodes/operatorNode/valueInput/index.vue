@@ -15,6 +15,7 @@
             :options="dataManagerList" :choosen-slider-background="thisData.borderColor"
             :reveal-background-color="[thisData.shadowColor, 'rgba(255, 255, 255, 1)']"
             :reveal-border-color="thisData.borderColor" border-radius="8" style="width: 100%"></fv-combobox>
+        <kv-input v-if="computedUIType === 'kv_input'" v-model="thisValue"></kv-input>
     </div>
 </template>
 
@@ -23,7 +24,12 @@ import { useAppConfig } from '@/stores/appConfig'
 import { useDataflow } from '@/stores/dataflow'
 import { mapState } from 'pinia'
 
+import kvInput from './kvInput.vue';
+
 export default {
+    components: {
+        kvInput
+    },
     props: {
         modelValue: {
             default: ''
@@ -63,6 +69,8 @@ export default {
             if (this.itemObj.name === 'database_manager') {
                 return 'database_manager'
             }
+            if (this.itemObj.kind === 'VAR_KEYWORD')
+                return 'kv_input'
             return 'text'
         }
     },

@@ -113,6 +113,19 @@ export const useDataflow = defineStore('useDataflow', () => {
         })
     }
 
+    const promptInfo = ref({})
+    const getPromptInfo = async () => {
+        await proxy.$api.prompts.get_prompt_info_api_v1_prompts_prompt_info_get().then((res) => {
+            if (res.code === 200) {
+                promptInfo.value = res.data.prompts
+            } else {
+                proxy.$barWarning(res.message, {
+                    status: 'warning'
+                })
+            }
+        })
+    }
+
     const datasets = ref([])
     const getDatasets = async () => {
         let res = await proxy.$api.datasets.list_datasets().catch((err) => {
@@ -257,6 +270,8 @@ export const useDataflow = defineStore('useDataflow', () => {
         operators,
         groupOperators,
         getOperators,
+        promptInfo,
+        getPromptInfo,
         datasets,
         getDatasets,
         text2sqlDatasets,

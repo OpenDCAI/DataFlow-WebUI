@@ -592,6 +592,39 @@ export class ApiResponse_PromptInfoMapOut_ {
     message=undefined
     
 }
+export class ApiResponse_PromptInfoOut_ {
+  
+    /**
+     *
+     * @param {undefined} success 
+     * @param {Number} code 业务错误码，0 表示成功
+     * @param {String} message 
+     */ 
+    constructor(success = undefined,code = undefined,message = undefined,data = undefined,meta = undefined){
+        this.success = success
+        this.code = code
+        this.message = message
+        this.data = data
+        this.meta = meta
+    }
+       
+    /**
+     * 
+     * @type {undefined}
+     */
+    success=undefined   
+    /**
+     * 业务错误码，0 表示成功
+     * @type {Number}
+     */
+    code=undefined   
+    /**
+     * 
+     * @type {String}
+     */
+    message=undefined
+    
+}
 export class ApiResponse_PromptSourceOut_ {
   
     /**
@@ -1567,12 +1600,16 @@ export class PromptInfoOut {
      * @param {String} class_str 
      * @param {String} primary_type 
      * @param {String} secondary_type 
+     * @param {String} description 
+     * @param {PromptParameterGroupsSchema} parameter 
      */ 
-    constructor(operator = undefined,class_str = undefined,primary_type = undefined,secondary_type = undefined){
+    constructor(operator = undefined,class_str = undefined,primary_type = undefined,secondary_type = undefined,description = undefined,parameter = undefined){
         this.operator = operator
         this.class_str = class_str
         this.primary_type = primary_type
         this.secondary_type = secondary_type
+        this.description = description
+        this.parameter = parameter
     }
        
     /**
@@ -1594,7 +1631,66 @@ export class PromptInfoOut {
      * 
      * @type {String}
      */
-    secondary_type=undefined
+    secondary_type=undefined   
+    /**
+     * 
+     * @type {String}
+     */
+    description=undefined   
+    /**
+     * 
+     * @type {PromptParameterGroupsSchema}
+     */
+    parameter=undefined
+    
+}
+export class PromptParameterGroupsSchema {
+  
+    /**
+     *
+     * @param {Array} init 
+     * @param {Array} build_prompt 
+     */ 
+    constructor(init = undefined,build_prompt = undefined){
+        this.init = init
+        this.build_prompt = build_prompt
+    }
+       
+    /**
+     * 
+     * @type {Array}
+     */
+    init=undefined   
+    /**
+     * 
+     * @type {Array}
+     */
+    build_prompt=undefined
+    
+}
+export class PromptParameterSchema {
+  
+    /**
+     *
+     * @param {String} name 
+     * @param {String} kind 
+     */ 
+    constructor(name = undefined,default_value = undefined,kind = undefined){
+        this.name = name
+        this.default_value = default_value
+        this.kind = kind
+    }
+       
+    /**
+     * 
+     * @type {String}
+     */
+    name=undefined   
+    /**
+     * 
+     * @type {String}
+     */
+    kind=undefined
     
 }
 export class PromptSourceOut {

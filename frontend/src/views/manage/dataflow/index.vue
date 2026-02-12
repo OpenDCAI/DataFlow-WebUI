@@ -308,6 +308,7 @@ export default {
     mounted() {
         this.setViewport()
         this.getServing()
+        this.getPromptInfo()
     },
     methods: {
         ...mapActions(useDataflow, [
@@ -316,6 +317,7 @@ export default {
             'getDataManagerList',
             'chooseServing',
             'getPipelines',
+            'getPromptInfo',
             'getTasks',
             'getExecution',
             'clearExecution'
@@ -576,11 +578,18 @@ export default {
                             status: 'correct'
                         })
                     }
+                    else {
+                        this.$barWarning(this.local('Pipeline execution failed') + res.message, {
+                            status: 'warning'
+                        })
+                        this.lock.running = true
+                    }
                 })
                 .catch((err) => {
                     this.$barWarning(this.local('Pipeline execution failed'), {
                         status: 'error'
                     })
+                    this.lock.running = true
                 })
         },
         async handleRunClick() {

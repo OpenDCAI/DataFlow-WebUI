@@ -998,7 +998,7 @@ export class tasks {
   }
  
   /**
-  * @summary 下载任务执行结果文件
+  * @summary 下载任务执行结果文件,step从0开始计数，想请求第一个算子传step=0
   * @param {String} [pathtask_id] 
   * @param {Number} [step] 
   * @param {CancelTokenSource} [cancelSource] Axios Cancel Source 对象，可以取消该请求
@@ -1730,6 +1730,57 @@ export class prompts {
   }
  
   /**
+  * @summary 根据 Prompt 名称获取 Prompt 信息
+  * @param {String} [pathprompt_name] 
+  * @param {CancelTokenSource} [cancelSource] Axios Cancel Source 对象，可以取消该请求
+  * @param {Function} [uploadProgress] 上传回调函数
+  * @param {Function} [downloadProgress] 下载回调函数
+  */
+  static async get_prompt_info_api_v1_prompts_prompt_info__prompt_name__get(pathprompt_name,cancelSource,uploadProgress,downloadProgress){
+    return await new Promise((resolve,reject)=>{
+      let responseType = "json";
+      let options = {
+        method:'get',
+        url:'/api/v1/prompts/prompt-info/'+pathprompt_name+'',
+        data:{},
+        params:{},
+        headers:{
+          "Content-Type":""
+        },
+        onUploadProgress:uploadProgress,
+        onDownloadProgress:downloadProgress
+      }
+      // support wechat mini program
+      if (cancelSource!=undefined){
+        options.cancelToken = cancelSource.token
+      }
+      if (responseType != "json"){
+        options.responseType = responseType;
+      }
+      axios(options)
+      .then(res=>{
+        if (res.config.responseType=="blob"){
+          resolve(new Blob([res.data],{
+            type: res.headers["content-type"].split(";")[0]
+          }))
+        }else{
+          resolve(res.data);
+          return res.data
+        }
+      }).catch(err=>{
+        if (err.response){
+          if (err.response.data)
+            reject(err.response.data)
+          else
+            reject(err.response);
+        }else{
+          reject(err)
+        }
+      })
+    })
+  }
+ 
+  /**
   * @summary 根据算子名称获取对应的 Prompt 列表
   * @param {String} [pathoperator_name] 
   * @param {CancelTokenSource} [cancelSource] Axios Cancel Source 对象，可以取消该请求
@@ -1849,6 +1900,14 @@ prompts.get_prompt_info_api_v1_prompts_prompt_info_get.fullPath=`${axios.default
 * @description get_prompt_info_api_v1_prompts_prompt_info_get url链接，不包含baseURL
 */
 prompts.get_prompt_info_api_v1_prompts_prompt_info_get.path=`/api/v1/prompts/prompt-info`
+/**
+* @description get_prompt_info_api_v1_prompts_prompt_info__prompt_name__get url链接，包含baseURL
+*/
+prompts.get_prompt_info_api_v1_prompts_prompt_info__prompt_name__get.fullPath=`${axios.defaults.baseURL}/api/v1/prompts/prompt-info/{prompt_name}`
+/**
+* @description get_prompt_info_api_v1_prompts_prompt_info__prompt_name__get url链接，不包含baseURL
+*/
+prompts.get_prompt_info_api_v1_prompts_prompt_info__prompt_name__get.path=`/api/v1/prompts/prompt-info/{prompt_name}`
 /**
 * @description get_prompts_api_v1_prompts__operator_name__get url链接，包含baseURL
 */

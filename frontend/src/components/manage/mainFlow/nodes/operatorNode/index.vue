@@ -7,7 +7,7 @@
         <div class="node-row-item">
             <span class="info-title" style="font-size: 13px; color: rgba(52, 199, 89, 1)">{{
                 appConfig.local('Init. Parameters')
-            }}</span>
+                }}</span>
         </div>
         <hr />
         <div v-if="allowedPrompts.length > 0 && isPromptTemplate" class="node-row-item col" @mousedown.stop @click.stop>
@@ -16,6 +16,9 @@
                 :options="allowedPrompts" :choosen-slider-background="thisData.borderColor"
                 :reveal-background-color="[thisData.shadowColor, 'rgba(255, 255, 255, 1)']"
                 :reveal-border-color="thisData.borderColor" border-radius="8" style="width: 100%"></fv-combobox>
+            <span v-if="promptParamModel.length > 0" class="info-title">{{ appConfig.local('Prompt Parameters')
+                }}</span>
+            <kv-input v-if="promptParamModel.length > 0" v-model="promptParamModel" :readonly="true"></kv-input>
         </div>
         <div v-if="thisData.operatorParams" v-show="item.show" v-for="(item, index) in thisData.operatorParams.init"
             :key="`init_${index}`" class="node-row-item col">
@@ -26,7 +29,7 @@
         <div class="node-row-item">
             <span class="info-title" style="font-size: 13px; color: rgba(0, 122, 255, 1)">{{
                 appConfig.local('Run Parameters')
-            }}</span>
+                }}</span>
         </div>
         <hr />
         <div v-if="thisData.operatorParams" v-show="hiddenParam(item)"
@@ -35,11 +38,8 @@
             <Handle :id="`${item.name}::target::run_key`" type="target" class="handle-item" :position="Position.Left" />
             <Handle :id="`${item.name}::source::run_key`" type="source" class="handle-item"
                 :position="Position.Right" />
-            <fv-text-box :theme="theme" v-model="item.value"
-                :placeholder="appConfig.local('Please input') + ` ${item.name}`" font-size="12" border-radius="3"
-                :border-width="2" :reveal-border="true" :border-color="thisData.shadowColor"
-                :focus-border-color="thisData.borderColor" underline style="width: 100%; height: 35px"
-                @update:modelValue="emitUpdateRunValue(item)" @mousedown.stop @click.stop></fv-text-box>
+            <value-input :theme="theme" v-model="item.value" :item-obj="item" :this-data="thisData"
+                @update:modelValue="emitUpdateRunValue(item)" @mousedown.stop @click.stop></value-input>
         </div>
         <div v-if="currentLog" class="node-group-item"
             :style="{ background: theme === 'dark' ? 'rgba(0, 0, 0, 1)' : '' }">
@@ -70,7 +70,8 @@ import { useTheme } from '@/stores/theme'
 import { Position, Handle } from '@vue-flow/core'
 
 import baseNode from '@/components/manage/mainFlow/nodes/baseNode.vue'
-import valueInput from './valueInput.vue'
+import valueInput from './valueInput/index.vue'
+import kvInput from './valueInput/kvInput.vue'
 
 const { $api } = useGlobal()
 
@@ -148,6 +149,11 @@ const promptTemplateModel = computed({
                 (item) => item.name === 'prompt_template'
             )
             if (!prompt_template.value) return {}
+            if (typeof (prompt_template.value) === 'object')
+                return {
+                    key: prompt_template.value.cls_name,
+                    text: prompt_template.value.cls_name
+                }
             return {
                 key: prompt_template.value,
                 text: prompt_template.value
@@ -158,11 +164,45 @@ const promptTemplateModel = computed({
     },
     set(val) {
         if (!val.key) return
+        if (val.key === promptTemplateModel.value.key) return
         if (thisData.value.operatorParams.init) {
             let prompt_template = thisData.value.operatorParams.init.find(
                 (item) => item.name === 'prompt_template'
             )
-            prompt_template.value = val.key
+            let promptInfo = dataflow.promptInfo[val.key]
+            let promptParams = []
+            if (promptInfo && promptInfo.parameter.init)
+                promptParams = promptInfo.parameter.init
+            promptParams.forEach((param) => {
+                param.value = param.default_value || ''
+            })
+            prompt_template.value = {
+                cls_name: val.key,
+                params: promptParams
+            }
+        }
+    }
+})
+const promptParamModel = computed({
+    get() {
+        try {
+            let prompt_template = thisData.value.operatorParams.init.find(
+                (item) => item.name === 'prompt_template'
+            )
+            if (!prompt_template.value) return {}
+            if (typeof (prompt_template.value) === 'object')
+                return prompt_template.value.params
+            return []
+        } catch (error) {
+            return []
+        }
+    },
+    set(val) {
+        if (thisData.value.operatorParams.init) {
+            let prompt_template = thisData.value.operatorParams.init.find(
+                (item) => item.name === 'prompt_template'
+            )
+            prompt_template.value.params = val
         }
     }
 })
@@ -179,15 +219,28 @@ const paramsWrapper = (objs) => {
         item.show = true
         if (item.name === 'prompt_template') {
             let val = item.value
-            if (val.indexOf("'") > -1) {
-                val = val.match(/'(.*)'/)
-                if (val) {
-                    val = val[1]
-                    val = val.split('.')
-                    val = val[val.length - 1]
-                } else val = ''
+            if (typeof (val) === 'string') {
+                if (val.indexOf("'") > -1) {
+                    val = val.match(/'(.*)'/)
+                    if (val) {
+                        val = val[1]
+                        val = val.split('.')
+                        val = val[val.length - 1]
+                    } else val = ''
+                }
+                let promptInfo = dataflow.promptInfo[val]
+                let promptParams = []
+                if (promptInfo && promptInfo.parameter.init)
+                    promptParams = promptInfo.parameter.init
+                promptParams.forEach((param) => {
+                    param.value = param.default_value || ''
+                })
+                item.value = {
+                    cls_name: val,
+                    params: promptParams
+                }
             }
-            item.value = val
+            else item.value = val
             item.show = false
         }
     }
