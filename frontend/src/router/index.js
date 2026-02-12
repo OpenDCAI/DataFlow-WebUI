@@ -1,10 +1,10 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
 
-import tool from "./tools";
+import tool from './tools'
 
-import Manage from "./Manage";
+import Manage from './Manage'
 
-import home from "@/views/client/home/index.vue";
+import home from '@/views/client/home/index.vue'
 
 const router = createRouter({
     history: createWebHashHistory(import.meta.env.BASE_URL),
@@ -14,11 +14,18 @@ const router = createRouter({
             name: 'home',
             component: home,
             meta: {
-                title: "Dataflow"
+                title: 'Dataflow'
             }
         },
         Manage
     ]
+})
+
+router.beforeEach((to, from, next) => {
+    if (to.meta.title) {
+        document.title = to.meta.title
+    }
+    next()
 })
 
 export default router
