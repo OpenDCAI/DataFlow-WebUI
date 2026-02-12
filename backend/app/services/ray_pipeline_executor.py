@@ -267,7 +267,8 @@ def dataflow_pipeline_execute(pipeline_config: Dict[str, Any], dataflow_runtime:
                 for param in op.get("params", {}).get("init", []):
                     param_name = param.get("name")
                     param_value = param.get("value")
-                    
+                    if isinstance(param_value, str) and param_value == "":
+                        param_value = None
                     try:
                         if param_name == "llm_serving":
                             serving_id = param_value
@@ -383,15 +384,28 @@ def dataflow_pipeline_execute(pipeline_config: Dict[str, Any], dataflow_runtime:
                                 param_value = db_manager_instance_map[db_manager_id]
                         
                         elif param_name == "prompt_template":
-                            prompt_cls_name = extract_class_name(param_value)
-                            add_log("init", f"[{datetime.now().isoformat()}]   - Loading prompt template: {prompt_cls_name}", op_key)
-                            prompt_cls = PROMPT_REGISTRY.get(prompt_cls_name)
-                            if not prompt_cls:
-                                raise DataFlowEngineError(
-                                    f"Prompt class not found: {prompt_cls_name}",
-                                    context={"operator": op_name, "param": param_name}
-                                )
-                            param_value = prompt_cls()
+                            if isinstance(param_value, str):
+                                prompt_cls_name = extract_class_name(param_value)
+                                add_log("init", f"[{datetime.now().isoformat()}]   - Loading prompt template: {prompt_cls_name}", op_key)
+                                prompt_cls = PROMPT_REGISTRY.get(prompt_cls_name)
+                                if not prompt_cls:
+                                    raise DataFlowEngineError(
+                                        f"Prompt class not found: {prompt_cls_name}",
+                                        context={"operator": op_name, "param": param_name}
+                                    )
+                                param_value = prompt_cls()
+                            elif isinstance(param_value, dict):
+                                prompt_cls_name = extract_class_name(param_value.get("cls_name"))
+                                prompt_cls = PROMPT_REGISTRY.get(prompt_cls_name)
+                                if not prompt_cls:
+                                    raise DataFlowEngineError(
+                                        f"Prompt class not found: {prompt_cls_name}",
+                                        context={"operator": op_name, "param": param_name}
+                                    )
+                                param_dict = {}
+                                for param in param_value.get("params", []):
+                                    param_dict[param.get("name")] = param.get("value") if param.get("value") is not None else param.get("default_value")
+                                param_value = prompt_cls(**param_dict)
                         
                         init_params[param_name] = param_value
                         
@@ -413,7 +427,11 @@ def dataflow_pipeline_execute(pipeline_config: Dict[str, Any], dataflow_runtime:
                 for param in op.get("params", {}).get("run", []):
                     param_name = param.get("name")
                     param_value = param.get("value")
-                    run_params[param_name] = param_value
+                    if param.get('kind') == "VAR_KEYWORD":
+                        for item in param_value:
+                            run_params[item.get("name")] = item.get("value") if item.get("value") is not None else item.get("default_value")
+                    else:
+                        run_params[param_name] = param_value
                 
                 # 实例化 Operator
                 operator_cls_name = extract_class_name(op_name)

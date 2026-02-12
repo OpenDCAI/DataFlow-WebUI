@@ -9,6 +9,49 @@ from inspect import isclass
 
 logger = get_logger(__name__)
 
+import json
+import inspect
+from typing import Any, Dict, List
+
+def _safe_json_val(val: Any) -> Any:
+    if val is inspect.Parameter.empty:
+        return None
+    if isinstance(val, type) or callable(val):
+        return str(val)
+    try:
+        json.dumps(val)
+        return val
+    except TypeError:
+        return str(val)
+
+def _param_to_dict(p: inspect.Parameter) -> Dict[str, Any]:
+    return {
+        "name": p.name,
+        "default_value": _safe_json_val(p.default),
+        "kind": p.kind.name,
+    }
+
+def _get_method_params(method: Any, skip_first_self: bool = False) -> List[Dict[str, Any]]:
+    try:
+        if method is None:
+            return []
+        sig = inspect.signature(method)
+        params = list(sig.parameters.values())
+        if skip_first_self and params and params[0].name == "self":
+            params = params[1:]
+        return [_param_to_dict(p) for p in params]
+    except Exception:
+        return []
+
+def _get_docstring(obj) -> str:
+    """
+    Return cleaned docstring (dedented), fallback to ''.
+    """
+    try:
+        return inspect.getdoc(obj) or ""
+    except Exception:
+        return ""
+
 
 class PromptRegistry:
     """
@@ -80,48 +123,48 @@ class PromptRegistry:
         return OperatorPromptMapOut(operator_prompts=result)
 
     def list_prompt_info(self) -> PromptInfoMapOut:
-
         prompt_map = self._prompt_registry.get_obj_map()
         operator_map = self._operator_registry.get_obj_map()
 
-        # ---- 第一部分：构建 Prompt → Operators 列表 ----
+        # Prompt → Operators
         prompt_to_ops: Dict[str, List[str]] = {}
-
         for op_name, op_cls in operator_map.items():
             allowed = getattr(op_cls, "ALLOWED_PROMPTS", [])
             for p_cls in allowed:
-                p_name = p_cls.__name__
-                prompt_to_ops.setdefault(p_name, []).append(op_name)
+                prompt_to_ops.setdefault(p_cls.__name__, []).append(op_name)
 
-        # ---- 第二部分：获取 Prompt 的分类信息 ----
         prompt_types = self._prompt_registry.get_type_of_objects()
-
-        # ---- 第三部分：构造最终结构 ----
         result: Dict[str, PromptInfoOut] = {}
 
         for p_name, p_cls in prompt_map.items():
             if not isclass(p_cls):
                 continue
 
-            # operator list
             ops = prompt_to_ops.get(p_name, [])
-
-            # class path string
             class_str = f"{p_cls.__module__}.{p_cls.__name__}"
 
-            # categories
             type_path = prompt_types.get(p_name, [])
             primary_type = type_path[0] if len(type_path) > 0 else "Unknown"
             secondary_type = type_path[1] if len(type_path) > 1 else "Unknown"
+
+
+            # ✅ docstring
+            description = _get_docstring(p_cls)
+            # ✅ 新增：init 参数
+            init_params = _get_method_params(getattr(p_cls, "__init__", None), skip_first_self=True)
+            build_params = _get_method_params(getattr(p_cls, "build_prompt", None), skip_first_self=True)
 
             result[p_name] = PromptInfoOut(
                 operator=ops,
                 class_str=class_str,
                 primary_type=primary_type,
-                secondary_type=secondary_type
+                secondary_type=secondary_type,
+                description=description,
+                parameter={"init": init_params, "build_prompt": build_params},   # ✅ 新字段
             )
 
         return PromptInfoMapOut(prompts=result)
+
 
 # 全局单例
 # _PROMPT_REGISTRY = PromptRegistry()
