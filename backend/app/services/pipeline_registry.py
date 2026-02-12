@@ -456,21 +456,6 @@ class PipelineRegistry:
         except Exception as e:
             logger.error(f"Error updating API pipeline operators: {e}", exc_info=True)
 
-    _PRESET_PIPELINE_NAME_WHITELIST = {
-        "Agentic Rag Pipeline",
-        "Chemistry Smiles",
-        "Code Code To Sft Data Pipeline",
-        "Code Gen Dataset Pipeline",
-        "Func Call Synthesis",
-        "Reasoning General Pipeline",
-        "Reasoning Math Pipeline",
-        "Reasoning Pretrain Pipeline",
-        "Text Conversation Synthesis Pipeline",
-        "Text Sft Synthesis Pipeline",
-        "Text2Qa Pipeline",
-        "Text2Sql Pipeline Refine",
-        "Text2Sql Pipeline Gen",
-    }
 
     def _normalize_pipeline_name(self, name: str) -> str:
         return re.sub(r"\s+", " ", (name or "")).strip()
@@ -491,9 +476,9 @@ class PipelineRegistry:
             return False
 
     def _is_visible_pipeline(self, pipeline: Dict[str, Any]) -> bool:
-        if self._is_preset_pipeline(pipeline):
+        if self._is_preset_pipeline(pipeline):        
             name = self._normalize_pipeline_name(pipeline.get("name", ""))
-            return name in self._PRESET_PIPELINE_NAME_WHITELIST
+            return name in settings._PRESET_PIPELINE_NAME_WHITELIST
         return True
 
     def list_templates(self) -> List[Dict[str, Any]]:
