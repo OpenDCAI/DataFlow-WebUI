@@ -12,7 +12,6 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from starlette.responses import Response
 from pathlib import Path
-import df_mxc
 
 app = FastAPI()
 
