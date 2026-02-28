@@ -48,5 +48,9 @@ class Settings(BaseSettings):
         "Text2Sql Pipeline Gen",
         "Double Column Input"
     }
+    # Please input your custom DataFlow extensions here, the system will try to dynamically load them at runtime
+    _DATAFLOW_EXTENSIONS = [
+        # "my_dataflow_extension"
+    ]
 
 settings = Settings()

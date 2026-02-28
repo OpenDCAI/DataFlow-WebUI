@@ -754,10 +754,17 @@ class RayPipelineExecutor:
         try:
             import json
             import os
+            import importlib
             from datetime import datetime
             from app.core.logger_setup import get_logger
             from app.core.config import settings
             from app.services.dataflow_engine import DataFlowEngine
+            for ext in settings._DATAFLOW_EXTENSIONS:
+                try:
+                    importlib.import_module(ext)
+                    print(f"[Ray Worker] Successfully loaded DataFlow extension: {ext}")
+                except ImportError as e:
+                    print(f"[Ray Worker] Failed to load DataFlow extension '{ext}': {e}")
             
             # 设置环境变量，标识这是 Ray worker
             os.environ["RAY_WORKER"] = "1"
