@@ -267,8 +267,23 @@ def dataflow_pipeline_execute(pipeline_config: Dict[str, Any], dataflow_runtime:
                 for param in op.get("params", {}).get("init", []):
                     param_name = param.get("name")
                     param_value = param.get("value")
+                    default_value = param.get("default_value")
+                    
                     if isinstance(param_value, str) and param_value == "":
                         param_value = None
+                    
+                    # Type coercion based on default_value type
+                    if param_value is not None and default_value is not None:
+                        default_type = type(default_value)
+                        if not isinstance(param_value, default_type):
+                            try:
+                                if default_type == bool:
+                                    param_value = str(param_value).lower() in ("true", "1", "yes")
+                                else:
+                                    param_value = default_type(param_value)
+                                logger.debug(f"Coerced {param_name} to {default_type.__name__}: {param_value}")
+                            except (ValueError, TypeError):
+                                logger.warning(f"Failed to coerce {param_name} to {default_type.__name__}")
                     try:
                         if param_name == "llm_serving":
                             serving_id = param_value
@@ -427,6 +442,20 @@ def dataflow_pipeline_execute(pipeline_config: Dict[str, Any], dataflow_runtime:
                 for param in op.get("params", {}).get("run", []):
                     param_name = param.get("name")
                     param_value = param.get("value")
+                    default_value = param.get("default_value")
+                    
+                    # Type coercion based on default_value type
+                    if param_value is not None and default_value is not None:
+                        default_type = type(default_value)
+                        if not isinstance(param_value, default_type):
+                            try:
+                                if default_type == bool:
+                                    param_value = str(param_value).lower() in ("true", "1", "yes")
+                                else:
+                                    param_value = default_type(param_value)
+                            except (ValueError, TypeError):
+                                pass
+                    
                     if param.get('kind') == "VAR_KEYWORD":
                         for item in param_value:
                             run_params[item.get("name")] = item.get("value") if item.get("value") is not None else item.get("default_value")
