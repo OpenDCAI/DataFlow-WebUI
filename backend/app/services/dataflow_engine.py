@@ -20,6 +20,10 @@ from contextlib import redirect_stdout, redirect_stderr
 
 logger = get_logger(__name__)
 
+import inspect
+
+from app.services.param_coercion import coerce_param_value
+
 class DataFlowEngineError(Exception):
     """DataFlow Engine 自定义异常类"""
     def __init__(self, message: str, context: Dict[str, Any] = None, original_error: Exception = None):
@@ -464,26 +468,22 @@ class DataFlowEngine:
                 try:
                     init_params = {}
                     run_params = {}
+                    operator_cls_name = extract_class_name(op_name)
+                    operator_cls = OPERATOR_REGISTRY.get(operator_cls_name)
+                    if not operator_cls:
+                        raise DataFlowEngineError(
+                            f"Operator类未找到: {operator_cls_name}",
+                            context={"operator": op_name, "operator_index": op_idx}
+                        )
+
+                    init_sig = inspect.signature(getattr(operator_cls, "__init__", lambda: None))
+                    run_sig = inspect.signature(getattr(operator_cls, "run", lambda: None))
                     
                     # 处理 init 参数
                     for param in op.get("params", {}).get("init", []):
                         param_name = param.get("name")
                         param_value = param.get("value")
                         default_value = param.get("default_value")
-                        
-                        # Type coercion based on default_value type
-                        if param_value is not None and default_value is not None:
-                            default_type = type(default_value)
-                            if not isinstance(param_value, default_type):
-                                try:
-                                    if default_type == bool:
-                                        # Special handling: bool("false") returns True in Python
-                                        param_value = str(param_value).lower() in ("true", "1", "yes")
-                                    else:
-                                        param_value = default_type(param_value)
-                                    logger.debug(f"Coerced {param_name} to {default_type.__name__}: {param_value}")
-                                except (ValueError, TypeError):
-                                    logger.warning(f"Failed to coerce {param_name} to {default_type.__name__}")
                         
                         try:
                             if param_name == "llm_serving":
@@ -525,6 +525,9 @@ class DataFlowEngine:
                                         context={"operator": op_name, "param": param_name}
                                     )
                                 param_value = prompt_cls()
+                            else:
+                                ann = init_sig.parameters.get(param_name).annotation if param_name in init_sig.parameters else inspect.Parameter.empty
+                                param_value = coerce_param_value(param_value, annotation=ann, default_value=default_value)
                             
                             init_params[param_name] = param_value
                             
@@ -547,31 +550,11 @@ class DataFlowEngine:
                         param_name = param.get("name")
                         param_value = param.get("value")
                         default_value = param.get("default_value")
-                        
-                        # Type coercion based on default_value type
-                        if param_value is not None and default_value is not None:
-                            default_type = type(default_value)
-                            if not isinstance(param_value, default_type):
-                                try:
-                                    if default_type == bool:
-                                        param_value = str(param_value).lower() in ("true", "1", "yes")
-                                    else:
-                                        param_value = default_type(param_value)
-                                except (ValueError, TypeError):
-                                    pass
-                        
+                        ann = run_sig.parameters.get(param_name).annotation if param_name in run_sig.parameters else inspect.Parameter.empty
+                        param_value = coerce_param_value(param_value, annotation=ann, default_value=default_value)
                         run_params[param_name] = param_value
                     
                     # 实例化 Operator
-                    operator_cls_name = extract_class_name(op_name)
-                    operator_cls = OPERATOR_REGISTRY.get(operator_cls_name)
-                    
-                    if not operator_cls:
-                        raise DataFlowEngineError(
-                            f"Operator类未找到: {operator_cls_name}",
-                            context={"operator": op_name, "operator_index": op_idx}
-                        )
-                    
                     operator_instance = operator_cls(**init_params)
                     run_op.append((operator_instance, run_params, op_name, op_key))
                     
