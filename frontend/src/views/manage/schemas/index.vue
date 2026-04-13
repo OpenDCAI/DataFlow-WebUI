@@ -11,7 +11,7 @@
                     :disabled-collapse="true" :max-height="'auto'">
                     <template v-slot:extension>
                         <fv-button v-show="show.add" theme="dark" :is-box-shadow="true" :background="gradient"
-                            :disabled="!checkAdd()" border-radius="6"
+                            :disabled="!checkAdd() || !lock.add" border-radius="6"
                             style="width: 90px; margin-right: 5px" @click="confirmAdd">
                             {{ local('Confirm') }}
                         </fv-button>
@@ -60,7 +60,8 @@
                     <template v-slot:extension>
                         <fv-button v-show="!item.edit" theme="dark" background="rgba(191, 95, 95, 1)" 
                             foreground="rgba(255, 255, 255, 1)" border-radius="6" :is-box-shadow="true" 
-                            style="width: 90px" @click="$event.stopPropagation(), deleteSchema(item)">
+                            style="width: 90px" @click="$event.stopPropagation(), deleteSchema(item)"
+                            :disabled="!lock.delete">
                             {{ local('Delete') }}
                         </fv-button>
                         <fv-button v-show="!item.edit" :theme="theme" :icon="item.edit ? 'Cancel' : 'Edit'" 
@@ -77,7 +78,7 @@
                                 <p class="schema-item-std-info">{{ item.id }}</p>
                             </div>
                             <fv-button v-show="item.edit" theme="dark" :is-box-shadow="true" :background="gradient"
-                                border-radius="6" :disabled="!checkEdit(item)"
+                                border-radius="6" :disabled="!checkEdit(item) || !lock.edit"
                                 style="width: 90px; margin-right: 5px" @click="confirmEdit(item)">
                                 {{ local('Confirm') }}
                             </fv-button>
@@ -153,6 +154,9 @@
 import { mapState } from 'pinia'
 import { useAppConfig } from '@/stores/appConfig'
 import { useTheme } from '@/stores/theme'
+import axios from 'axios'
+
+const BASE = '/api/v1/json_schemas'
 
 export default {
     data() {
@@ -169,7 +173,12 @@ export default {
             },
             schemaError: '',
             editError: {},
-            copyLabel: ''
+            copyLabel: '',
+            lock: {
+                add: true,
+                edit: true,
+                delete: true
+            }
         }
     },
     computed: {
@@ -180,35 +189,19 @@ export default {
         this.loadSchemas()
     },
     methods: {
-        loadSchemas() {
-            // For now, use localStorage. In production, fetch from backend API
-            const stored = localStorage.getItem('df_schemas')
-            if (stored) {
-                try {
-                    this.schemaList = JSON.parse(stored)
+        async loadSchemas() {
+            try {
+                const res = await axios.get(`${BASE}/`)
+                if (res.data?.code === 200) {
+                    this.schemaList = res.data.data || []
                     this.schemaList.forEach(item => {
                         item.edit = false
-                        item.id = item.id || this.generateId()
                     })
-                } catch (e) {
-                    console.error('Failed to load schemas', e)
                 }
+            } catch (e) {
+                console.error('Failed to load schemas', e)
+                this.$barWarning({ status: 'warning', title: 'Failed to load schemas' })
             }
-        },
-        saveSchemas() {
-            localStorage.setItem('df_schemas', JSON.stringify(
-                this.schemaList.map(item => ({
-                    id: item.id,
-                    name: item.name,
-                    description: item.description,
-                    schema: item.schema,
-                    example: item.example,
-                    createdAt: item.createdAt
-                }))
-            ))
-        },
-        generateId() {
-            return 'schema_' + Math.random().toString(36).substr(2, 9)
         },
         validateSchemaJson(event) {
             const target = event.target || event
@@ -217,7 +210,6 @@ export default {
                 if (value.trim()) {
                     JSON.parse(value)
                     this.schemaError = ''
-                    // Clear edit error for specific item if exists
                     Object.keys(this.editError).forEach(key => {
                         delete this.editError[key]
                     })
@@ -251,37 +243,41 @@ export default {
             }
         },
         confirmAdd() {
-            if (!this.checkAdd()) return
+            if (!this.checkAdd() || !this.lock.add) return
             
-            const schema = {
-                id: this.generateId(),
+            this.lock.add = false
+            axios.post(`${BASE}/`, {
                 name: this.newSchema.name,
                 description: this.newSchema.description,
                 schema: this.newSchema.schema,
-                example: this.newSchema.example,
-                createdAt: new Date().toISOString(),
-                edit: false
-            }
-            this.schemaList.push(schema)
-            this.saveSchemas()
-            this.show.add = false
-            this.newSchema = { name: '', description: '', schema: '', example: '' }
-            this.schemaError = ''
-            this.$barNotice({ status: 'success', title: this.local('Schema created successfully') })
+                example: this.newSchema.example
+            }).then((res) => {
+                if (res.data?.code === 200) {
+                    this.loadSchemas()
+                    this.show.add = false
+                    this.newSchema = { name: '', description: '', schema: '', example: '' }
+                    this.schemaError = ''
+                    this.$barWarning({ status: 'correct', title: this.local('Schema created successfully') })
+                } else {
+                    this.$barWarning({ status: 'warning', title: res.data?.message || 'Creation failed' })
+                }
+                this.lock.add = true
+            }).catch((err) => {
+                this.$barWarning({ status: 'error', title: err.message || 'Failed to create schema' })
+                this.lock.add = true
+            })
         },
         handleEdit(item) {
             item.edit = !item.edit
             if (!item.edit) {
-                // Reset to saved state
                 this.loadSchemas()
                 delete this.editError[item.id]
             }
         },
         confirmEdit(item) {
-            if (!this.checkEdit(item)) return
+            if (!this.checkEdit(item) || !this.lock.edit) return
             
             try {
-                // Validate schema JSON
                 JSON.parse(item.schema)
                 if (item.example) {
                     JSON.parse(item.example)
@@ -291,10 +287,26 @@ export default {
                 return
             }
             
-            this.saveSchemas()
-            item.edit = false
-            delete this.editError[item.id]
-            this.$barNotice({ status: 'success', title: this.local('Schema updated successfully') })
+            this.lock.edit = false
+            axios.put(`${BASE}/${item.id}`, {
+                name: item.name,
+                description: item.description,
+                schema: item.schema,
+                example: item.example
+            }).then((res) => {
+                if (res.data?.code === 200) {
+                    item.edit = false
+                    delete this.editError[item.id]
+                    this.$barWarning({ status: 'correct', title: this.local('Schema updated successfully') })
+                    this.loadSchemas()
+                } else {
+                    this.$barWarning({ status: 'warning', title: res.data?.message || 'Update failed' })
+                }
+                this.lock.edit = true
+            }).catch((err) => {
+                this.$barWarning({ status: 'error', title: err.message || 'Failed to update schema' })
+                this.lock.edit = true
+            })
         },
         deleteSchema(item) {
             this.$dialog.warning({
@@ -304,12 +316,19 @@ export default {
                 cancelText: this.local('Cancel')
             }).then(res => {
                 if (res) {
-                    const index = this.schemaList.findIndex(s => s.id === item.id)
-                    if (index > -1) {
-                        this.schemaList.splice(index, 1)
-                        this.saveSchemas()
-                        this.$barNotice({ status: 'success', title: this.local('Schema deleted successfully') })
-                    }
+                    this.lock.delete = false
+                    axios.delete(`${BASE}/${item.id}`).then((res) => {
+                        if (res.data?.code === 200) {
+                            this.$barWarning({ status: 'correct', title: this.local('Schema deleted successfully') })
+                            this.loadSchemas()
+                        } else {
+                            this.$barWarning({ status: 'warning', title: res.data?.message || 'Delete failed' })
+                        }
+                        this.lock.delete = true
+                    }).catch((err) => {
+                        this.$barWarning({ status: 'error', title: err.message || 'Failed to delete schema' })
+                        this.lock.delete = true
+                    })
                 }
             })
         },

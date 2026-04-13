@@ -29,6 +29,7 @@ class Settings(BaseSettings):
     PREFERENCES_PATH: str = os.path.join(BASE_DIR, "data", "user_preferences.json") # preference information cache
     SQLITE_DB_DIR: str = os.path.join(BASE_DIR, "data", "text2sql_dbs") # where sqlite database files are stored
     CACHE_DIR: str = os.path.join(BASE_DIR, "cache_local") # cache directory for pipeline execution
+    RESOURCE_DIR: str = "data"  # resource directory for storing schemas and other resources
     DEFAULT_SERVING_FILLING: bool = True # whether to fill default values for missing fields in serving
 
     # white list of preset pipelines that can be shown in the frontend pipeline template list
