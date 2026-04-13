@@ -39,6 +39,13 @@ export default {
             }
         },
         {
+            path: 'dataviz',
+            component: () => AsyncLoad(() => import('@/views/manage/dataViz/index.vue')),
+            meta: {
+                title: 'Dataflow-DataViz'
+            }
+        },
+        {
             path: 'settings',
             component: () => AsyncLoad(() => import('@/views/manage/settings/index.vue')),
             meta: {

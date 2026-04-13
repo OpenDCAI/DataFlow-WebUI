@@ -7,6 +7,7 @@ class ServingParamSchema(BaseModel):
     default_value: Any = Field(None, description="默认值")
     value: Any = Field(None, description="参数值")
     required: Optional[bool] = Field(True, description="是否必填")
+    masked: Optional[bool] = Field(None, description="是否为脱敏值")
 
 class ServingQuerySchema(BaseModel):
     id: Optional[str] = Field(None, description="Serving实例的唯一标识符")

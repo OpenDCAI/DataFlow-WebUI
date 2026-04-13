@@ -45,6 +45,7 @@ import serving from '@/assets/nav/serving.svg'
 import dbManager from '@/assets/nav/dbManager.svg'
 import prompts from '@/assets/nav/prompts.svg'
 import schemas from '@/assets/nav/schemas.svg'
+import dataviz from '@/assets/nav/dataviz.svg'
 import analysis from '@/assets/nav/analysis.svg'
 
 export default {
@@ -102,6 +103,13 @@ export default {
                     key: -1,
                     name: () => this.local('Analytics'),
                     type: 'header'
+                },
+                {
+                    key: 2.7,
+                    name: () => this.local('Data Visualization'),
+                    icon: 'BarChartVertical',
+                    img: dataviz,
+                    route: '/m/dataviz'
                 },
                 {
                     key: 3,

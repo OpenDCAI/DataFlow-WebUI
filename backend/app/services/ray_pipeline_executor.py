@@ -407,17 +407,33 @@ def dataflow_pipeline_execute(pipeline_config: Dict[str, Any], dataflow_runtime:
                                     )
                                 param_value = prompt_cls()
                             elif isinstance(param_value, dict):
-                                prompt_cls_name = extract_class_name(param_value.get("cls_name"))
+                                prompt_cls_name = extract_class_name(param_value.get("cls_name", "FormatStrPrompt"))
+                                add_log("init", f"[{datetime.now().isoformat()}]   - Loading prompt template: {prompt_cls_name} (dict-form)", op_key)
                                 prompt_cls = PROMPT_REGISTRY.get(prompt_cls_name)
                                 if not prompt_cls:
                                     raise DataFlowEngineError(
                                         f"Prompt class not found: {prompt_cls_name}",
                                         context={"operator": op_name, "param": param_name}
                                     )
-                                param_dict = {}
-                                for param in param_value.get("params", []):
-                                    param_dict[param.get("name")] = param.get("value") if param.get("value") is not None else param.get("default_value")
+                                if "params" in param_value:
+                                    param_dict = {}
+                                    for p in param_value["params"]:
+                                        param_dict[p["name"]] = p.get("value") if p.get("value") is not None else p.get("default_value")
+                                else:
+                                    param_dict = {k: v for k, v in param_value.items() if k != "cls_name"}
                                 param_value = prompt_cls(**param_dict)
+                        elif param_name in ("process_fn", "filter_rules"):
+                            if isinstance(param_value, list):
+                                compiled = []
+                                for item in param_value:
+                                    if isinstance(item, str) and ("lambda " in item or "def " in item):
+                                        compiled.append(eval(item))  # noqa: S307
+                                    elif callable(item):
+                                        compiled.append(item)
+                                    else:
+                                        compiled.append(item)
+                                param_value = compiled
+                                add_log("init", f"[{datetime.now().isoformat()}]   - Compiled {len(compiled)} code-string(s) for {param_name}", op_key)
                         else:
                             ann = init_sig.parameters.get(param_name).annotation if param_name in init_sig.parameters else inspect.Parameter.empty
                             param_value = coerce_param_value(param_value, annotation=ann, default_value=default_value)
@@ -443,6 +459,8 @@ def dataflow_pipeline_execute(pipeline_config: Dict[str, Any], dataflow_runtime:
                     param_name = param.get("name")
                     param_value = param.get("value")
                     default_value = param.get("default_value")
+                    if param.get('kind') == "VAR_KEYWORD" and param_value is None:
+                        continue
                     if param.get('kind') == "VAR_KEYWORD":
                         for item in param_value:
                             item_name = item.get("name")
