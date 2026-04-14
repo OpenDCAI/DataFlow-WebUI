@@ -114,7 +114,7 @@ async def agent_websocket(websocket: WebSocket):
                             "content": delta.get("text", ""),
                         })
 
-                # claude-internal 格式：type=assistant，完整消息体
+                # Claude Code 格式：type=assistant，完整消息体
                 elif chunk_type == "assistant":
                     message_obj = chunk.get("message", {})
                     for content_block in message_obj.get("content", []):
@@ -166,7 +166,7 @@ async def agent_websocket(websocket: WebSocket):
                 active_task = asyncio.create_task(run_chat_stream(user_message))
 
             elif msg_type == "abort_session":
-                # 终止正在运行的 claude-internal 进程，清除会话上下文
+                # 终止正在运行的 claude 进程，清除会话上下文
                 if active_task and not active_task.done():
                     active_task.cancel()
                     try:

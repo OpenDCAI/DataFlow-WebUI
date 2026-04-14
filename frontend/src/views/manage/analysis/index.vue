@@ -311,10 +311,14 @@ export default {
             return Math.min(98, 85 + (this.successRate - 80) * 0.3)
         },
         dataCompleteness() {
-            return Math.min(99, 80 + Math.random() * 19)
+            if (!this.executions.length) return 0
+            const complete = this.executions.filter(e => e.started_at && e.ended_at && e.status).length
+            return Math.round((complete / this.executions.length) * 100)
         },
         systemReliability() {
-            return Math.min(99, 75 + Math.random() * 24)
+            if (!this.stats.total) return 0
+            const nonFailed = (this.stats.total || 0) - (this.stats.failed || 0)
+            return Math.round((nonFailed / this.stats.total) * 100)
         },
         avgPipelineDuration() {
             const avg = parseInt(this.avgExecutionTime)

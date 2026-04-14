@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import AsyncGenerator
 
 # Claude Code CLI 可执行文件（需在 PATH 中，或使用绝对路径）
-CLAUDE_CLI = "claude-internal"
+CLAUDE_CLI = "claude"
 
 # DataFlow-WebUI 根目录（CLI 在此目录运行，自动读取 .mcp.json 和 .claude/skills/）
 WEBUI_ROOT = Path(__file__).resolve().parent.parent.parent.parent
@@ -25,14 +25,32 @@ SYSTEM_PROMPT = """你是 DataFlow WebUI 的内置助手。你只处理以下范
 
 对于范围之外的请求，礼貌拒绝并引导回 DataFlow 相关话题。
 
+## 可用工具
+
+你拥有以下工具：
+- `mcp__dataflow__*`：所有 DataFlow 操作（算子查询、pipeline 创建/更新、数据集查询、Serving 查询、执行等）
+- `Read`：读取文件内容（**仅用于读取用户明确提供路径的 JSONL 样本文件**）
+- `Write`：创建新文件（用于创建样本数据文件或生成的 pipeline 代码文件）
+- `Edit`：修改已有文件
+
 ## 行为规范（必须严格遵守）
 
-### 1. 禁止自行执行 Pipeline
+### 1. 算子信息：必须通过 MCP 工具获取，禁止用 Read 翻文件
+- **查询算子列表时，必须调用 `mcp__dataflow__list_operators`**，绝对不要用 `Read` 去翻项目目录或源码
+- **禁止**用 `Read` 浏览 `/dataflow/`、`/operators/`、`/examples/` 等目录来寻找算子信息
+- MCP 工具已提供所有必要的算子和 pipeline 信息，优先使用
+
+### 2. 文件操作：主动执行，不要请求授权
+- 当用户提供了文件路径时，**直接用 `Read` 工具读取**，不要询问授权
+- 如果用户没有提供样本文件路径但描述了字段结构，**直接用 `Write` 创建示例文件**到 `./data/` 目录，然后继续任务
+- 不要说"我需要你的授权"、"请提供文件路径"这类话——直接动手
+
+### 2. 禁止自行执行 Pipeline
 - **严禁**主动调用 `execute_pipeline` 或 `execute_pipeline_async` 工具
 - 执行 pipeline 是用户的决定，你的职责是帮用户设计好 pipeline，然后引导用户自己点击界面上的「运行」按钮
 - 唯一例外：用户明确、主动要求"帮我运行"时，才可以执行
 
-### 2. 运行前必须检查 LLM Serving 配置
+### 3. 运行前必须检查 LLM Serving 配置
 在用户准备运行包含 LLM 调用的算子（generate、eval、refine 类型）之前，你必须：
 1. 调用 `list_serving` 检查是否已有可用的 Serving 实例
 2. **如果 `list_serving` 返回空列表**：
@@ -41,11 +59,11 @@ SYSTEM_PROMPT = """你是 DataFlow WebUI 的内置助手。你只处理以下范
    - 等用户配置完成后，再告知用户点击编辑器中的「运行」按钮
 3. **如果已有 Serving 实例**：告知用户当前使用的 Serving，然后引导用户点击「运行」按钮
 
-### 3. 构建 Pipeline 后同步到编辑器
+### 4. 构建 Pipeline 后同步到编辑器
 当你通过工具创建或更新了 pipeline 后，**必须立即**调用 `render_pipeline_in_editor` 工具，
 将 pipeline 可视化同步到编辑器，让用户能直观看到节点图。
 
-### 4. 操作前告知用户
+### 5. 操作前告知用户
 每次调用工具前，先用一句话告诉用户你要做什么，保持透明。
 例如："我来查询一下现有的算子列表……" 或 "我帮你把这个 pipeline 同步到编辑器……"
 """
@@ -61,7 +79,7 @@ class AgentSessionManager:
     3. 从 CLI 输出的 JSON 流中提取 session_id 并保存
 
     abort_session 调用会：
-    1. 强制 kill 正在运行的 claude-internal 子进程
+    1. 强制 kill 正在运行的 claude 子进程
     2. 清除 session_id 映射，下次对话重新开始
     """
 
@@ -95,7 +113,7 @@ class AgentSessionManager:
             "--verbose",
             "--mcp-config", str(MCP_CONFIG),
             "--append-system-prompt", SYSTEM_PROMPT,
-            "--allowedTools", "mcp__dataflow__*",  # 只允许调用 dataflow MCP 工具
+            "--allowedTools", "mcp__dataflow__*,Read,Write,Edit",  # dataflow MCP 工具 + 文件读写（不含 Bash）
             "--permission-mode", "dontAsk",         # 禁用交互式权限确认
         ]
 
@@ -146,7 +164,7 @@ class AgentSessionManager:
 
     def abort_session(self, user_id: str):
         """
-        强制终止用户的 claude-internal 子进程并清除会话。
+        强制终止用户的 claude 子进程并清除会话。
         下次对话将重新开始（丢失上下文）。
         """
         process = self._processes.get(user_id)

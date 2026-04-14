@@ -27,6 +27,7 @@ def _mask_key(key: str) -> str:
 
 @router.get(
     "/",
+    operation_id="list_serving",
     response_model=ApiResponse[List[ServingDetailSchema]],
 )
 def list_serving_instances():

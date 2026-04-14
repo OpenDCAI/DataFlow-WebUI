@@ -35,14 +35,15 @@ def create_app() -> FastAPI:
     )
     DIST_DIR = Path(__file__).resolve().parent.parent.parent / "frontend" / "dist"
     INDEX_FILE = DIST_DIR / "index.html"
+    install_exception_handlers(app)
+
+    # 挂载 MCP Server（必须在 StaticFiles catch-all 之前注册，否则 /mcp 请求被静态文件拦截）
+    create_mcp_server(app)
+
     if not INDEX_FILE.exists():
         logger.warning("Warning: UI index file not found, please build the frontend first")
     else:
         app.mount("/", StaticFiles(directory=DIST_DIR, html=True), name="ui")
-    install_exception_handlers(app)
-
-    # 挂载 MCP Server（需在路由注册后调用）
-    create_mcp_server(app)
 
     return app
 

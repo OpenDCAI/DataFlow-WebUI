@@ -7,7 +7,7 @@
                 <span>DataFlow 助手</span>
             </div>
             <div class="chat-header-actions">
-                <!-- 终止并清除：kill 正在运行的 claude-internal 进程，同时清空对话历史 -->
+                <!-- 终止并清除：kill 正在运行的 claude 进程，同时清空对话历史 -->
                 <fv-button
                     :theme="theme"
                     :title="isLoading ? '终止运行并清除对话' : '清除对话历史'"
@@ -261,7 +261,7 @@ export default {
         },
 
         abortAndClear() {
-            // 终止正在运行的 claude-internal 子进程并清除对话历史
+            // 终止正在运行的 claude 子进程并清除对话历史
             if (this.ws && this.ws.readyState === WebSocket.OPEN) {
                 this.ws.send(JSON.stringify({ type: 'abort_session' }))
                 // 如果当前没有在运行（isLoading=false），前端也立刻清空
