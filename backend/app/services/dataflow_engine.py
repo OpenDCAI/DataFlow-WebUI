@@ -516,15 +516,44 @@ class DataFlowEngine:
                                     param_value = db_manager_instance_map[db_manager_id]
                             
                             elif param_name == "prompt_template":
-                                prompt_cls_name = extract_class_name(param_value)
-                                add_log("init", f"[{datetime.now().isoformat()}]   - Loading prompt template: {prompt_cls_name}", op_key)
-                                prompt_cls = PROMPT_REGISTRY.get(prompt_cls_name)
-                                if not prompt_cls:
-                                    raise DataFlowEngineError(
-                                        f"Prompt类未找到: {prompt_cls_name}",
-                                        context={"operator": op_name, "param": param_name}
-                                    )
-                                param_value = prompt_cls()
+                                if isinstance(param_value, dict):
+                                    cls_name = extract_class_name(param_value.get("cls_name", "FormatStrPrompt"))
+                                    add_log("init", f"[{datetime.now().isoformat()}]   - Loading prompt template: {cls_name} (dict-form)", op_key)
+                                    prompt_cls = PROMPT_REGISTRY.get(cls_name)
+                                    if not prompt_cls:
+                                        raise DataFlowEngineError(
+                                            f"Prompt类未找到: {cls_name}",
+                                            context={"operator": op_name, "param": param_name}
+                                        )
+                                    if "params" in param_value:
+                                        ctor_kwargs = {}
+                                        for p in param_value["params"]:
+                                            ctor_kwargs[p["name"]] = p.get("value") if p.get("value") is not None else p.get("default_value")
+                                    else:
+                                        ctor_kwargs = {k: v for k, v in param_value.items() if k != "cls_name"}
+                                    param_value = prompt_cls(**ctor_kwargs)
+                                else:
+                                    prompt_cls_name = extract_class_name(param_value)
+                                    add_log("init", f"[{datetime.now().isoformat()}]   - Loading prompt template: {prompt_cls_name}", op_key)
+                                    prompt_cls = PROMPT_REGISTRY.get(prompt_cls_name)
+                                    if not prompt_cls:
+                                        raise DataFlowEngineError(
+                                            f"Prompt类未找到: {prompt_cls_name}",
+                                            context={"operator": op_name, "param": param_name}
+                                        )
+                                    param_value = prompt_cls()
+                            elif param_name in ("process_fn", "filter_rules"):
+                                if isinstance(param_value, list):
+                                    compiled = []
+                                    for item in param_value:
+                                        if isinstance(item, str) and ("lambda " in item or "def " in item):
+                                            compiled.append(eval(item))  # noqa: S307
+                                        elif callable(item):
+                                            compiled.append(item)
+                                        else:
+                                            compiled.append(item)
+                                    param_value = compiled
+                                    add_log("init", f"[{datetime.now().isoformat()}]   - Compiled {len(compiled)} code-string(s) for {param_name}", op_key)
                             else:
                                 ann = init_sig.parameters.get(param_name).annotation if param_name in init_sig.parameters else inspect.Parameter.empty
                                 param_value = coerce_param_value(param_value, annotation=ann, default_value=default_value)
@@ -550,6 +579,9 @@ class DataFlowEngine:
                         param_name = param.get("name")
                         param_value = param.get("value")
                         default_value = param.get("default_value")
+                        param_kind = param.get("kind", "")
+                        if param_kind == "VAR_KEYWORD" and param_value is None:
+                            continue
                         ann = run_sig.parameters.get(param_name).annotation if param_name in run_sig.parameters else inspect.Parameter.empty
                         param_value = coerce_param_value(param_value, annotation=ann, default_value=default_value)
                         run_params[param_name] = param_value

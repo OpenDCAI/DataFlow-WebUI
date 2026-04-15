@@ -266,6 +266,12 @@ export const useDataflow = defineStore('useDataflow', () => {
         isAutoConnection.value = val
     }
 
+    // Agent sync: store the latest payload from Claude agent so views can watch it
+    const agentSyncPayload = ref(null)
+    const syncFromAgent = (payload) => {
+        agentSyncPayload.value = payload
+    }
+
     return {
         operators,
         groupOperators,
@@ -291,6 +297,8 @@ export const useDataflow = defineStore('useDataflow', () => {
         getExecution,
         clearExecution,
         isAutoConnection,
-        switchAutoConnection
+        switchAutoConnection,
+        agentSyncPayload,
+        syncFromAgent
     }
 })

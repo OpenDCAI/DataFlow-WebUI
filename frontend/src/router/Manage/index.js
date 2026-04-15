@@ -25,10 +25,38 @@ export default {
             }
         },
         {
+            path: 'prompts',
+            component: () => AsyncLoad(() => import('@/views/manage/prompts/index.vue')),
+            meta: {
+                title: 'Dataflow-Prompts'
+            }
+        },
+        {
+            path: 'schemas',
+            component: () => AsyncLoad(() => import('@/views/manage/schemas/index.vue')),
+            meta: {
+                title: 'Dataflow-Schemas'
+            }
+        },
+        {
+            path: 'dataviz',
+            component: () => AsyncLoad(() => import('@/views/manage/dataViz/index.vue')),
+            meta: {
+                title: 'Dataflow-DataViz'
+            }
+        },
+        {
             path: 'settings',
             component: () => AsyncLoad(() => import('@/views/manage/settings/index.vue')),
             meta: {
                 title: 'Dataflow-Settings'
+            }
+        },
+        {
+            path: 'analysis',
+            component: () => AsyncLoad(() => import('@/views/manage/analysis/index.vue')),
+            meta: {
+                title: 'Dataflow-Analysis'
             }
         }
     ],

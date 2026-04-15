@@ -842,8 +842,58 @@ export class tasks {
   }
  
   /**
+  * @summary 获取任务统计信息（状态分布等）
+  * @param {CancelTokenSource} [cancelSource] Axios Cancel Source 对象，可以取消该请求
+  * @param {Function} [uploadProgress] 上传回调函数
+  * @param {Function} [downloadProgress] 下载回调函数
+  */
+  static async get_task_stats(cancelSource,uploadProgress,downloadProgress){
+    return await new Promise((resolve,reject)=>{
+      let responseType = "json";
+      let options = {
+        method:'get',
+        url:'/api/v1/tasks/stats',
+        data:{},
+        params:{},
+        headers:{
+          "Content-Type":""
+        },
+        onUploadProgress:uploadProgress,
+        onDownloadProgress:downloadProgress
+      }
+      // support wechat mini program
+      if (cancelSource!=undefined){
+        options.cancelToken = cancelSource.token
+      }
+      if (responseType != "json"){
+        options.responseType = responseType;
+      }
+      axios(options)
+      .then(res=>{
+        if (res.config.responseType=="blob"){
+          resolve(new Blob([res.data],{
+            type: res.headers["content-type"].split(";")[0]
+          }))
+        }else{
+          resolve(res.data);
+          return res.data
+        }
+      }).catch(err=>{
+        if (err.response){
+          if (err.response.data)
+            reject(err.response.data)
+          else
+            reject(err.response);
+        }else{
+          reject(err)
+        }
+      })
+    })
+  }
+
+  /**
   * @summary 查询Pipeline执行状态（算子粒度）
-  * @param {String} [pathtask_id] 
+  * @param {String} [pathtask_id]
   * @param {CancelTokenSource} [cancelSource] Axios Cancel Source 对象，可以取消该请求
   * @param {Function} [uploadProgress] 上传回调函数
   * @param {Function} [downloadProgress] 下载回调函数
@@ -1212,6 +1262,14 @@ tasks.list_executions.fullPath=`${axios.defaults.baseURL}/api/v1/tasks/execution
 * @description list_executions url链接，不包含baseURL
 */
 tasks.list_executions.path=`/api/v1/tasks/executions`
+/**
+* @description get_task_stats url链接，包含baseURL
+*/
+tasks.get_task_stats.fullPath=`${axios.defaults.baseURL}/api/v1/tasks/stats`
+/**
+* @description get_task_stats url链接，不包含baseURL
+*/
+tasks.get_task_stats.path=`/api/v1/tasks/stats`
 /**
 * @description get_execution_status url链接，包含baseURL
 */

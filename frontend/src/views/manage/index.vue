@@ -43,6 +43,10 @@ import logo from '@/assets/logo/logo.png'
 import dataflow from '@/assets/nav/dataflow.svg'
 import serving from '@/assets/nav/serving.svg'
 import dbManager from '@/assets/nav/dbManager.svg'
+import prompts from '@/assets/nav/prompts.svg'
+import schemas from '@/assets/nav/schemas.svg'
+import dataviz from '@/assets/nav/dataviz.svg'
+import analysis from '@/assets/nav/analysis.svg'
 
 export default {
     data() {
@@ -80,6 +84,39 @@ export default {
                     icon: 'World',
                     img: dbManager,
                     route: '/m/dm'
+                },
+                {
+                    key: 2,
+                    name: () => this.local('Prompt Manager'),
+                    icon: 'World',
+                    img: prompts,
+                    route: '/m/prompts'
+                },
+                {
+                    key: 2.5,
+                    name: () => this.local('JSON Schema Manager'),
+                    icon: 'World',
+                    img: schemas,
+                    route: '/m/schemas'
+                },
+                {
+                    key: -1,
+                    name: () => this.local('Analytics'),
+                    type: 'header'
+                },
+                {
+                    key: 2.7,
+                    name: () => this.local('Data Visualization'),
+                    icon: 'BarChartVertical',
+                    img: dataviz,
+                    route: '/m/dataviz'
+                },
+                {
+                    key: 3,
+                    name: () => this.local('Analysis'),
+                    icon: 'BarChartVertical',
+                    img: analysis,
+                    route: '/m/analysis'
                 },
                 {
                     key: -1,

@@ -1,5 +1,5 @@
 <template>
-    <div class="df-default-container" :class="[{ dark: theme === 'dark', 'show-pipeline': show.pipeline }]">
+    <div class="df-default-container" :class="[{ dark: theme === 'dark', 'show-pipeline': show.pipeline, 'show-chat': show.chat }]">
         <pipeline v-model="show.pipeline" v-model:loading="lock.loading" v-model:pipeline="currentPipeline"
             :flow-id="flowId" class="df-pipeline-container" @confirm-dataset="confirmDataset($event, true)"
             @select-pipeline="selectPipelineCallback"></pipeline>
@@ -67,12 +67,25 @@
                                 :title="local('Delete')" style="width: 30px; height: 30px" @click="resetFlow">
                                 <i class="ms-Icon ms-Icon--Delete"></i>
                             </fv-button>
+                            <fv-button
+                                :theme="show.chat ? 'dark' : theme"
+                                :background="show.chat ? 'linear-gradient(90deg, rgba(69, 98, 213, 1), rgba(161, 145, 206, 1))' : ''"
+                                :foreground="show.chat ? 'rgba(255, 255, 255, 1)' : ''"
+                                border-radius="30" :title="local('AI Assistant')"
+                                style="width: 30px; height: 30px" @click="show.chat = !show.chat">
+                                <i class="ms-Icon ms-Icon--Robot"></i>
+                            </fv-button>
                         </div>
                     </template>
                 </fv-command-bar>
                 <current-pipeline-block v-model="currentPipeline" :taskId="executionInfo.task_id"
                     @recover-click="recoverPipeline"></current-pipeline-block>
             </div>
+        </div>
+        <!-- AI Assistant Chat Panel -->
+        <!-- 使用 v-show 而非 v-if：保持组件挂载状态，隐藏/显示时不销毁，对话历史不丢失 -->
+        <div v-show="show.chat" class="df-chat-container">
+            <chatPanel></chatPanel>
         </div>
         <page-loading :model-value="!lock.loading" title="Loading..."></page-loading>
         <datasetPanel v-model="show.dataset" :title="local('Dataset')" @confirm="confirmDataset"></datasetPanel>
@@ -130,6 +143,7 @@ import pageLoading from '@/components/general/pageLoading.vue'
 import currentPipelineBlock from '@/components/manage/mainFlow/tools/currentPipelineBlock.vue'
 import execResultPanel from '@/components/manage/mainFlow/panels/execResultPanel/index.vue'
 import taskPanel from '@/components/manage/mainFlow/panels/taskPanel.vue'
+import chatPanel from '@/components/manage/chatPanel/index.vue'
 
 import databaseIcon from '@/assets/flow/database.svg'
 import pipelineIcon from '@/assets/flow/pipeline.svg'
@@ -150,7 +164,8 @@ export default {
         pageLoading,
         currentPipelineBlock,
         execResultPanel,
-        taskPanel
+        taskPanel,
+        chatPanel
     },
     data() {
         return {
@@ -230,7 +245,8 @@ export default {
                 operator: false,
                 serving: false,
                 execResult: false,
-                taskPanel: false
+                taskPanel: false,
+                chat: false
             },
             lock: {
                 serving: true,
@@ -256,6 +272,36 @@ export default {
             if (val) {
                 this.useEdgeSync.autoConnectAllRunEdges(this.flowId, this.$Guid)
             }
+        },
+        agentSyncPayload(payload) {
+            if (!payload) return
+            const flow = useVueFlow(this.flowId)
+            // Reset and apply nodes/edges from agent
+            flow.$reset()
+            if (payload.nodes && payload.nodes.length > 0) {
+                flow.addNodes(payload.nodes)
+            }
+            if (payload.edges && payload.edges.length > 0) {
+                flow.addEdges(payload.edges)
+            }
+            // If payload carries pipeline info with dataset, try to load it
+            if (payload.pipeline && payload.pipeline.config) {
+                const config = payload.pipeline.config
+                if (config.input_dataset) {
+                    this.getDatasets().then(() => {
+                        const ds = this.datasets.find(d => d.id === config.input_dataset.id)
+                        if (ds) {
+                            this.confirmDataset(ds, true)
+                        }
+                    })
+                }
+                // Set current pipeline
+                if (payload.pipeline.id) {
+                    this.getPipelines().then(() => {
+                        // pipeline list refreshed; select from sidebar is handled by pipeline component
+                    })
+                }
+            }
         }
     },
     computed: {
@@ -268,7 +314,8 @@ export default {
             'datasets',
             'groupOperators',
             'tasks',
-            'execution'
+            'execution',
+            'agentSyncPayload'
         ]),
         flatFormatedOperators() {
             let operators = []
@@ -320,7 +367,8 @@ export default {
             'getPromptInfo',
             'getTasks',
             'getExecution',
-            'clearExecution'
+            'clearExecution',
+            'getDatasets'
         ]),
         setViewport() {
             const flow = useVueFlow(this.flowId)
@@ -868,6 +916,17 @@ export default {
         border-radius: 15px;
         box-shadow: inset 0px 0px 6px rgba(0, 0, 0, 0.1);
         overflow: hidden;
+    }
+
+    .df-chat-container {
+        position: relative;
+        width: 320px;
+        height: 100%;
+        flex-shrink: 0;
+        border-radius: 15px;
+        overflow: hidden;
+        box-shadow: -1px 0px 4px rgba(0, 0, 0, 0.08);
+        margin-left: 10px;
     }
 
     .control-menu-block {
