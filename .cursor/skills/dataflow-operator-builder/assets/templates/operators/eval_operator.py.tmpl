@@ -1,0 +1,71 @@
+from dataflow import get_logger
+from dataflow.core import LLMServingABC, OperatorABC
+from dataflow.utils.registry import OPERATOR_REGISTRY
+from dataflow.utils.storage import DataFlowStorage
+
+
+@OPERATOR_REGISTRY.register()
+class {{OPERATOR_CLASS_NAME}}(OperatorABC):
+    """Generated DataFlow operator scaffold (eval)."""
+
+    def __init__(
+        self,
+[[IF_USES_LLM]]
+        llm_serving: LLMServingABC,
+        system_prompt: str = "Score the quality of the answer between 0 and 1.",
+[[END_IF_USES_LLM]]
+    ):
+        super().__init__()
+        self.logger = get_logger()
+[[IF_USES_LLM]]
+        self.llm_serving = llm_serving
+        self.system_prompt = system_prompt
+[[END_IF_USES_LLM]]
+
+    @staticmethod
+    def get_desc(lang: str = "zh"):
+        if lang == "zh":
+            return "{{OPERATOR_CLASS_NAME}}：为输入内容打分并写入评估列。"
+        if lang == "en":
+            return "{{OPERATOR_CLASS_NAME}}: score each input and write evaluation results."
+        return "Evaluate rows and output score-like values."
+
+[[IF_USES_LLM]]
+    def _score_with_llm(self, text: str) -> float:
+        outputs = self.llm_serving.generate_from_input(
+            user_inputs=[text],
+            system_prompt=self.system_prompt,
+        )
+        raw = outputs[0] if isinstance(outputs, list) and outputs else outputs
+        try:
+            value = float(str(raw).strip())
+            return max(0.0, min(1.0, value))
+        except Exception:
+            return 0.0
+[[END_IF_USES_LLM]]
+
+    def run(
+        self,
+        storage: DataFlowStorage,
+        input_key: str = "{{INPUT_KEY}}",
+        output_key: str = "{{OUTPUT_KEY}}",
+    ):
+        dataframe = storage.read("dataframe")
+        if input_key not in dataframe.columns:
+            available_columns = ", ".join(map(str, dataframe.columns.tolist())) or "<empty>"
+            raise KeyError(f"Missing input column: {input_key}. Available columns: {available_columns}")
+
+        values = dataframe[input_key].fillna("").astype(str).tolist()
+        scores = []
+        for value in values:
+[[IF_USES_LLM]]
+            scores.append(self._score_with_llm(value))
+[[END_IF_USES_LLM]]
+[[IF_NOT_USES_LLM]]
+            normalized = min(1.0, max(0.0, len(value.strip()) / 100.0))
+            scores.append(normalized)
+[[END_IF_NOT_USES_LLM]]
+
+        dataframe[output_key] = scores
+        storage.write(dataframe)
+        return output_key

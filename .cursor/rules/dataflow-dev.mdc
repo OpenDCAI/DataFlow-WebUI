@@ -1,0 +1,79 @@
+---
+description: DataFlow development expert. Activate when user is working inside a DataFlow repository, debugging DataFlow errors, or asking about DataFlow architecture.
+globs: ["**/dataflow/**/*.py", "**/DataFlow/**/*.py"]
+alwaysApply: false
+---
+
+# DataFlow Development Expert
+
+When working in a DataFlow repository, you have access to deep architectural knowledge.
+
+## Known Issue Diagnostics
+
+| Error keyword | Issue | Fix |
+|---|---|---|
+| `Unexpected key 'xxx' in operator` | #001 — param naming (warning only) | Rename param to match operator signature |
+| `No object named 'Xxx' found in 'operators' registry` | #002 — missing `__init__.py` TYPE_CHECKING declaration | Add to `TYPE_CHECKING` block in `__init__.py` |
+| `Key Matching Error` / `does not match any output keys` | #003 — pipeline key mismatch | Ensure `output_key` of step N matches `input_key` of step N+1 |
+| `You must call storage.step() before` | #004 — missing `storage.step()` | Add `storage=self.storage.step()` to each `run()` call |
+| `DummyStorage` + `AttributeError` | #005 — DummyStorage API limits | Use real `FileStorage` for testing |
+| `AttributeError: 'NoneType'` + `re.split` | #006 — capture group in `re.split` | Replace `(...)` with `(?:...)` in pattern |
+| `@prompt_restrict` not working | #007 — decorator position | Place `@prompt_restrict` immediately above class definition |
+| `additionalProperties is required to be false` / API 500 infinite retry | #009 — json_schema missing additionalProperties | Add `"additionalProperties": False` to every `"type": "object"` in json_schema |
+
+## Architecture Quick Reference
+
+```
+DataFlow/
+├── dataflow/
+│   ├── operators/          # All operator implementations
+│   │   ├── core_text/      # Text processing operators
+│   │   ├── knowledge_cleaning/  # KBC operators
+│   │   └── base.py         # OperatorABC base class
+│   ├── serving/            # LLM serving backends
+│   │   └── __init__.py     # APILLMServing_request, etc.
+│   ├── utils/
+│   │   ├── storage.py      # FileStorage
+│   │   └── registry.py     # OPERATOR_REGISTRY, PROMPT_REGISTRY
+│   ├── prompts/            # Prompt templates
+│   │   └── core_text.py    # FormatStrPrompt, DIYPromptABC
+│   └── pipeline.py         # PipelineABC
+```
+
+## Pipeline Code Review Checklist (14 items)
+
+**Operator level:**
+- [ ] Inherits `OperatorABC`; calls `super().__init__()`
+- [ ] `@OPERATOR_REGISTRY.register()` decorator
+- [ ] `run()` has `input_*`/`output_*`/`storage` params
+- [ ] `run()` returns list of output key names
+- [ ] `storage.read()` and `storage.write()` both present
+- [ ] LLM operator: `self.llm_serving` (not `self.llm`, `self.model`, etc.)
+- [ ] Per-row `try/except` with fallback value
+- [ ] `<think>` tag stripping where appropriate
+- [ ] `get_desc(lang)` with `zh`/`en` support
+
+**Pipeline level:**
+- [ ] Each `run()` call uses `storage=self.storage.step()`
+- [ ] Field dependencies satisfied (no forward references)
+- [ ] No unused imports
+- [ ] `first_entry_file_name` points to actual data file
+- [ ] `if __name__ == "__main__":` entry point present
+
+## Prompt Template Quick Reference
+
+```python
+# For PromptedGenerator / PromptedFilter / PromptedRefiner
+from dataflow.prompts.core_text import DIYPromptABC
+
+class MyPrompt(DIYPromptABC):
+    def build_prompt(self, text: str) -> tuple[str, str]:
+        system = "You are a helpful assistant."
+        user = f"Process this text: {text}"
+        return system, user
+
+# For FormatStrPromptedGenerator
+from dataflow.prompts.core_text import FormatStrPrompt
+
+prompt = FormatStrPrompt(f_str_template="Review {product_name} in category {category}:")
+```

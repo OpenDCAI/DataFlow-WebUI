@@ -1,0 +1,71 @@
+---
+description: json_schema structured output rules for DataFlow LLM operators
+globs: "**/{pipeline,operators}*.{py,json}"
+alwaysApply: false
+---
+
+# DataFlow json_schema: `additionalProperties` is MANDATORY
+
+When using `json_schema` in `FormatStrPromptedGenerator`, `PromptedGenerator`, or
+`operators.json` to constrain LLM structured output:
+
+**Every `"type": "object"` in the schema MUST include `"additionalProperties": false`.**
+
+Without it, OpenAI-compatible APIs return HTTP 500 and DataFlow retries infinitely.
+
+## Python (`pipeline.py`)
+
+```python
+# ✅ CORRECT
+json_schema={
+    "type": "object",
+    "properties": {
+        "score": {"type": "number"},
+        "label": {"type": "string"},
+    },
+    "required": ["score", "label"],
+    "additionalProperties": False,
+}
+
+# ❌ WRONG — causes API 500 infinite retry
+json_schema={
+    "type": "object",
+    "properties": {
+        "score": {"type": "number"},
+        "label": {"type": "string"},
+    },
+    "required": ["score", "label"],
+}
+```
+
+## WebUI (`operators.json`)
+
+```json
+{"name": "json_schema", "value": {
+    "type": "object",
+    "properties": {
+        "score": {"type": "number"},
+        "label": {"type": "string"}
+    },
+    "required": ["score", "label"],
+    "additionalProperties": false
+}}
+```
+
+## Nested objects — apply at EVERY level
+
+```python
+json_schema={
+    "type": "object",
+    "properties": {
+        "result": {
+            "type": "object",
+            "properties": {"value": {"type": "number"}},
+            "required": ["value"],
+            "additionalProperties": False,
+        },
+    },
+    "required": ["result"],
+    "additionalProperties": False,
+}
+```

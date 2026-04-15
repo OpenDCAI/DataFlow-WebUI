@@ -398,17 +398,58 @@ class PipelineRegistry:
 
     def _update_all_api_pipelines_operators(self):
         """
-        更新所有api pipeline的operators列表和input_dataset
+        更新所有api pipeline的operators列表和input_dataset，
+        同时发现并注册 api_pipelines 目录中新增的 .py 文件
         """
         try:
             data = self._read()
             api_pipelines_dir = os.path.join(settings.DATAFLOW_CORE_DIR, "api_pipelines")
-            print(api_pipelines_dir)
+            logger.info(f"Scanning api_pipelines dir: {api_pipelines_dir}")
             if not os.path.exists(api_pipelines_dir):
                 logger.warning(f"API pipelines directory not found: {api_pipelines_dir}")
                 return
             
             updated = False
+
+            existing_file_paths = set()
+            for pipeline_id, pipeline_data in data.get("pipelines", {}).items():
+                if "api" in pipeline_data.get("tags", []):
+                    fp = pipeline_data.get("config", {}).get("file_path", "")
+                    if fp:
+                        existing_file_paths.add(os.path.normpath(fp))
+
+            for filename in os.listdir(api_pipelines_dir):
+                if not filename.endswith(".py") or filename.startswith("__"):
+                    continue
+                file_path = os.path.join(api_pipelines_dir, filename)
+                if os.path.normpath(file_path) in existing_file_paths:
+                    continue
+                try:
+                    analyzer = PipelineFileAnalyzer.from_file(file_path)
+                    operators = analyzer.operators()
+                    input_dataset = self._find_dataset_id(file_path)
+                    current_time = self.get_current_time()
+                    new_id = str(uuid.uuid4())
+                    pipeline_entry = {
+                        "id": new_id,
+                        "name": filename[:-3].replace("_", " ").title(),
+                        "config": {
+                            "file_path": file_path,
+                            "input_dataset": input_dataset,
+                            "operators": operators,
+                        },
+                        "tags": ["api", "template"],
+                        "created_at": current_time,
+                        "updated_at": current_time,
+                        "status": "queued",
+                    }
+                    enriched = self._enrich_pipeline_operators_internal(pipeline_entry)
+                    data["pipelines"][new_id] = enriched
+                    updated = True
+                    logger.info(f"Discovered new API pipeline: {enriched['name']} ({new_id})")
+                except Exception as e:
+                    logger.warning(f"Failed to register new pipeline {filename}: {e}")
+
             # 遍历所有pipeline
             for pipeline_id, pipeline_data in data.get("pipelines", {}).items():
                 # 检查是否是api pipeline

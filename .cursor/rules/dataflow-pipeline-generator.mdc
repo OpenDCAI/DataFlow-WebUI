@@ -1,0 +1,198 @@
+---
+description: DataFlow pipeline code generator. Activate when the user asks to generate, create, or build a DataFlow pipeline, data processing pipeline, or asks about DataFlow operators. Also activate for any file matching *.py in a DataFlow project context.
+globs: ["**/*pipeline*.py", "**/dataflow_*.py", "**/*.jsonl"]
+alwaysApply: false
+---
+
+# DataFlow Pipeline Code Generator
+
+You are a DataFlow pipeline expert. When asked to generate pipeline code, follow ALL rules below exactly.
+
+## Core Primitives (use these first)
+
+1. `PromptedGenerator` - Single-field LLM generation
+2. `FormatStrPromptedGenerator` - Multi-field template generation  
+3. `Text2MultiHopQAGenerator` - Multi-hop QA pair construction
+4. `PromptedFilter` - LLM-based quality filtering
+5. `GeneralFilter` - Rule-based filtering (no LLM)
+6. **KBC trio** (always together, always in order):
+   - `FileOrURLToMarkdownConverterFlash` → `KBCChunkGenerator` → `KBCTextCleaner`
+
+## Mandatory Operator Selection Rules
+
+Check in order, use the FIRST match:
+
+| Task / Scenario | Required Operator | Do NOT use |
+|---|---|---|
+| Generate QA pairs from text | `Text2MultiHopQAGenerator` | `PromptedGenerator` with QA prompt |
+| Convert file path/URL to text | KBC trio | `PromptedGenerator` to summarize files |
+| Score using multiple fields | `FormatStrPromptedGenerator` + `GeneralFilter` | `PromptedFilter` (single input only) |
+| Filter by deterministic rule | `GeneralFilter` | `PromptedFilter` |
+| Generate from single field | `PromptedGenerator` | — |
+| Generate from multiple fields | `FormatStrPromptedGenerator` | Multiple `PromptedGenerator` steps |
+
+## Mandatory Field Dependency Rules
+
+1. **Inspect sample first**: identify all available fields
+2. **Field existence check**: If step N needs field X, X must exist in original data OR be output by step M < N
+3. **Generate missing fields** before using them
+4. **NEVER reference a field before creating it**
+
+```
+✗ WRONG: Filter by "quality_score" before generating it
+✓ CORRECT: Generate "quality_score" first, then filter
+```
+
+## Mandatory Output Contract
+
+Two-stage output REQUIRED:
+
+### Stage 1 (output first):
+```json
+{
+  "ops": ["OperatorA", "OperatorB"],
+  "field_flow": "field_a -> field_b -> field_c",
+  "reason": "Why this chain satisfies the target"
+}
+```
+
+### Stage 2: Complete Pipeline Code
+Follow this EXACT structure:
+
+```python
+from dataflow.utils.storage import FileStorage
+from dataflow.serving import APILLMServing_request
+from dataflow.operators.core_text import PromptedGenerator, FormatStrPromptedGenerator, Text2MultiHopQAGenerator, PromptedFilter, GeneralFilter
+# Add other imports as needed
+
+class MyPipeline:
+    def __init__(self):
+        self.storage = FileStorage(
+            first_entry_file_name="./data/input.jsonl",  # MUST be user-provided path
+            cache_path="./cache",
+            file_name_prefix="dataflow_cache_step",
+            cache_type="jsonl"
+        )
+        # api_url and key_name_of_api_key are placeholders — use the user's actual values.
+        # Default key_name_of_api_key reads os.environ[key_name_of_api_key] at runtime.
+        self.llm_serving = APILLMServing_request(
+            api_url="http://123.129.219.111:3000/v1/chat/completions",
+            key_name_of_api_key="OPENAI_API_KEY",
+            model_name="gpt-4o",
+            max_workers=10
+        )
+        self.operator1 = PromptedGenerator(
+            self.llm_serving,
+            system_prompt="You are a helpful assistant.",
+            user_prompt=""
+        )
+        # ... more operators
+
+    def forward(self):
+        self.operator1.run(storage=self.storage.step(), input_key="raw_content", output_key="generated")
+        # ... more steps
+
+if __name__ == "__main__":
+    pipeline = MyPipeline()
+    pipeline.forward()
+```
+
+## Correct Import Paths (MANDATORY)
+
+```python
+from dataflow.utils.storage import FileStorage
+from dataflow.serving import APILLMServing_request
+from dataflow.operators.core_text import (
+    PromptedGenerator, FormatStrPromptedGenerator, Text2MultiHopQAGenerator,
+    PromptedFilter, GeneralFilter
+)
+from dataflow.operators.knowledge_cleaning import (
+    FileOrURLToMarkdownConverterFlash, KBCChunkGenerator, KBCTextCleaner
+)
+from dataflow.prompts.core_text import FormatStrPrompt
+```
+
+## Key Operator Signatures
+
+**PromptedGenerator:**
+```python
+PromptedGenerator(llm_serving, system_prompt="...", user_prompt="", json_schema=None)
+run(storage=self.storage.step(), input_key="col_name", output_key="new_col")
+```
+
+**FormatStrPromptedGenerator:**
+```python
+FormatStrPromptedGenerator(llm_serving, system_prompt="...", prompt_template=FormatStrPrompt(f_str_template="Hello {name}"), json_schema=None)
+run(storage=self.storage.step(), output_key="result", name="col_a", topic="col_b")
+# kwargs: template_var_name=dataframe_col_name
+```
+
+**Text2MultiHopQAGenerator:**
+```python
+Text2MultiHopQAGenerator(llm_serving=self.llm_serving, seed=0, lang="en", num_q=5)
+run(storage, input_key="cleaned_chunk", output_key="QA_pairs", output_meta_key="QA_metadata")
+# Output: nested list per row. QA_pairs is NOT separate question/answer columns.
+```
+
+**PromptedFilter:**
+```python
+PromptedFilter(llm_serving, system_prompt="...", min_score=1, max_score=5)
+run(storage=self.storage.step(), input_key="col_name", output_key="eval_score")
+# Removes rows where score NOT in [min_score, max_score]
+# IMPORTANT: Rows where input_key is empty/null/falsy are SILENTLY DROPPED before scoring.
+# Ensure upstream operators produce non-empty values for every row.
+```
+
+**GeneralFilter:**
+```python
+GeneralFilter([lambda df: df["score"] >= 4, lambda df: df["length"] > 10])
+run(storage=self.storage.step())
+# AND of all conditions; referenced fields must already exist
+```
+
+**KBC Trio (always all three in order):**
+```python
+# Step 1: No LLM dependency
+FileOrURLToMarkdownConverterFlash(intermediate_dir="../data/flash/", mineru_model_path="opendatalab/MinerU2.5-2509-1.2B")
+run(storage=self.storage.step(), input_key="source", output_key="text_path")
+
+# Step 2
+KBCChunkGenerator(chunk_size=512, chunk_overlap=50)
+run(storage=self.storage.step(), input_key="text_path", output_key="raw_chunk")
+
+# Step 3
+KBCTextCleaner(llm_serving, lang="en")
+run(storage=self.storage.step(), input_key="raw_chunk", output_key="cleaned_chunk")
+```
+
+## `json_schema` Rule (CRITICAL)
+
+When using `json_schema` in any operator, every `"type": "object"` MUST include `"additionalProperties": False` (Python) / `"additionalProperties": false` (JSON). Omitting it causes API 500 errors and infinite retries.
+
+```python
+# ✅ CORRECT
+json_schema={"type": "object", "properties": {"score": {"type": "number"}}, "required": ["score"], "additionalProperties": False}
+
+# ❌ WRONG — causes infinite 500 retry
+json_schema={"type": "object", "properties": {"score": {"type": "number"}}, "required": ["score"]}
+```
+
+## API Key Handling
+
+- **Local `pipeline.py`**: `key_name_of_api_key` is the env var NAME (not the key). Set `os.environ["DF_API_KEY"] = "sk-xxx"` before running.
+- **WebUI deployment**: API key managed via Serving Manager UI. Do NOT put `api_key` in `operators.json`.
+
+## NEVER Do These
+
+- Use `PromptedGenerator` for QA generation (use `Text2MultiHopQAGenerator`)
+- Use `PromptedFilter` with multiple input fields (use `FormatStrPromptedGenerator` + `GeneralFilter`)
+- Reference a field before it's created
+- Skip any step of the KBC trio
+- Invent parameter names not in the signatures above
+- Generate `forward(plan)` style frameworks or dynamic dispatch
+
+## Input Data Analysis
+
+**File path fields** (`pdf_path`, `image_path`, `doc_path`) → Always use KBC trio
+**Plain text fields** (`text`, `content`) → Use `PromptedGenerator` / `Text2MultiHopQAGenerator`
+**Multiple semantic fields** (`instruction`, `output`) → Use `FormatStrPromptedGenerator`

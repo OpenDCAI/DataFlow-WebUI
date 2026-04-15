@@ -1,0 +1,57 @@
+import json
+from pathlib import Path
+
+[[IF_USES_LLM]]
+from {{PACKAGE_NAME}}.operators.{{OPERATOR_TYPE}}.{{OPERATOR_MODULE}} import {{OPERATOR_CLASS_NAME}}
+
+
+class _DummyLLM:
+    def generate_from_input(self, user_inputs, system_prompt, json_schema=None):
+[[IF_FILTER]]
+        return ["1" for _ in user_inputs]
+[[END_IF_FILTER]]
+[[IF_NOT_FILTER]]
+        return [f"mock::{text}" for text in user_inputs]
+[[END_IF_NOT_FILTER]]
+[[END_IF_USES_LLM]]
+[[IF_NOT_USES_LLM]]
+from {{PACKAGE_NAME}}.operators.{{OPERATOR_TYPE}}.{{OPERATOR_MODULE}} import {{OPERATOR_CLASS_NAME}}
+[[END_IF_NOT_USES_LLM]]
+from dataflow.utils.storage import FileStorage
+
+
+def test_smoke_run_with_filestorage(tmp_path):
+    input_path = tmp_path / "input.jsonl"
+    input_path.write_text(json.dumps({"{{INPUT_KEY}}": "hello"}) + "\n", encoding="utf-8")
+
+    storage = FileStorage(
+        first_entry_file_name=str(input_path),
+        cache_path=str(tmp_path),
+        file_name_prefix="smoke_cache",
+        cache_type="jsonl",
+    )
+
+[[IF_USES_LLM]]
+    op = {{OPERATOR_CLASS_NAME}}(llm_serving=_DummyLLM())
+[[END_IF_USES_LLM]]
+[[IF_NOT_USES_LLM]]
+    op = {{OPERATOR_CLASS_NAME}}()
+[[END_IF_NOT_USES_LLM]]
+
+[[IF_FILTER]]
+    result_key = op.run(storage=storage.step(), input_key="{{INPUT_KEY}}", output_key="{{OUTPUT_KEY}}", min_length=1)
+[[END_IF_FILTER]]
+[[IF_NOT_FILTER]]
+    result_key = op.run(storage=storage.step(), input_key="{{INPUT_KEY}}", output_key="{{OUTPUT_KEY}}")
+[[END_IF_NOT_FILTER]]
+
+    assert result_key in {"{{OUTPUT_KEY}}", None}
+
+    output_file = Path(tmp_path) / "smoke_cache_step1.jsonl"
+    assert output_file.exists()
+
+    lines = [line for line in output_file.read_text(encoding="utf-8").splitlines() if line.strip()]
+    assert lines, "Smoke output file should not be empty"
+
+    first_record = json.loads(lines[0])
+    assert "{{OUTPUT_KEY}}" in first_record

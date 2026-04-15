@@ -1,0 +1,71 @@
+from dataflow import get_logger
+from dataflow.core import LLMServingABC, OperatorABC
+from dataflow.utils.registry import OPERATOR_REGISTRY
+from dataflow.utils.storage import DataFlowStorage
+
+
+@OPERATOR_REGISTRY.register()
+class {{OPERATOR_CLASS_NAME}}(OperatorABC):
+    """Generated DataFlow operator scaffold (refine)."""
+
+    def __init__(
+        self,
+[[IF_USES_LLM]]
+        llm_serving: LLMServingABC,
+        system_prompt: str = "Please refine the text and keep original meaning.",
+[[END_IF_USES_LLM]]
+    ):
+        super().__init__()
+        self.logger = get_logger()
+[[IF_USES_LLM]]
+        self.llm_serving = llm_serving
+        self.system_prompt = system_prompt
+[[END_IF_USES_LLM]]
+
+    @staticmethod
+    def get_desc(lang: str = "zh"):
+        if lang == "zh":
+            return "{{OPERATOR_CLASS_NAME}}：对文本进行规范化与精修。"
+        if lang == "en":
+            return "{{OPERATOR_CLASS_NAME}}: normalize and refine text content."
+        return "Refine text in a stable and reproducible way."
+
+[[IF_USES_LLM]]
+    def _refine_text(self, text: str) -> str:
+        outputs = self.llm_serving.generate_from_input(
+            user_inputs=[text],
+            system_prompt=self.system_prompt,
+        )
+        if isinstance(outputs, list) and outputs:
+            return str(outputs[0]).strip()
+        if isinstance(outputs, str):
+            return outputs.strip()
+        return text
+[[END_IF_USES_LLM]]
+
+    def run(
+        self,
+        storage: DataFlowStorage,
+        input_key: str = "{{INPUT_KEY}}",
+        output_key: str = "{{OUTPUT_KEY}}",
+        strip_spaces: bool = True,
+    ):
+        dataframe = storage.read("dataframe")
+        if input_key not in dataframe.columns:
+            available_columns = ", ".join(map(str, dataframe.columns.tolist())) or "<empty>"
+            raise KeyError(f"Missing input column: {input_key}. Available columns: {available_columns}")
+
+        values = dataframe[input_key].fillna("").astype(str).tolist()
+        outputs = []
+        for value in values:
+            base = value.strip() if strip_spaces else value
+[[IF_USES_LLM]]
+            outputs.append(self._refine_text(base))
+[[END_IF_USES_LLM]]
+[[IF_NOT_USES_LLM]]
+            outputs.append(base)
+[[END_IF_NOT_USES_LLM]]
+
+        dataframe[output_key] = outputs
+        storage.write(dataframe)
+        return output_key

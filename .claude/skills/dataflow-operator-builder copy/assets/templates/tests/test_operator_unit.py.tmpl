@@ -1,0 +1,71 @@
+import pandas as pd
+import pytest
+
+from {{PACKAGE_NAME}}.operators.{{OPERATOR_TYPE}}.{{OPERATOR_MODULE}} import {{OPERATOR_CLASS_NAME}}
+
+
+class _MemoryStorage:
+    def __init__(self, dataframe: pd.DataFrame):
+        self.dataframe = dataframe
+
+    def read(self, output_type):
+        assert output_type == "dataframe"
+        return self.dataframe.copy()
+
+    def write(self, data):
+        self.dataframe = data.copy()
+        return "ok"
+
+
+[[IF_USES_LLM]]
+class _DummyLLM:
+    def generate_from_input(self, user_inputs, system_prompt, json_schema=None):
+        return [f"mock::{text}" for text in user_inputs]
+[[END_IF_USES_LLM]]
+
+
+def _build_operator():
+[[IF_USES_LLM]]
+    return {{OPERATOR_CLASS_NAME}}(llm_serving=_DummyLLM())
+[[END_IF_USES_LLM]]
+[[IF_NOT_USES_LLM]]
+    return {{OPERATOR_CLASS_NAME}}()
+[[END_IF_NOT_USES_LLM]]
+
+
+def test_run_writes_output_and_expected_row_count():
+    storage = _MemoryStorage(pd.DataFrame({"{{INPUT_KEY}}": ["alpha", ""]}))
+    op = _build_operator()
+[[IF_FILTER]]
+    out = op.run(
+        storage=storage,
+        input_key="{{INPUT_KEY}}",
+        output_key="{{OUTPUT_KEY}}",
+        min_length=1,
+        drop_filtered=True,
+    )
+    assert out == "{{OUTPUT_KEY}}"
+    assert "{{OUTPUT_KEY}}" in storage.dataframe.columns
+    assert len(storage.dataframe) == 1
+[[END_IF_FILTER]]
+[[IF_NOT_FILTER]]
+    out = op.run(storage=storage, input_key="{{INPUT_KEY}}", output_key="{{OUTPUT_KEY}}")
+    assert out == "{{OUTPUT_KEY}}"
+    assert "{{OUTPUT_KEY}}" in storage.dataframe.columns
+    assert len(storage.dataframe) == 2
+[[END_IF_NOT_FILTER]]
+
+
+def test_run_raises_when_input_key_missing():
+    storage = _MemoryStorage(pd.DataFrame({"other": ["x"]}))
+    op = _build_operator()
+    with pytest.raises(KeyError) as exc:
+[[IF_FILTER]]
+        op.run(storage=storage, input_key="{{INPUT_KEY}}", output_key="{{OUTPUT_KEY}}", min_length=1)
+[[END_IF_FILTER]]
+[[IF_NOT_FILTER]]
+        op.run(storage=storage, input_key="{{INPUT_KEY}}", output_key="{{OUTPUT_KEY}}")
+[[END_IF_NOT_FILTER]]
+    message = str(exc.value)
+    assert "Missing input column" in message
+    assert "Available columns" in message

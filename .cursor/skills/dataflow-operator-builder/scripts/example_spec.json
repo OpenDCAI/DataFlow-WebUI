@@ -1,0 +1,13 @@
+{
+  "package_name": "dataflow_ext_custom",
+  "operator_type": "generate",
+  "operator_class_name": "MyGeneratedOperator",
+  "operator_module_name": "my_generated_operator",
+  "input_key": "raw_content",
+  "output_key": "generated_content",
+  "uses_llm": true,
+  "cli_module_name": "run_my_generated_operator_cli",
+  "test_file_prefix": "my_generated_operator",
+  "overwrite_strategy": "ask-each",
+  "validation_level": "full"
+}

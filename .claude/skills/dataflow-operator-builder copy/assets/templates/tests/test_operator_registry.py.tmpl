@@ -1,0 +1,10 @@
+from dataflow.utils.registry import OPERATOR_REGISTRY
+
+from {{PACKAGE_NAME}}.operators.{{OPERATOR_TYPE}}.{{OPERATOR_MODULE}} import {{OPERATOR_CLASS_NAME}}
+
+
+def test_operator_registered():
+    assert "{{OPERATOR_CLASS_NAME}}" in OPERATOR_REGISTRY
+    resolved = OPERATOR_REGISTRY.get("{{OPERATOR_CLASS_NAME}}")
+    assert resolved is {{OPERATOR_CLASS_NAME}}
+    assert resolved.__name__ == "{{OPERATOR_CLASS_NAME}}"

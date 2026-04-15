@@ -1,0 +1,90 @@
+import argparse
+
+from dataflow.utils.storage import FileStorage
+[[IF_USES_LLM]]
+from dataflow.serving import APILLMServing_request
+[[END_IF_USES_LLM]]
+
+from {{PACKAGE_NAME}}.operators.{{OPERATOR_TYPE}}.{{OPERATOR_MODULE}} import {{OPERATOR_CLASS_NAME}}
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        description="Run {{OPERATOR_CLASS_NAME}} on a DataFlow dataset.",
+    )
+    parser.add_argument("--input", required=True, help="Path to input dataset file.")
+    parser.add_argument("--input-key", default="{{INPUT_KEY}}", help="Input column name.")
+    parser.add_argument("--output-key", default="{{OUTPUT_KEY}}", help="Output column name.")
+    parser.add_argument("--cache-path", default="./cache", help="Cache directory for intermediate files.")
+    parser.add_argument("--cache-prefix", default="{{OPERATOR_MODULE}}", help="Output cache file prefix.")
+    parser.add_argument(
+        "--cache-type",
+        default="jsonl",
+        help="Cache file format: json, jsonl, csv, parquet, or pickle.",
+    )
+[[IF_USES_LLM]]
+    parser.add_argument("--api-url", default="https://api.openai.com/v1/chat/completions", help="LLM API URL.")
+    parser.add_argument("--model-name", default="gpt-4o-mini", help="LLM model name.")
+[[END_IF_USES_LLM]]
+[[IF_FILTER]]
+    parser.add_argument("--min-length", type=int, default=1, help="Minimum text length to keep.")
+    parser.set_defaults(drop_filtered=True)
+    parser.add_argument(
+        "--drop-filtered",
+        dest="drop_filtered",
+        action="store_true",
+        help="Drop rows that fail the filter rule (default behavior).",
+    )
+    parser.add_argument(
+        "--keep-filtered",
+        dest="drop_filtered",
+        action="store_false",
+        help="Keep all rows and only write the boolean marker column.",
+    )
+[[END_IF_FILTER]]
+    return parser
+
+
+def main() -> None:
+    args = build_parser().parse_args()
+
+    storage = FileStorage(
+        first_entry_file_name=args.input,
+        cache_path=args.cache_path,
+        file_name_prefix=args.cache_prefix,
+        cache_type=args.cache_type,
+    )
+
+[[IF_USES_LLM]]
+    llm_serving = APILLMServing_request(
+        api_url=args.api_url,
+        model_name=args.model_name,
+    )
+    operator = {{OPERATOR_CLASS_NAME}}(llm_serving=llm_serving)
+[[END_IF_USES_LLM]]
+[[IF_NOT_USES_LLM]]
+    operator = {{OPERATOR_CLASS_NAME}}()
+[[END_IF_NOT_USES_LLM]]
+
+[[IF_FILTER]]
+    result_key = operator.run(
+        storage=storage.step(),
+        input_key=args.input_key,
+        output_key=args.output_key,
+        min_length=args.min_length,
+        drop_filtered=args.drop_filtered,
+    )
+[[END_IF_FILTER]]
+[[IF_NOT_FILTER]]
+    result_key = operator.run(
+        storage=storage.step(),
+        input_key=args.input_key,
+        output_key=args.output_key,
+    )
+[[END_IF_NOT_FILTER]]
+
+    print(f"Done. output_key={result_key}")
+
+
+if __name__ == "__main__":
+    main()
