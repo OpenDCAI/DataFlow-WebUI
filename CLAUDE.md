@@ -1,42 +1,49 @@
 # DataFlow WebUI — Project Rules
 
-## WebUI Change Policy (MANDATORY)
+> **Deployment assumption**: this project is a **single-user, local-first** tool.
+> Each developer/user runs both backend and frontend on their own machine.
+> There is **no authentication, no registration, no multi-tenant concern**.
+> Do NOT add login pages, JWT/session infrastructure, or per-user ACL.
 
-All modifications to `backend/app/` and `frontend/src/` MUST comply with this policy.
+## WebUI Change Policy
 
-### Allowed Changes ONLY
+The previous strict allow-list (only operator-rendering fixes / existing-endpoint
+patches) has been **relaxed**. New routes, new sidebar items, new backend
+endpoints, and new services are all permitted when they serve the goal of
+"completing DataFlow-WebUI as a usable local tool".
 
-1. **Operator Rendering Support (Frontend)** — Add or fix rendering for DataFlow operators not yet properly displayed in the WebUI pipeline canvas.
-   - New/fixed node components in `components/manage/mainFlow/nodes/`
-   - Fix parameter rendering in operator config panels
-   - Add missing operator-specific UI elements (param editors, display widgets)
-   - Fix display bugs for operators that exist in DataFlow but show incorrectly
+### Encouraged work areas
 
-   Verification: operator exists in `OPERATOR_REGISTRY` (`GET /api/v1/operators/`) but WebUI renders it incorrectly.
+1. **Agent chat experience** — tool-call progress indicators, session
+   persistence, multi-session switching, reconnect logic, robust error surfacing.
+2. **Prompt management** — both read-only browsing of the built-in
+   `PROMPT_REGISTRY` AND first-class support for user-defined prompt templates
+   (file-based persistence under `backend/data/prompts/`, CRUD endpoints,
+   editor UI, reference from operator config).
+3. **JSON Schema management** — container-based service injection, schema
+   validation (ajv), monaco/codemirror editor, deep integration with operator
+   parameter panels so saved schemas can be chosen for structured LLM outputs.
+4. **Operator rendering** — still a priority: new/fixed node components in
+   `components/manage/mainFlow/nodes/`, parameter editors, correct display of
+   operators that already exist in `OPERATOR_REGISTRY`.
+5. **Repo hygiene** — consolidating/deleting duplicate markdown, removing
+   stray `* copy` skill directories, fixing obvious code smells (same-name
+   route handlers, hard-coded URLs, services bypassing the DI container).
 
-2. **Operator API Support (Backend)** — Add or fix API endpoints that serve existing DataFlow operator/pipeline/serving/dataset data.
-   - Missing CRUD endpoint for an existing resource type
-   - Fix serialization of operator parameters
-   - Fix edge cases in existing endpoints (null handling, pagination)
-   - Add query params or filters to existing list endpoints
+### Still prohibited
 
-### Prohibited Changes
+- **Authentication / registration / multi-user features.** Single-user local
+  tool only.
+- **External telemetry / analytics uploads.** No outbound reporting.
+- **Breaking changes to `OPERATOR_REGISTRY` / `PROMPT_REGISTRY` semantics** —
+  always extend, never redefine, so upstream DataFlow stays compatible.
 
-- **NO** new analytical pages or dashboards (e.g., taxonomy analytics, custom reports)
-- **NO** new backend endpoints for derived/computed data (e.g., `/api/v1/taxonomy/analytics`, `/api/v1/custom-stats`)
-- **NO** new sidebar navigation items (`navList` in `manage/index.vue`)
-- **NO** new routes in `router/Manage/index.js`
-- **NO** new `views/manage/*/index.vue` pages
-- **NO** new services/registries in `core/container.py`
-- **NO** new config paths in `core/config.py`
-- **NO** feature-level functionality not tied to making existing operators render in the UI
+### Decision rule
 
-### Decision Rule
+Before a change, ask:
 
-Before any frontend/backend change, check:
-1. Does it make an existing DataFlow operator render correctly in the WebUI? → Allowed
-2. Does it fix a bug in an existing API endpoint? → Allowed
-3. Does it add missing CRUD for an existing resource type? → Allowed
-4. Anything else → **PROHIBITED** — ask user to explicitly override
-
-If the user requests a prohibited change, explain the policy and ask for explicit override confirmation.
+1. Does it make DataFlow-WebUI more useful as a single-user local tool? → OK
+2. Does it introduce a login page, account system, or remote telemetry? → **NO**
+3. Does it silently mutate DataFlow core-registry semantics? → **NO**
+4. Everything else → proceed, and keep changes minimal + consistent with
+   existing patterns (`core/container.py`, `api/v1/envelope.py`, etc.).

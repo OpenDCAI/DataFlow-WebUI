@@ -480,6 +480,10 @@ class DataFlowEngine:
                     run_sig = inspect.signature(getattr(operator_cls, "run", lambda: None))
                     
                     # 处理 init 参数
+                    init_accepts_var_kw = any(
+                        p.kind == inspect.Parameter.VAR_KEYWORD
+                        for p in init_sig.parameters.values()
+                    )
                     for param in op.get("params", {}).get("init", []):
                         param_name = param.get("name")
                         param_value = param.get("value")
@@ -487,7 +491,11 @@ class DataFlowEngine:
                         
                         try:
                             if param_name == "llm_serving":
+                                # Agents sometimes pass `{"id": "<serving_id>"}`
+                                # instead of the bare string id. Normalize.
                                 serving_id = param_value
+                                if isinstance(serving_id, dict):
+                                    serving_id = serving_id.get("id") or serving_id.get("serving_id")
                                 logger.info(f"Operator {op_name}: initializing serving {serving_id}")
                                 add_log("init", f"[{datetime.now().isoformat()}]   - Initializing LLM serving: {serving_id}", op_key)
                                 if serving_id not in serving_instance_map:
@@ -496,6 +504,8 @@ class DataFlowEngine:
 
                             elif param_name == "embedding_serving":
                                 serving_id = param_value
+                                if isinstance(serving_id, dict):
+                                    serving_id = serving_id.get("id") or serving_id.get("serving_id")
                                 logger.info(f"Operator {op_name}: initializing embedding serving {serving_id}")
                                 add_log("init", f"[{datetime.now().isoformat()}]   - Initializing embedding serving: {serving_id}", op_key)
                                 if serving_id not in embedding_serving_instance_map:
@@ -557,7 +567,25 @@ class DataFlowEngine:
                             else:
                                 ann = init_sig.parameters.get(param_name).annotation if param_name in init_sig.parameters else inspect.Parameter.empty
                                 param_value = coerce_param_value(param_value, annotation=ann, default_value=default_value)
-                            
+
+                            # Skip params the operator's __init__ does not accept
+                            # (and which would otherwise cause a TypeError below).
+                            # Only the well-known special-cased names above are kept
+                            # unconditionally because they are dereferenced before
+                            # being passed to operator_cls(**init_params).
+                            if (param_name not in init_sig.parameters
+                                    and not init_accepts_var_kw
+                                    and param_name not in (
+                                        "llm_serving", "embedding_serving",
+                                        "database_manager", "prompt_template",
+                                        "process_fn", "filter_rules",
+                                    )):
+                                logger.warning(
+                                    f"Operator {op_name}.__init__ does not accept '{param_name}'"
+                                    f"; dropping it to avoid TypeError."
+                                )
+                                continue
+
                             init_params[param_name] = param_value
                             
                         except DataFlowEngineError:
@@ -575,12 +603,29 @@ class DataFlowEngine:
                             )
                     
                     # 处理 run 参数
+                    # Drop DYNAMIC params (e.g. agent-set system_prompt) when the
+                    # operator's run() does NOT accept **kwargs — otherwise the
+                    # final operator.run(**run_params) call raises
+                    # `TypeError: run() got an unexpected keyword argument ...`.
+                    run_accepts_var_kw = any(
+                        p.kind == inspect.Parameter.VAR_KEYWORD
+                        for p in run_sig.parameters.values()
+                    )
                     for param in op.get("params", {}).get("run", []):
                         param_name = param.get("name")
                         param_value = param.get("value")
                         default_value = param.get("default_value")
                         param_kind = param.get("kind", "")
                         if param_kind == "VAR_KEYWORD" and param_value is None:
+                            continue
+                        # Skip DYNAMIC / unknown params the operator's run() can't accept.
+                        if (param_name not in run_sig.parameters) and not run_accepts_var_kw:
+                            logger.warning(
+                                f"Operator {op_name}.run() does not accept '{param_name}'"
+                                f" (kind={param_kind!r}); dropping it from run_params"
+                                f" to avoid TypeError. Set this param on a prompt_template"
+                                f" or operator init arg instead."
+                            )
                             continue
                         ann = run_sig.parameters.get(param_name).annotation if param_name in run_sig.parameters else inspect.Parameter.empty
                         param_value = coerce_param_value(param_value, annotation=ann, default_value=default_value)

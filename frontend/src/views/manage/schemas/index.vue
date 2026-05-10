@@ -36,19 +36,31 @@
                         </div>
                         <hr />
                         <div class="schema-item-row column">
-                            <p class="schema-item-light-title">{{ local('JSON Schema') }}</p>
+                            <div class="editor-label-row">
+                                <p class="schema-item-light-title">{{ local('JSON Schema') }}</p>
+                                <div class="editor-actions">
+                                    <a class="editor-link" @click="formatField('newSchema', 'schema')">{{ local('Format') }}</a>
+                                </div>
+                            </div>
                             <textarea v-model="newSchema.schema" class="schema-editor"
                                 :class="[{ dark: theme === 'dark' }]"
                                 :placeholder="local('Enter JSON Schema...')"
-                                @input="validateSchemaJson"></textarea>
+                                @input="onSchemaInput('new', $event.target.value)"></textarea>
                             <p v-if="schemaError" class="error-message">{{ schemaError }}</p>
                         </div>
                         <hr />
                         <div class="schema-item-row column">
-                            <p class="schema-item-light-title">{{ local('Example Data') }}</p>
+                            <div class="editor-label-row">
+                                <p class="schema-item-light-title">{{ local('Example Data') }}</p>
+                                <div class="editor-actions">
+                                    <a class="editor-link" @click="formatField('newSchema', 'example')">{{ local('Format') }}</a>
+                                </div>
+                            </div>
                             <textarea v-model="newSchema.example" class="schema-editor"
                                 :class="[{ dark: theme === 'dark' }]"
-                                :placeholder="local('Example JSON data that matches this schema...')"></textarea>
+                                :placeholder="local('Example JSON data that matches this schema...')"
+                                @input="onExampleInput('new', $event.target.value)"></textarea>
+                            <p v-if="exampleError" class="error-message">{{ exampleError }}</p>
                         </div>
                     </template>
                 </fv-Collapse>
@@ -122,17 +134,29 @@
                             </div>
                             <hr />
                             <div class="schema-item-row column">
-                                <p class="schema-item-light-title">{{ local('Schema') }}</p>
+                                <div class="editor-label-row">
+                                    <p class="schema-item-light-title">{{ local('Schema') }}</p>
+                                    <div class="editor-actions">
+                                        <a class="editor-link" @click="formatEditField(item, 'schema')">{{ local('Format') }}</a>
+                                    </div>
+                                </div>
                                 <textarea v-model="item.schema" class="schema-editor"
                                     :class="[{ dark: theme === 'dark' }]"
-                                    @input="validateSchemaJson"></textarea>
+                                    @input="onSchemaInput(item.id, $event.target.value)"></textarea>
                                 <p v-if="editError[item.id]" class="error-message">{{ editError[item.id] }}</p>
                             </div>
                             <hr />
                             <div class="schema-item-row column">
-                                <p class="schema-item-light-title">{{ local('Example Data') }}</p>
+                                <div class="editor-label-row">
+                                    <p class="schema-item-light-title">{{ local('Example Data') }}</p>
+                                    <div class="editor-actions">
+                                        <a class="editor-link" @click="formatEditField(item, 'example')">{{ local('Format') }}</a>
+                                    </div>
+                                </div>
                                 <textarea v-model="item.example" class="schema-editor"
-                                    :class="[{ dark: theme === 'dark' }]"></textarea>
+                                    :class="[{ dark: theme === 'dark' }]"
+                                    @input="onExampleInput(item.id, $event.target.value)"></textarea>
+                                <p v-if="editExampleError[item.id]" class="error-message">{{ editExampleError[item.id] }}</p>
                             </div>
                         </div>
 
@@ -172,7 +196,9 @@ export default {
                 add: false
             },
             schemaError: '',
+            exampleError: '',
             editError: {},
+            editExampleError: {},
             copyLabel: '',
             lock: {
                 add: true,
@@ -219,6 +245,140 @@ export default {
                 this.schemaError = msg
             }
         },
+        // ── 结构化校验工具 ──────────────────────────────────────
+        // 返回 { schema, error } ；error 为空代表 JSON 合法
+        tryParseJson(text) {
+            if (!text || !text.trim()) return { value: null, error: '' }
+            try {
+                return { value: JSON.parse(text), error: '' }
+            } catch (e) {
+                // e.message 常形如 "Unexpected token } in JSON at position 42"
+                const m = /position\s+(\d+)/.exec(e.message || '')
+                if (m) {
+                    const pos = parseInt(m[1], 10)
+                    const pre = text.slice(0, pos)
+                    const line = (pre.match(/\n/g) || []).length + 1
+                    const col = pos - pre.lastIndexOf('\n')
+                    return { value: null, error: `${e.message} (line ${line}, col ${col})` }
+                }
+                return { value: null, error: e.message || 'Invalid JSON' }
+            }
+        },
+        // 轻量 schema 校验：支持 type/required/properties/items/enum/anyOf/oneOf
+        // 返回 [] 代表通过；否则返回字符串错误列表。
+        validateAgainstSchema(data, schema, pathPrefix = '') {
+            const errors = []
+            if (!schema || typeof schema !== 'object') return errors
+
+            if (Array.isArray(schema.anyOf)) {
+                const ok = schema.anyOf.some((s) => this.validateAgainstSchema(data, s, pathPrefix).length === 0)
+                if (!ok) errors.push(`${pathPrefix || 'value'} does not match any of anyOf schemas`)
+                return errors
+            }
+            if (Array.isArray(schema.oneOf)) {
+                const matches = schema.oneOf.filter((s) => this.validateAgainstSchema(data, s, pathPrefix).length === 0)
+                if (matches.length !== 1) {
+                    errors.push(`${pathPrefix || 'value'} must match exactly one of oneOf (matched ${matches.length})`)
+                }
+                return errors
+            }
+            const type = schema.type
+            const actual = Array.isArray(data) ? 'array' : (data === null ? 'null' : typeof data)
+            if (type) {
+                const allowed = Array.isArray(type) ? type : [type]
+                // JSON Schema 里 integer 是 number 的子集
+                const matchType =
+                    allowed.includes(actual) ||
+                    (allowed.includes('integer') && actual === 'number' && Number.isInteger(data))
+                if (!matchType) {
+                    errors.push(`${pathPrefix || 'value'} expected type ${allowed.join('|')}, got ${actual}`)
+                    return errors
+                }
+            }
+            if (Array.isArray(schema.enum)) {
+                const found = schema.enum.some((v) => JSON.stringify(v) === JSON.stringify(data))
+                if (!found) errors.push(`${pathPrefix || 'value'} not in enum`)
+            }
+            if (type === 'object' || (!type && typeof data === 'object' && data !== null && !Array.isArray(data))) {
+                const props = schema.properties || {}
+                const required = schema.required || []
+                for (const r of required) {
+                    if (!(r in data)) errors.push(`missing required field "${r}"${pathPrefix ? ' at ' + pathPrefix : ''}`)
+                }
+                for (const k of Object.keys(props)) {
+                    if (k in data) {
+                        errors.push(...this.validateAgainstSchema(data[k], props[k], pathPrefix ? `${pathPrefix}.${k}` : k))
+                    }
+                }
+            }
+            if (type === 'array' && schema.items && Array.isArray(data)) {
+                data.forEach((el, i) => {
+                    errors.push(...this.validateAgainstSchema(el, schema.items, `${pathPrefix || 'value'}[${i}]`))
+                })
+            }
+            return errors
+        },
+        // scope: 'new' | item.id；反射到 schemaError / editError
+        onSchemaInput(scope, text) {
+            const { error } = this.tryParseJson(text)
+            if (scope === 'new') {
+                this.schemaError = error
+            } else {
+                if (error) this.editError[scope] = error
+                else delete this.editError[scope]
+            }
+            // schema 变了之后，example 的校验结果也要刷新
+            const exampleText =
+                scope === 'new'
+                    ? this.newSchema.example
+                    : (this.schemaList.find((x) => x.id === scope) || {}).example
+            this.onExampleInput(scope, exampleText || '')
+        },
+        onExampleInput(scope, text) {
+            const setErr = (msg) => {
+                if (scope === 'new') this.exampleError = msg
+                else {
+                    if (msg) this.editExampleError[scope] = msg
+                    else delete this.editExampleError[scope]
+                }
+            }
+            const { value, error } = this.tryParseJson(text)
+            if (error) { setErr(error); return }
+            if (value === null) { setErr(''); return }
+            // 把 schema 拿出来做结构化校验
+            const schemaText =
+                scope === 'new'
+                    ? this.newSchema.schema
+                    : (this.schemaList.find((x) => x.id === scope) || {}).schema
+            const parsedSchema = this.tryParseJson(schemaText || '').value
+            if (!parsedSchema) { setErr(''); return }
+            const errs = this.validateAgainstSchema(value, parsedSchema)
+            setErr(errs.length ? errs.slice(0, 3).join('; ') : '')
+        },
+        formatField(objName, field) {
+            const obj = this[objName]
+            const { value, error } = this.tryParseJson(obj[field])
+            if (error) {
+                this.$barWarning({ status: 'warning', title: 'Cannot format: ' + error })
+                return
+            }
+            if (value === null) return
+            obj[field] = JSON.stringify(value, null, 2)
+            // 重新触发校验
+            if (field === 'schema') this.onSchemaInput('new', obj.schema)
+            else this.onExampleInput('new', obj.example)
+        },
+        formatEditField(item, field) {
+            const { value, error } = this.tryParseJson(item[field])
+            if (error) {
+                this.$barWarning({ status: 'warning', title: 'Cannot format: ' + error })
+                return
+            }
+            if (value === null) return
+            item[field] = JSON.stringify(value, null, 2)
+            if (field === 'schema') this.onSchemaInput(item.id, item.schema)
+            else this.onExampleInput(item.id, item.example)
+        },
         formatJson(json) {
             try {
                 if (typeof json === 'string') {
@@ -230,16 +390,17 @@ export default {
             }
         },
         checkAdd() {
-            return this.newSchema.name.trim() && this.newSchema.schema.trim() && !this.schemaError
+            return this.newSchema.name.trim() && this.newSchema.schema.trim() && !this.schemaError && !this.exampleError
         },
         checkEdit(item) {
-            return item.name.trim() && item.schema.trim() && !this.editError[item.id]
+            return item.name.trim() && item.schema.trim() && !this.editError[item.id] && !this.editExampleError[item.id]
         },
         handleAdd() {
             this.show.add = !this.show.add
             if (!this.show.add) {
                 this.newSchema = { name: '', description: '', schema: '', example: '' }
                 this.schemaError = ''
+                this.exampleError = ''
             }
         },
         confirmAdd() {
@@ -531,6 +692,34 @@ export default {
                 font-size: 12px;
                 color: rgba(191, 95, 95, 1);
                 margin: 5px 0 0 0;
+            }
+
+            .editor-label-row {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                width: 100%;
+                margin-bottom: 6px;
+
+                .schema-item-light-title {
+                    margin: 0 !important;
+                }
+
+                .editor-actions {
+                    display: flex;
+                    gap: 12px;
+
+                    .editor-link {
+                        font-size: 12px;
+                        color: rgba(100, 100, 200, 1);
+                        cursor: pointer;
+                        user-select: none;
+
+                        &:hover {
+                            text-decoration: underline;
+                        }
+                    }
+                }
             }
         }
     }

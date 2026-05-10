@@ -7,11 +7,29 @@
                 <span>DataFlow 助手</span>
             </div>
             <div class="chat-header-actions">
+                <!-- 历史会话列表 -->
+                <fv-button
+                    :theme="theme"
+                    title="历史会话"
+                    style="width: 28px; height: 28px; border-radius: 50%;"
+                    @click="toggleHistoryPanel"
+                >
+                    <i class="ms-Icon ms-Icon--History" style="font-size: 12px;"></i>
+                </fv-button>
+                <!-- 新建会话：脱离当前 session，保留历史 -->
+                <fv-button
+                    :theme="theme"
+                    title="新建对话"
+                    style="width: 28px; height: 28px; border-radius: 50%; margin-left: 4px;"
+                    @click="newSession"
+                >
+                    <i class="ms-Icon ms-Icon--Add" style="font-size: 12px;"></i>
+                </fv-button>
                 <!-- 终止并清除：kill 正在运行的 claude 进程，同时清空对话历史 -->
                 <fv-button
                     :theme="theme"
                     :title="isLoading ? '终止运行并清除对话' : '清除对话历史'"
-                    style="width: 28px; height: 28px; border-radius: 50%;"
+                    style="width: 28px; height: 28px; border-radius: 50%; margin-left: 4px;"
                     @click="abortAndClear"
                 >
                     <i
@@ -20,6 +38,39 @@
                         style="font-size: 12px;"
                     ></i>
                 </fv-button>
+            </div>
+        </div>
+
+        <!-- 历史会话抽屉 -->
+        <div v-if="showHistoryPanel" class="history-overlay" @click.self="showHistoryPanel = false">
+            <div class="history-panel">
+                <div class="history-head">
+                    <span>历史会话</span>
+                    <i class="ms-Icon ms-Icon--Cancel history-close" @click="showHistoryPanel = false"></i>
+                </div>
+                <div v-if="historyList.length === 0" class="history-empty">
+                    还没有历史对话
+                </div>
+                <div v-else class="history-list">
+                    <div
+                        v-for="s in historyList"
+                        :key="s.session_id"
+                        class="history-item"
+                        :class="{ active: s.session_id === currentSessionId }"
+                        @click="switchSession(s.session_id)"
+                    >
+                        <div class="history-item-title">{{ s.title || s.session_id }}</div>
+                        <div class="history-item-meta">
+                            <span>{{ formatTime(s.updated_at) }}</span>
+                            <span>· {{ s.message_count || 0 }} 轮</span>
+                        </div>
+                        <i
+                            class="ms-Icon ms-Icon--Delete history-item-del"
+                            title="删除"
+                            @click.stop="deleteSession(s.session_id)"
+                        ></i>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -38,11 +89,42 @@
             >
                 <div class="message-avatar">
                     <i v-if="msg.role === 'user'" class="ms-Icon ms-Icon--Contact"></i>
+                    <i v-else-if="msg.role === 'tool'" class="ms-Icon ms-Icon--Settings"></i>
                     <i v-else class="ms-Icon ms-Icon--Robot"></i>
                 </div>
                 <div class="message-content">
+                    <!-- Agent 工具调用条目 -->
+                    <div v-if="msg.role === 'tool'" class="tool-call-card" :class="msg.status">
+                        <div class="tool-call-head" @click="msg.expanded = !msg.expanded">
+                            <i
+                                class="ms-Icon"
+                                :class="msg.status === 'running'
+                                    ? 'ms-Icon--ProgressRingDots'
+                                    : (msg.is_error ? 'ms-Icon--ErrorBadge' : 'ms-Icon--CheckMark')"
+                                style="margin-right: 6px;"
+                            ></i>
+                            <span class="tool-name">{{ formatToolName(msg.name) }}</span>
+                            <span v-if="msg.status === 'running'" class="tool-status">调用中…</span>
+                            <span v-else-if="msg.is_error" class="tool-status error">失败</span>
+                            <span v-else class="tool-status done">完成</span>
+                            <i
+                                class="ms-Icon ms-Icon--ChevronDown tool-toggle"
+                                :class="{ expanded: msg.expanded }"
+                            ></i>
+                        </div>
+                        <div v-if="msg.expanded" class="tool-call-body">
+                            <div v-if="msg.input_preview" class="tool-kv">
+                                <div class="tool-kv-label">input</div>
+                                <pre class="tool-kv-value">{{ msg.input_preview }}</pre>
+                            </div>
+                            <div v-if="msg.output_preview" class="tool-kv">
+                                <div class="tool-kv-label">output</div>
+                                <pre class="tool-kv-value">{{ msg.output_preview }}</pre>
+                            </div>
+                        </div>
+                    </div>
                     <div
-                        v-if="msg.role === 'assistant'"
+                        v-else-if="msg.role === 'assistant'"
                         class="message-text markdown-body"
                         v-html="renderMarkdown(msg.content)"
                     ></div>
@@ -99,6 +181,7 @@ import { useAppConfig } from '@/stores/appConfig'
 import { useTheme } from '@/stores/theme'
 import { useDataflow } from '@/stores/dataflow'
 import MarkdownIt from 'markdown-it'
+import axios from 'axios'
 
 const md = new MarkdownIt({
     html: false,
@@ -117,6 +200,19 @@ function getUserId() {
     return uid
 }
 
+// 根据当前页面协议/主机动态构造 WebSocket URL。
+// 开发模式下 vite.config.js 的 proxy (/api, ws:true) 会把 WS 转发到后端；
+// 生产模式下后端直接托管前端静态文件，同样同源可达。
+// 关键：**不要**写死 localhost —— 当用户通过局域网 IP 访问前端时，
+// localhost 指的是用户本机，而不是运行后端的机器。
+function buildWsUrl() {
+    if (typeof window === 'undefined' || !window.location) {
+        return 'ws://localhost:8000/api/v1/agent/ws'
+    }
+    const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+    return `${proto}//${window.location.host}/api/v1/agent/ws`
+}
+
 export default {
     name: 'ChatPanel',
     data() {
@@ -126,8 +222,12 @@ export default {
             isLoading: false,
             ws: null,
             userId: getUserId(),
-            wsUrl: `ws://localhost:8000/api/v1/agent/ws`,
+            wsUrl: buildWsUrl(),
             reconnectTimer: null,
+            // 历史会话相关
+            showHistoryPanel: false,
+            historyList: [],
+            currentSessionId: null,
         }
     },
     computed: {
@@ -139,6 +239,7 @@ export default {
     },
     mounted() {
         this.connectWebSocket()
+        this.loadHistory()
     },
     beforeUnmount() {
         this.disconnectWebSocket()
@@ -186,6 +287,35 @@ export default {
             if (msg.type === 'text_chunk') {
                 this.appendToCurrentMessage(msg.content)
 
+            } else if (msg.type === 'tool_call_start') {
+                // Agent 开始调用一个工具：把当前 streaming 的 assistant 消息先 finalize，
+                // 插入一条 role=tool 消息，后续 text_chunk 会另起一条新的 assistant 消息。
+                this.finalizeCurrentMessage()
+                this.messages.push({
+                    role: 'tool',
+                    tool_use_id: msg.tool_use_id,
+                    name: msg.name,
+                    input_preview: msg.input_preview || '',
+                    output_preview: '',
+                    status: 'running',
+                    is_error: false,
+                    expanded: false,
+                    streaming: false,
+                })
+                this.$nextTick(() => this.scrollToBottom())
+
+            } else if (msg.type === 'tool_call_end') {
+                // 找到对应的 tool 消息，回填输出
+                const toolMsg = [...this.messages].reverse().find(
+                    (m) => m.role === 'tool' && m.tool_use_id === msg.tool_use_id
+                )
+                if (toolMsg) {
+                    toolMsg.output_preview = msg.output_preview || ''
+                    toolMsg.is_error = !!msg.is_error
+                    toolMsg.status = msg.is_error ? 'error' : 'done'
+                }
+                this.$nextTick(() => this.scrollToBottom())
+
             } else if (msg.type === 'sync_pipeline') {
                 // 同步 pipeline 到 DAG 编辑器
                 this.syncFromAgent(msg)
@@ -199,16 +329,104 @@ export default {
             } else if (msg.type === 'session_aborted') {
                 this.isLoading = false
                 this.messages = []
-                this.addSystemMessage('⏹ 已终止运行并清除对话历史，开始新会话')
+                this.currentSessionId = null
+                this.addSystemMessage('⏹ 已终止运行并开始新会话（历史保留）')
+                this.loadHistory()
 
             } else if (msg.type === 'session_cleared') {
                 this.isLoading = false
                 this.messages = []
-                this.addSystemMessage('对话历史已清除，开始新会话')
+                this.currentSessionId = null
+                this.addSystemMessage('已开始新会话（历史保留）')
+                this.loadHistory()
+
+            } else if (msg.type === 'session_switched') {
+                this.isLoading = false
+                this.messages = []
+                this.currentSessionId = msg.session_id
+                this.addSystemMessage(`↩ 已切换到历史会话 ${msg.session_id.slice(0, 8)}…，继续对话将从上次记忆恢复`)
+                this.showHistoryPanel = false
+                this.loadHistory()
 
             } else if (msg.type === 'error') {
                 this.isLoading = false
                 this.addSystemMessage(`❌ 错误: ${msg.message}`)
+            }
+        },
+
+        formatToolName(name) {
+            if (!name) return 'tool'
+            // mcp__dataflow__list_operators → list_operators
+            const m = name.match(/^mcp__[^_]+__(.+)$/)
+            return m ? m[1] : name
+        },
+
+        formatTime(isoStr) {
+            if (!isoStr) return ''
+            try {
+                const d = new Date(isoStr)
+                const now = new Date()
+                const diff = (now - d) / 1000
+                if (diff < 60) return '刚刚'
+                if (diff < 3600) return `${Math.floor(diff / 60)} 分钟前`
+                if (diff < 86400) return `${Math.floor(diff / 3600)} 小时前`
+                return d.toLocaleDateString()
+            } catch (e) {
+                return isoStr
+            }
+        },
+
+        async toggleHistoryPanel() {
+            this.showHistoryPanel = !this.showHistoryPanel
+            if (this.showHistoryPanel) {
+                await this.loadHistory()
+            }
+        },
+
+        async loadHistory() {
+            try {
+                const res = await axios.get('/api/v1/agent/sessions', {
+                    params: { user_id: this.userId },
+                })
+                const data = res.data && res.data.data ? res.data.data : res.data
+                this.historyList = data.history || []
+                this.currentSessionId = data.current || null
+            } catch (e) {
+                console.warn('[ChatPanel] loadHistory failed:', e)
+            }
+        },
+
+        newSession() {
+            // 通过 WS 让后端脱离当前 session；若断开则仅清空本地视图
+            if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+                this.ws.send(JSON.stringify({ type: 'new_session' }))
+            } else {
+                this.messages = []
+                this.currentSessionId = null
+            }
+        },
+
+        switchSession(sessionId) {
+            if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+                this.addSystemMessage('⚠️ 连接已断开，正在重连…')
+                this.connectWebSocket()
+                return
+            }
+            this.ws.send(JSON.stringify({ type: 'switch_session', session_id: sessionId }))
+        },
+
+        async deleteSession(sessionId) {
+            try {
+                await axios.delete(`/api/v1/agent/sessions/${sessionId}`, {
+                    params: { user_id: this.userId },
+                })
+                if (sessionId === this.currentSessionId) {
+                    this.messages = []
+                    this.currentSessionId = null
+                }
+                await this.loadHistory()
+            } catch (e) {
+                console.warn('[ChatPanel] deleteSession failed:', e)
             }
         },
 
@@ -294,6 +512,7 @@ export default {
 
 <style scoped>
 .chat-panel {
+    position: relative;
     display: flex;
     flex-direction: column;
     height: 100%;
@@ -590,4 +809,173 @@ export default {
     background: rgba(230, 230, 230, 0.5);
     font-weight: 600;
 }
+
+/* ── Tool call card ───────────────────────────────────────────── */
+.tool-call-card {
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    border-radius: 6px;
+    background: rgba(246, 246, 250, 0.7);
+    overflow: hidden;
+    font-size: 12px;
+}
+.chat-panel.dark .tool-call-card {
+    background: rgba(255, 255, 255, 0.04);
+    border-color: rgba(255, 255, 255, 0.12);
+}
+.tool-call-card.running {
+    border-left: 3px solid #4562d5;
+}
+.tool-call-card.done {
+    border-left: 3px solid #3fa46a;
+}
+.tool-call-card.error {
+    border-left: 3px solid #d64545;
+}
+.tool-call-head {
+    display: flex;
+    align-items: center;
+    padding: 6px 8px;
+    cursor: pointer;
+    user-select: none;
+    gap: 4px;
+}
+.tool-name {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-weight: 600;
+}
+.tool-status {
+    margin-left: 6px;
+    font-size: 11px;
+    color: #4562d5;
+}
+.tool-status.done { color: #3fa46a; }
+.tool-status.error { color: #d64545; }
+.tool-toggle {
+    margin-left: auto;
+    font-size: 10px;
+    transition: transform 0.15s;
+}
+.tool-toggle.expanded {
+    transform: rotate(180deg);
+}
+.tool-call-body {
+    border-top: 1px solid rgba(0, 0, 0, 0.08);
+    padding: 6px 8px;
+}
+.chat-panel.dark .tool-call-body {
+    border-top-color: rgba(255, 255, 255, 0.1);
+}
+.tool-kv + .tool-kv {
+    margin-top: 6px;
+}
+.tool-kv-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    opacity: 0.55;
+    margin-bottom: 2px;
+    letter-spacing: 0.05em;
+}
+.tool-kv-value {
+    margin: 0;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 11px;
+    line-height: 1.45;
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 180px;
+    overflow: auto;
+}
+.chat-message.tool .message-avatar {
+    background: rgba(69, 98, 213, 0.1);
+    color: #4562d5;
+}
+
+/* ── History drawer ───────────────────────────────────────── */
+.history-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.15);
+    display: flex;
+    justify-content: flex-end;
+    z-index: 20;
+}
+.history-panel {
+    width: 280px;
+    max-width: 100%;
+    background: #fff;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    box-shadow: -2px 0 12px rgba(0, 0, 0, 0.08);
+}
+.chat-panel.dark .history-panel {
+    background: #1f2022;
+    color: #e0e0e0;
+}
+.history-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+    font-weight: 600;
+}
+.chat-panel.dark .history-head {
+    border-bottom-color: rgba(255, 255, 255, 0.1);
+}
+.history-close {
+    cursor: pointer;
+    font-size: 12px;
+    opacity: 0.6;
+}
+.history-close:hover { opacity: 1; }
+.history-list {
+    flex: 1;
+    overflow-y: auto;
+}
+.history-empty {
+    padding: 20px;
+    text-align: center;
+    opacity: 0.55;
+    font-size: 13px;
+}
+.history-item {
+    position: relative;
+    padding: 8px 28px 8px 12px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    cursor: pointer;
+    transition: background 0.12s;
+}
+.history-item:hover {
+    background: rgba(69, 98, 213, 0.06);
+}
+.history-item.active {
+    background: rgba(69, 98, 213, 0.12);
+}
+.history-item-title {
+    font-size: 13px;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.history-item-meta {
+    font-size: 11px;
+    opacity: 0.55;
+    margin-top: 2px;
+    display: flex;
+    gap: 4px;
+}
+.history-item-del {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 11px;
+    opacity: 0;
+    cursor: pointer;
+    transition: opacity 0.12s;
+}
+.history-item:hover .history-item-del { opacity: 0.6; }
+.history-item-del:hover { opacity: 1; color: #d64545; }
 </style>

@@ -1,3 +1,19 @@
 *.zip
 __pycache__
 dist_release/
+
+# local runtime artifacts
+data/
+backend/dataflow_cache/
+backend/cache_local/
+backend/data/dataflow_core/
+
+# editor / OS
+.DS_Store
+*.swp
+*.pyc
+.idea/
+.vscode/
+
+# stale "* copy" skill dirs accidentally committed in earlier branches
+.claude/skills/* copy/

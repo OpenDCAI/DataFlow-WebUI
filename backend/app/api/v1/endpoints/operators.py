@@ -1,38 +1,175 @@
 # app/api/v1/endpoints/operators.py
 
 import json
-from fastapi import APIRouter, HTTPException
-from typing import List, Dict, Any 
+from fastapi import APIRouter, HTTPException, Query
+from typing import List, Dict, Any
 from loguru import logger as log
 
 # --- 1. Import required Schemas and response wrappers ---
 from app.schemas.operator import (
-    OperatorSchema, 
+    OperatorSchema,
     OperatorDetailSchema,
-    OperatorDetailsResponseSchema 
+    OperatorDetailsResponseSchema
 )
 from app.api.v1.resp import ok
 from app.api.v1.envelope import ApiResponse
+from app.api.v1.errors import ValidationBizError
 
 # --- 2. Import service layer ---
 from app.services.operator_registry import OPS_JSON_PATH
+from app.services.operator_category_guide import (
+    build_category_response,
+    valid_categories,
+)
 from app.core.container import container
 
 router = APIRouter(tags=["operators"])
 
 @router.get(
-    "/", 
+    "/",
     response_model=ApiResponse[List[OperatorSchema]],
-    operation_id="list_operators", 
-    summary="Return list of registered operators (simplified)"
+    operation_id="list_operators_all",
+    summary=(
+        "INTERNAL: Return ALL registered operators (full catalog). Used by "
+        "the web UI's operator sidebar. NOT exposed via MCP — agents must "
+        "use `list_operators` (the category-scoped variant) instead."
+    ),
 )
-def list_operators(lang: str = "zh"):
-    """Return all registered operators (simplified version)."""
+def list_operators_all(lang: str = "zh", category: str = None):
+    """Return operators, optionally filtered by category.
+
+    This is the legacy unrestricted route, kept for the frontend which
+    renders the full operator palette. It is **intentionally not
+    whitelisted in the MCP server** (see ``app.mcp_server`` include_operations)
+    so agents cannot accidentally pull the 145-op catalog into context.
+    """
     try:
         op_list = container.operator_registry.get_op_list(lang=lang)
+        if category:
+            op_list = [
+                op for op in op_list
+                if (op.get("type") or {}).get("level_1") == category
+            ]
         return ok(op_list)
     except Exception as e:
         log.error(f"Failed to get operator list: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get(
+    "/by_category",
+    response_model=ApiResponse[List[OperatorSchema]],
+    operation_id="list_operators",
+    summary=(
+        "Return registered operators within a SINGLE category. `category` "
+        "is REQUIRED. This is the agent-facing variant exposed via MCP."
+    ),
+)
+def list_operators(
+    category: str = Query(
+        None,
+        description=(
+            "REQUIRED. One of the level_1 categories returned by "
+            "list_operator_categories (e.g. 'core_text', 'general_text', "
+            "'reasoning'). Calling this endpoint without a category — or "
+            "with 'all' / 'unknown' — is rejected with a structured error "
+            "so the agent can recover without wasting context on the full "
+            "~145-operator catalog."
+        ),
+    ),
+    lang: str = "zh",
+):
+    """Return operators belonging to a single top-level category (agent path).
+
+    Why a dedicated route: the frontend operator palette still needs the
+    full catalog, so the old ``/`` path (now ``list_operators_all``) stays
+    liberal and is hidden from MCP. This route is the one whitelisted in
+    ``app.mcp_server``; when the agent forgets ``category``, the response
+    itself carries the list of valid values plus a two-step recovery hint,
+    so the next tool call can succeed without a round-trip to the user.
+    """
+    try:
+        op_list = container.operator_registry.get_op_list(lang=lang)
+        valids = valid_categories(op_list)
+
+        if not category or category.strip().lower() in {"all", "*", "unknown", "any"}:
+            raise ValidationBizError(
+                message=(
+                    "list_operators requires a `category` argument. Returning the full "
+                    "~145-operator catalog would overflow the agent context window. "
+                    "Call list_operator_categories first, read use_for/not_for for each, "
+                    "choose exactly one category, then re-invoke list_operators with it."
+                ),
+                code=40010,
+                data={
+                    "error": "category_required",
+                    "valid_categories": valids,
+                    "next_action": (
+                        "Step 1: list_operator_categories  →  "
+                        "Step 2: list_operators?category=<chosen>  →  "
+                        "Step 3: get_operator_detail_by_name(name=<chosen op>)"
+                    ),
+                },
+            )
+
+        if category not in valids:
+            # difflib hint for typos / hallucinated categories
+            import difflib
+            suggestions = difflib.get_close_matches(category, valids, n=3, cutoff=0.4)
+            raise ValidationBizError(
+                message=(
+                    f"Category '{category}' does not exist. Pick exactly one of "
+                    "valid_categories below. Do not invent category names."
+                ),
+                code=40011,
+                data={
+                    "error": "unknown_category",
+                    "valid_categories": valids,
+                    "did_you_mean": suggestions,
+                },
+            )
+
+        filtered = [
+            op for op in op_list
+            if (op.get("type") or {}).get("level_1") == category
+        ]
+        return ok(filtered)
+    except ValidationBizError:
+        raise
+    except HTTPException:
+        raise
+    except Exception as e:
+        log.error(f"Failed to get operator list: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get(
+    "/categories",
+    response_model=ApiResponse[Dict[str, Dict[str, Any]]],
+    operation_id="list_operator_categories",
+    summary=(
+        "Return mapping of operator top-level categories with count + "
+        "use_for / not_for guidance + example operator names. "
+        "ALWAYS call this BEFORE list_operators."
+    ),
+)
+def list_operator_categories(lang: str = "zh"):
+    """Cheap entry-point agents must call first.
+
+    Each category in the response carries:
+      - ``count``    : number of operators in this category
+      - ``use_for``  : the data-engineering jobs this category is intended for
+      - ``not_for``  : common mis-mappings (anti-patterns) to avoid
+      - ``examples`` : 3-5 representative operator names
+
+    The agent should read use_for/not_for, decide which single category
+    matches the user's task, and then call ``list_operators?category=<X>``.
+    """
+    try:
+        op_list = container.operator_registry.get_op_list(lang=lang)
+        return ok(build_category_response(op_list))
+    except Exception as e:
+        log.error(f"Failed to get operator categories: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

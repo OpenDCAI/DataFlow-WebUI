@@ -1,14 +1,17 @@
 from fastapi import APIRouter, HTTPException, status
 from loguru import logger as log
 from app.schemas.json_schema import JsonSchemaCreate, JsonSchemaUpdate, JsonSchemaOut
-from app.services.json_schema_manager import JsonSchemaManager
+from app.core.container import container
 from app.api.v1.resp import ok
 from app.api.v1.envelope import ApiResponse
 from typing import List
 
 
 router = APIRouter(tags=["json_schemas"])
-manager = JsonSchemaManager()
+
+
+def _manager():
+    return container.json_schema_manager
 
 
 @router.post(
@@ -19,7 +22,7 @@ manager = JsonSchemaManager()
 def create_schema(schema_in: JsonSchemaCreate):
     """Create a new JSON schema."""
     try:
-        schema_out = manager.create(
+        schema_out = _manager().create(
             name=schema_in.name,
             description=schema_in.description or "",
             schema=schema_in.schema,
@@ -39,7 +42,7 @@ def create_schema(schema_in: JsonSchemaCreate):
 def list_schemas():
     """List all JSON schemas."""
     try:
-        schemas = manager.list_all()
+        schemas = _manager().list_all()
         return ok([JsonSchemaOut(**s) for s in schemas])
     except Exception as e:
         log.error(f"Failed to list schemas: {e}")
@@ -54,7 +57,7 @@ def list_schemas():
 def get_schema(schema_id: str):
     """Get a schema by ID."""
     try:
-        schema = manager.get(schema_id)
+        schema = _manager().get(schema_id)
         if not schema:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -77,7 +80,7 @@ def update_schema(schema_id: str, schema_update: JsonSchemaUpdate):
     """Update a schema by ID."""
     try:
         update_data = schema_update.dict(exclude_unset=True)
-        schema = manager.update(schema_id, **update_data)
+        schema = _manager().update(schema_id, **update_data)
         if not schema:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -99,7 +102,7 @@ def update_schema(schema_id: str, schema_update: JsonSchemaUpdate):
 def delete_schema(schema_id: str):
     """Delete a schema by ID."""
     try:
-        success = manager.delete(schema_id)
+        success = _manager().delete(schema_id)
         if not success:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
