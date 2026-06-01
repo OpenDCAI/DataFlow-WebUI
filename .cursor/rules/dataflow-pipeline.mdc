@@ -1,4 +1,38 @@
 ---
+description: DataFlow pipeline construction skill (auto-generated from .claude/skills/generating-dataflow-pipeline/SKILL.md by scripts/setup_agent.sh).
+globs: ["**/*.py", "**/*.jsonl", "**/*.json"]
+alwaysApply: true
+---
+
+# DataFlow pipeline construction (Cursor)
+
+This rule mirrors the canonical Claude skill so Cursor produces the same
+pipelines as Claude Code in this repo. Do NOT edit by hand — re-run
+`./scripts/setup_agent.sh cursor` after changing the skill.
+
+## 首次使用（环境配置）
+
+如果这是你第一次在本项目工作，或者用户要求你帮忙配置环境：
+
+1. 阅读 `AGENT_SETUP.md` 获取完整配置流程
+2. 运行 `./scripts/setup_all.sh` 安装所有依赖
+3. 运行 `./scripts/start.sh --daemon` 启动后端
+4. 按下方 MCP 激活步骤确认工具可用
+
+## MCP 激活
+
+本项目通过 MCP 提供 DataFlow 工具（创建/验证/执行 pipeline 等）。如果你在工具
+列表中看不到 `mcp_dataflow_*` 开头的工具，说明 MCP server 尚未激活。请引导用户：
+
+1. 打开 **Cursor Settings → Features → MCP Servers**
+2. 找到 `dataflow`（来源: `.cursor/mcp.json`），将其切换为 **启用**
+3. 确认后端正在运行: `./scripts/start.sh --status`
+4. 如果状态显示 "failed"，点击 Refresh 或重启 Cursor
+
+激活成功后你应该能看到 `mcp_dataflow_list_operator_categories` 等工具。
+用一次简单调用确认连通后再开始构建 pipeline。
+
+---
 name: generating-dataflow-pipeline
 description: Reasoning-guided pipeline planner that generates standard DataFlow pipeline code
 version: 1.0.0

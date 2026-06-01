@@ -109,6 +109,7 @@ grep -r "^    from" dataflow/operators/reasoning/__init__.py
 - [ ] 继承 `OperatorABC`，调用 `super().__init__()`
 - [ ] 类上方有 `@OPERATOR_REGISTRY.register()` 装饰器
 - [ ] `run()` 参数：输入列名以 `input_` 开头，输出列名以 `output_` 开头
+- [ ] 若 run() 依赖输入列，缺列报错信息里应能暴露实际 available columns，便于上层 agent/用户修复字段绑定
 - [ ] `run()` 第一个参数为 `storage: DataFlowStorage`
 - [ ] `run()` 返回输出 key 列表：`return ['output_xxx']`
 - [ ] `run()` 调用 `storage.read("dataframe")` 和 `storage.write(df)`

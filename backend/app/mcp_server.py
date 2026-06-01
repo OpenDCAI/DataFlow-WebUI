@@ -29,6 +29,7 @@ def create_mcp_server(app: FastAPI) -> FastApiMCP:
         # 白名单：只暴露安全的只读/创建操作 + 自定义同步工具
         include_operations=[
             "list_operator_categories",         # GET /api/v1/operators/categories  ← 便宜入口，带 use_for/not_for 指引；agent 必须先调
+            "recommend_operator_categories",    # POST /api/v1/operators/recommend_categories  ← 结合任务描述/列名给出最多 2 个候选 category
             "list_operators",                   # GET /api/v1/operators/by_category?category=xxx  category 必填，缺省/非法会 40010/40011
             "get_operator_detail_by_name",      # GET /api/v1/operators/details/{name} 单个算子详情
             "list_pipelines",                   # GET /api/v1/pipelines/
@@ -40,8 +41,12 @@ def create_mcp_server(app: FastAPI) -> FastApiMCP:
             "get_execution_status",             # GET /api/v1/tasks/execution/{task_id}/status
             "get_task_result",                  # GET /api/v1/tasks/execution/{task_id}/result
             "list_datasets",                    # GET /api/v1/datasets/
+            "get_dataset_columns",              # GET /api/v1/datasets/columns/{ds_id}
+            "get_dataset_preview",              # GET /api/v1/datasets/preview/{ds_id}  ← 必须在设置 lang 等语义参数前调用，agent 凭样本判断数据语言
             "register_dataset",                 # POST /api/v1/datasets/
             "list_serving",                     # GET /api/v1/serving/
+            "list_servings",                    # GET /api/v1/serving/plural_alias (backward-compatible alias)
+            "validate_pipeline_config",         # POST /api/v1/pipelines/validate
             "render_pipeline_in_editor",        # POST /api/v1/agent/render (自定义)
         ],
     )

@@ -5,6 +5,17 @@
             <div class="chat-title">
                 <i class="ms-Icon ms-Icon--Robot" style="margin-right: 6px; font-size: 16px;"></i>
                 <span>DataFlow 助手</span>
+                <select
+                    class="chat-agent-select"
+                    :value="agentKind"
+                    :disabled="isLoading"
+                    :title="isLoading ? '当前对话进行中，无法切换 agent' : '选择代码 agent'"
+                    @change="onAgentChange"
+                >
+                    <option v-for="a in availableAgents" :key="a.kind" :value="a.kind">
+                        {{ a.label }}
+                    </option>
+                </select>
             </div>
             <div class="chat-header-actions">
                 <!-- 历史会话列表 -->
@@ -80,6 +91,11 @@
                 <i class="ms-Icon ms-Icon--ChatInviteFriend" style="font-size: 40px; opacity: 0.3; display: block; text-align: center; margin-bottom: 12px;"></i>
                 <p>你好！我是 DataFlow 助手。</p>
                 <p>你可以告诉我需要构建什么样的数据处理 Pipeline，我来帮你设计和创建。</p>
+                <p class="chat-empty-hint">
+                    使用 Cursor IDE？把它的 MCP 指向本后端
+                    （<code>./scripts/setup_agent.sh cursor</code>），就能在 Cursor 里直接对话并把
+                    pipeline 推到这个画布上。
+                </p>
             </div>
             <div
                 v-for="(msg, idx) in messages"
@@ -200,6 +216,21 @@ function getUserId() {
     return uid
 }
 
+// 上次选用的 agent 类型（claude / codex），跨刷新保留
+// Cursor 不在此列表中：Cursor 在 IDE 内通过 MCP 直接连本 WebUI（render_pipeline_in_editor），
+// 不需要 WebUI 后端把它 spawn 成 headless 子进程。
+const AGENT_KIND_KEY = 'df_agent_kind'
+const DEFAULT_AGENT_KIND = 'claude'
+const KNOWN_AGENT_KINDS = ['claude', 'codex']
+function getStoredAgentKind() {
+    try {
+        const v = localStorage.getItem(AGENT_KIND_KEY)
+        return KNOWN_AGENT_KINDS.includes(v) ? v : DEFAULT_AGENT_KIND
+    } catch (e) {
+        return DEFAULT_AGENT_KIND
+    }
+}
+
 // 根据当前页面协议/主机动态构造 WebSocket URL。
 // 开发模式下 vite.config.js 的 proxy (/api, ws:true) 会把 WS 转发到后端；
 // 生产模式下后端直接托管前端静态文件，同样同源可达。
@@ -228,6 +259,13 @@ export default {
             showHistoryPanel: false,
             historyList: [],
             currentSessionId: null,
+            // 代码 agent 选择（claude / codex）。Cursor 在 IDE 内独立连 MCP，
+            // 不在 WebUI 后端的 dispatch 列表里。
+            agentKind: getStoredAgentKind(),
+            availableAgents: [
+                { kind: 'claude', label: 'Claude Code' },
+                { kind: 'codex', label: 'Codex' },
+            ],
         }
     },
     computed: {
@@ -240,6 +278,7 @@ export default {
     mounted() {
         this.connectWebSocket()
         this.loadHistory()
+        this.loadAvailableAgents()
     },
     beforeUnmount() {
         this.disconnectWebSocket()
@@ -248,7 +287,7 @@ export default {
         ...mapActions(useDataflow, ['syncFromAgent']),
 
         connectWebSocket() {
-            const url = `${this.wsUrl}?user_id=${this.userId}`
+            const url = `${this.wsUrl}?user_id=${this.userId}&agent=${encodeURIComponent(this.agentKind)}`
             this.ws = new WebSocket(url)
 
             this.ws.onopen = () => {
@@ -465,8 +504,43 @@ export default {
             this.inputText = ''
             this.isLoading = true
 
-            this.ws.send(JSON.stringify({ type: 'chat', message: text }))
+            this.ws.send(JSON.stringify({ type: 'chat', message: text, agent: this.agentKind }))
             this.$nextTick(() => this.scrollToBottom())
+        },
+
+        onAgentChange(event) {
+            const newKind = event.target.value
+            if (!KNOWN_AGENT_KINDS.includes(newKind) || newKind === this.agentKind) return
+            this.agentKind = newKind
+            try {
+                localStorage.setItem(AGENT_KIND_KEY, newKind)
+            } catch (e) {
+                // localStorage 不可用时静默忽略
+            }
+            // 切换 agent 等同于开新会话：让后端立即丢弃当前 session_id（避免错配 session_id 给新 agent）
+            if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+                this.ws.send(JSON.stringify({ type: 'new_session' }))
+            }
+            this.currentSessionId = null
+            this.addSystemMessage(`已切换到 ${this.availableAgents.find(a => a.kind === newKind)?.label || newKind}`)
+        },
+
+        async loadAvailableAgents() {
+            try {
+                const resp = await axios.get('/api/v1/agent/agents')
+                const data = resp?.data?.data
+                if (Array.isArray(data) && data.length > 0) {
+                    this.availableAgents = data
+                        .filter((a) => a && KNOWN_AGENT_KINDS.includes(a.kind))
+                        .map((a) => ({ kind: a.kind, label: a.label || a.kind }))
+                }
+                if (!this.availableAgents.find((a) => a.kind === this.agentKind)) {
+                    this.agentKind = this.availableAgents[0]?.kind || DEFAULT_AGENT_KIND
+                }
+            } catch (e) {
+                // 后端不支持该端点时静默回退到本地默认列表
+                console.warn('[ChatPanel] /agents endpoint unavailable, using static list')
+            }
         },
 
         clearSession() {
@@ -551,6 +625,29 @@ export default {
     color: rgba(69, 98, 213, 1);
 }
 
+.chat-agent-select {
+    margin-left: 10px;
+    padding: 2px 8px;
+    font-size: 11px;
+    line-height: 1.4;
+    border: 1px solid rgba(0, 0, 0, 0.15);
+    border-radius: 6px;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+}
+
+.chat-agent-select:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.dark .chat-agent-select {
+    border-color: rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.04);
+    color: rgba(255, 255, 255, 0.85);
+}
+
 .chat-header-actions {
     display: flex;
     gap: 4px;
@@ -571,6 +668,32 @@ export default {
     padding: 40px 20px;
     color: rgba(150, 150, 150, 1);
     line-height: 1.7;
+}
+
+.chat-empty-hint {
+    margin-top: 16px;
+    padding: 8px 12px;
+    font-size: 12px;
+    color: rgba(120, 120, 120, 1);
+    background: rgba(0, 0, 0, 0.03);
+    border-radius: 6px;
+    line-height: 1.6;
+}
+
+.chat-empty-hint code {
+    padding: 1px 5px;
+    background: rgba(0, 0, 0, 0.06);
+    border-radius: 3px;
+    font-size: 11px;
+}
+
+.dark .chat-empty-hint {
+    background: rgba(255, 255, 255, 0.04);
+    color: rgba(180, 180, 180, 1);
+}
+
+.dark .chat-empty-hint code {
+    background: rgba(255, 255, 255, 0.08);
 }
 
 .chat-message {

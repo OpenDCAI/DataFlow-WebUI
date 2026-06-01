@@ -1,3 +1,47 @@
+# Agent Instructions (DataFlow-WebUI)
+
+> Auto-generated from `.claude/skills/generating-dataflow-pipeline/SKILL.md`
+> by `./scripts/setup_agent.sh codex`. Do NOT edit by hand — re-run the
+> script after changing the canonical skill.
+
+This file is read by **Codex** (the OpenAI `codex` CLI) and any other agent
+that follows the AGENTS.md convention. Claude Code reads
+`.claude/skills/` directly; Cursor reads `.cursor/rules/` directly. All
+three sources must stay in sync — run `./scripts/setup_agent.sh all` to
+regenerate.
+
+For first-time setup of any agent, read `AGENT_SETUP.md` first.
+
+## 首次使用（环境配置）
+
+如果这是你第一次在本项目工作，或者用户要求你帮忙配置环境：
+
+1. 阅读 `AGENT_SETUP.md` 获取完整配置流程
+2. 运行 `./scripts/setup_all.sh` 安装所有依赖
+3. 运行 `./scripts/start.sh --daemon` 启动后端
+
+## MCP 激活
+
+本项目通过 MCP 提供 DataFlow 工具。Codex 从 `~/.codex/config.toml` 读取
+MCP 配置。如果你无法调用 `dataflow` 开头的 MCP 工具：
+
+1. 确认 `~/.codex/config.toml` 中存在以下配置块：
+   ```toml
+   [mcp_servers.dataflow]
+   url = "http://localhost:8000/mcp"
+   enabled = true
+   tool_timeout_sec = 120
+   ```
+   如果不存在，运行 `./scripts/setup_agent.sh codex` 或手动追加。
+
+2. 确认后端正在运行: `./scripts/start.sh --status`
+
+3. 如果刚修改了 config.toml，需要重启 codex 会话（配置在启动时读取）。
+
+激活成功后你应该能调用 `list_operator_categories` 等工具。
+
+---
+
 ---
 name: generating-dataflow-pipeline
 description: Reasoning-guided pipeline planner that generates standard DataFlow pipeline code

@@ -2,137 +2,103 @@
 
 [![](https://img.shields.io/github/repo-size/OpenDCAI/DataFlow-webui?color=green)](https://github.com/OpenDCAI/DataFlow-webui)
 
-**DataFlow-WebUI** is a full-stack open-source web application that provides a graphical interface for the [DataFlow](https://github.com/OpenDCAI/DataFlow) framework. This guide walks you through setting up both the frontend and backend so you can quickly get up and running.
+**DataFlow-WebUI** is a full-stack open-source web application that provides a graphical interface for the [DataFlow](https://github.com/OpenDCAI/DataFlow) framework. It supports multiple AI code agents (Claude Code, Codex, Cursor) to help you build data pipelines through natural language.
+
+---
+
+## Quick Start
+
+### Option A: Let your AI agent set it up (recommended)
+
+If you already have **Claude Code**, **Codex**, or **Cursor** installed, just
+open this project and tell your agent:
+
+> 请阅读 AGENT_SETUP.md 并帮我完成所有配置
+
+The agent will run `./scripts/setup_all.sh`, configure MCP, and get everything
+ready. You only need **Python 3.10+** and **Node.js 20+** pre-installed.
+
+### Option B: One-command manual setup
+
+```shell
+git clone https://github.com/OpenDCAI/DataFlow-WebUI.git
+cd DataFlow-WebUI
+./scripts/setup_all.sh
+./scripts/start.sh
+```
+
+`setup_all.sh` handles everything: checks prerequisites, installs DataFlow +
+backend deps + frontend build, and configures agent MCP connections. It's
+idempotent — safe to re-run.
 
 ---
 
 ## Prerequisites
 
-Before you begin, make sure you have:
-
-* **Python 3.10+**
-* **pip**
+* **Python 3.10+** with pip
+* **Node.js 20+** with npm (recommend [nvm](https://github.com/nvm-sh/nvm))
 * **Git**
-* A Unix-like shell (Linux/macOS) or PowerShell / CMD (Windows)
+* At least one code agent CLI:
+  - **Claude Code:** `curl -fsSL https://claude.ai/code/install.sh | sh`
+  - **Codex:** `npm i -g @openai/codex`
+  - **Cursor:** [Download Cursor IDE](https://cursor.com)
 
 ---
 
-## Clone This Repository
+## Choose Your Code Agent
 
-First, clone the **DataFlow-WebUI** repository and enter the project directory:
+DataFlow-WebUI supports multiple code agents in two usage modes:
 
-```shell
-git clone https://github.com/OpenDCAI/DataFlow-WebUI.git
-cd DataFlow-WebUI
-```
+### WebUI Chat Agents (dispatched from the browser)
 
----
+These agents are spawned headlessly by the WebUI backend when you chat in the
+browser. Pick one from the dropdown next to the chat title.
 
-## Frontend Installation
+| Agent | CLI binary | MCP config location | Auth |
+|---|---|---|---|
+| **Claude Code** | `claude` | `--mcp-config .mcp.json` (passed by backend) | `ANTHROPIC_API_KEY` (or `ANTHROPIC_BASE_URL` for 中转/gateway) |
+| **Codex** | `codex` | `~/.codex/config.toml` `[mcp_servers.dataflow]` | `OPENAI_API_KEY` + optional `OPENAI_BASE_URL`，**或** `codex login` OAuth（ChatGPT Plus，无需 API key） |
 
-The frontend is built with Node.js. We recommend using **NVM (Node Version Manager)** to manage your Node.js version.
+### IDE / Terminal Agents (user-driven)
 
-### 1. Install NVM
+These agents run in your own IDE or terminal and connect to the WebUI's MCP
+server to push pipelines onto the canvas.
 
-```shell
-# Download from GitHub
-curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+| Agent | How to use | MCP config location | Auth |
+|---|---|---|---|
+| **Cursor IDE** | Open this project in Cursor; the Agent panel auto-discovers MCP | `.cursor/mcp.json` (project-scoped) | Cursor 内置认证 |
+| **Claude Code (terminal)** | Run `claude` in this repo; it reads `.mcp.json` automatically | `.mcp.json` at repo root | `ANTHROPIC_API_KEY` |
 
-# Mirror download (recommended if you are in China)
-curl -so- https://gitee.com/mirrors/nvm/raw/v0.39.7/install.sh | bash
-```
+> **Cursor 不通过 WebUI 前端调度。** 它的使用方式是在 Cursor IDE 中打开本项目，
+> Agent 会自动发现 MCP server，可以直接创建/执行 pipeline 并同步到 WebUI 画布。
 
-### 2. Reload your shell configuration
-
-After installing NVM, restart your terminal or run one of the following commands:
-
-```shell
-# For bash
-source ~/.bashrc
-
-# For zsh
-source ~/.zshrc
-```
-
-### 3. Install and use Node.js 20
+### Authentication setup
 
 ```shell
-nvm install 20
-nvm use 20
-nvm alias default 20
-```
+# Claude Code
+export ANTHROPIC_API_KEY=sk-ant-...
+# 如使用中转:
+export ANTHROPIC_BASE_URL=https://your-gateway/v1
 
-### 4. Verify Node.js and npm versions
+# Codex — 方式一: API key
+export OPENAI_API_KEY=sk-...
+# 如使用中转:
+export OPENAI_BASE_URL=https://your-gateway/v1
 
-Ensure that Node.js is version `v20.x.x`:
-
-```shell
-node -v
-npm -v
-```
-
----
-
-## Backend Installation
-
-The backend is powered by **DataFlow** and FastAPI.
-
-### 1. Install DataFlow
-
-You can install DataFlow in **one of two ways**:
-
-#### Option A: Install the latest development version from GitHub
-
-```shell
-git clone https://github.com/OpenDCAI/DataFlow
-cd DataFlow
-pip install -e .
-```
-
-#### Option B: Install the stable release from PyPI (recommended for most users)
-
-```shell
-pip install open-dataflow
-```
-
-### 2. Install backend dependencies for DataFlow-WebUI
-
-From the project root directory, run:
-
-```shell
-pip install -r backend/requirements.txt
+# Codex — 方式二: ChatGPT Plus OAuth (无需 API key)
+codex login
 ```
 
 ---
 
 ## Running the Project
 
-### 1. Build the frontend
-
 ```shell
-cd frontend/
-npm install
-npm run build
-```
+# If you used setup_all.sh, just:
+./scripts/start.sh
 
-This will generate the production-ready frontend assets.
-
-### 2. Start the backend server
-
-```shell
-cd backend/
-```
-
-* **On Linux / macOS:**
-
-```shell
-make dev
-```
-
-* **On Windows:**
-
-```shell
-uvicorn app.main:app --reload --port 8000 --reload-dir app --host 0.0.0.0
+# Or manually:
+cd backend && uvicorn app.main:app --reload --port 8000 --host 0.0.0.0
 ```
 
 ---
@@ -146,6 +112,27 @@ http://localhost:8000/
 ```
 
 > 💡 If you changed the backend port, replace `8000` with your custom port.
+
+In the chat panel header you'll see a small **agent dropdown** — pick
+Claude Code or Codex per session. Switching the dropdown starts a fresh
+conversation (different agents do not share session ids). Your last choice
+is remembered across reloads.
+
+> 💡 如果你使用 Cursor IDE，无需在 WebUI 中选择 agent — 直接在 Cursor 的
+> Agent 面板中对话即可，pipeline 会通过 MCP 同步到 WebUI 画布。
+
+---
+
+## Troubleshooting
+
+| Symptom | Most likely cause | Fix |
+|---|---|---|
+| `<cli>: command not found` in backend logs | CLI binary is not on the same PATH the backend sees | Re-install or set `DATAFLOW_<KIND>_CLI=/abs/path/to/cli` before launching the backend |
+| Chat replies are empty / immediate `done` | Agent failed to authenticate | Confirm the relevant API key is exported in the shell that started the backend; for Codex without API key, run `codex login` first |
+| Tool calls fail with `MCP server not reachable` | The agent's MCP config doesn't point at this backend | Re-run `./scripts/setup_agent.sh <kind>` |
+| Agent invents non-existent operators | Construction skill not loaded | For Cursor, re-run `./scripts/setup_agent.sh cursor` to regenerate `.cursor/rules/`; for Codex, regenerate `AGENTS.md` |
+| `lang="zh"` produces 0 records on English data | Construction skill missing or stale | Same fix as above — the skill encodes the language-detection policy |
+| Cursor IDE 中看不到 MCP 工具 | `.cursor/mcp.json` 缺失或 WebUI 后端未启动 | 运行 `./scripts/setup_agent.sh cursor` 并确保后端在 `localhost:8000` 运行 |
 
 ---
 

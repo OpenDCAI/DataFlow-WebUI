@@ -10,6 +10,7 @@ from app.core.container import container
 from app.core.logger_setup import get_logger
 from typing import Dict, Any, List, Optional
 import os
+import json
 import traceback
 from datetime import datetime
 import ray
@@ -61,6 +62,109 @@ def extract_class_name(value: Any) -> Any:
         except (IndexError, AttributeError):
             return value
     return value
+
+
+def _maybe_parse_json_container(value: Any) -> Any:
+    if not isinstance(value, str):
+        return value
+    stripped = value.strip()
+    if not stripped or stripped[0] not in "[{":
+        return value
+    try:
+        return json.loads(stripped)
+    except json.JSONDecodeError:
+        return value
+
+
+def _normalize_dynamic_code_param_value(value: Any, *, param_name: str) -> List[Any]:
+    value = _maybe_parse_json_container(value)
+
+    if callable(value):
+        return [value]
+
+    if isinstance(value, str):
+        code = value.strip()
+        if code.startswith("lambda ") or code.startswith("def "):
+            return [code]
+        raise DataFlowEngineError(
+            f"动态代码参数格式非法: {param_name}",
+            context={
+                "param_name": param_name,
+                "expected": "lambda/def string, object with code, or list of them",
+                "received_preview": code[:120],
+            },
+        )
+
+    if isinstance(value, dict):
+        code = value.get("code")
+        if isinstance(code, str) and code.strip():
+            return _normalize_dynamic_code_param_value(code, param_name=param_name)
+        raise DataFlowEngineError(
+            f"动态代码参数缺少 code 字段: {param_name}",
+            context={"param_name": param_name, "received_keys": sorted(value.keys())},
+        )
+
+    if isinstance(value, list):
+        normalized: List[Any] = []
+        for item in value:
+            normalized.extend(_normalize_dynamic_code_param_value(item, param_name=param_name))
+        if not normalized:
+            raise DataFlowEngineError(
+                f"动态代码参数为空: {param_name}",
+                context={"param_name": param_name},
+            )
+        return normalized
+
+    raise DataFlowEngineError(
+        f"动态代码参数类型不支持: {param_name}",
+        context={"param_name": param_name, "received_type": type(value).__name__},
+    )
+
+
+def _compile_dynamic_code_callable(value: Any, *, param_name: str):
+    if callable(value):
+        return value
+
+    if not isinstance(value, str):
+        raise DataFlowEngineError(
+            f"动态代码参数无法编译: {param_name}",
+            context={"param_name": param_name, "received_type": type(value).__name__},
+        )
+
+    source = value.strip()
+    try:
+        if source.startswith("lambda "):
+            compiled = eval(source)  # noqa: S307
+        elif source.startswith("def "):
+            namespace: Dict[str, Any] = {}
+            exec(source, {}, namespace)  # noqa: S102
+            callables = [obj for obj in namespace.values() if callable(obj)]
+            if len(callables) != 1:
+                raise DataFlowEngineError(
+                    f"动态代码 def 形式必须只定义一个函数: {param_name}",
+                    context={"param_name": param_name, "defined_count": len(callables)},
+                )
+            compiled = callables[0]
+        else:
+            raise DataFlowEngineError(
+                f"动态代码必须以 lambda 或 def 开头: {param_name}",
+                context={"param_name": param_name, "received_preview": source[:120]},
+            )
+    except DataFlowEngineError:
+        raise
+    except Exception as exc:
+        raise DataFlowEngineError(
+            f"动态代码编译失败: {param_name}",
+            context={"param_name": param_name, "received_preview": source[:200]},
+            original_error=exc,
+        ) from exc
+
+    if not callable(compiled):
+        raise DataFlowEngineError(
+            f"动态代码编译结果不可调用: {param_name}",
+            context={"param_name": param_name, "compiled_type": type(compiled).__name__},
+        )
+    return compiled
 
 @dataclass
 class ExecutionStatus:
@@ -553,17 +657,16 @@ class DataFlowEngine:
                                         )
                                     param_value = prompt_cls()
                             elif param_name in ("process_fn", "filter_rules"):
-                                if isinstance(param_value, list):
-                                    compiled = []
-                                    for item in param_value:
-                                        if isinstance(item, str) and ("lambda " in item or "def " in item):
-                                            compiled.append(eval(item))  # noqa: S307
-                                        elif callable(item):
-                                            compiled.append(item)
-                                        else:
-                                            compiled.append(item)
-                                    param_value = compiled
-                                    add_log("init", f"[{datetime.now().isoformat()}]   - Compiled {len(compiled)} code-string(s) for {param_name}", op_key)
+                                normalized_items = _normalize_dynamic_code_param_value(
+                                    param_value,
+                                    param_name=param_name,
+                                )
+                                compiled = [
+                                    _compile_dynamic_code_callable(item, param_name=param_name)
+                                    for item in normalized_items
+                                ]
+                                param_value = compiled
+                                add_log("init", f"[{datetime.now().isoformat()}]   - Compiled {len(compiled)} code-string(s) for {param_name}", op_key)
                             else:
                                 ann = init_sig.parameters.get(param_name).annotation if param_name in init_sig.parameters else inspect.Parameter.empty
                                 param_value = coerce_param_value(param_value, annotation=ann, default_value=default_value)
@@ -630,7 +733,19 @@ class DataFlowEngine:
                         ann = run_sig.parameters.get(param_name).annotation if param_name in run_sig.parameters else inspect.Parameter.empty
                         param_value = coerce_param_value(param_value, annotation=ann, default_value=default_value)
                         run_params[param_name] = param_value
-                    
+
+                    # Unpack VAR_KEYWORD params: if a param maps to a **kwargs
+                    # parameter and its value is a dict, merge it into run_params
+                    # so the operator receives individual keyword arguments.
+                    var_kw_names = [
+                        p.name for p in run_sig.parameters.values()
+                        if p.kind == inspect.Parameter.VAR_KEYWORD
+                    ]
+                    for vk_name in var_kw_names:
+                        vk_val = run_params.pop(vk_name, None)
+                        if isinstance(vk_val, dict):
+                            run_params.update(vk_val)
+
                     # 实例化 Operator
                     operator_instance = operator_cls(**init_params)
                     run_op.append((operator_instance, run_params, op_name, op_key))
@@ -762,6 +877,13 @@ class DataFlowEngine:
                 except Exception as e:
                     operators_detail[op_key]["status"] = "failed"
                     operators_detail[op_key]["error"] = str(e)
+                    storage_obj = run_params.get("storage")
+                    available_columns = []
+                    try:
+                        if storage_obj and hasattr(storage_obj, "get_keys_from_dataframe"):
+                            available_columns = list(storage_obj.get_keys_from_dataframe() or [])
+                    except Exception as inspect_exc:
+                        logger.warning(f"Failed to inspect available columns after operator error: {inspect_exc}")
                     update_execution_status("failed", {
                         "operators_detail": operators_detail,
                         "operator_logs": operator_logs
@@ -772,7 +894,8 @@ class DataFlowEngine:
                             "operator": op_name,
                             "operator_index": op_idx,
                             "total_operators": len(run_op),
-                            "run_params": {k: str(v)[:50] for k, v in run_params.items() if k != "storage"}
+                            "run_params": {k: str(v)[:50] for k, v in run_params.items() if k != "storage"},
+                            "available_columns": available_columns,
                         },
                         original_error=e
                     )
@@ -862,5 +985,4 @@ class DataFlowEngine:
             }
             
 dataflow_engine = DataFlowEngine()
-
 

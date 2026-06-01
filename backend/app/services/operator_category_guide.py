@@ -222,3 +222,124 @@ def valid_categories(op_list: list[dict]) -> list[str]:
         if cat:
             seen.add(cat)
     return sorted(seen)
+
+
+def recommend_categories(task_description: str, dataset_columns: list[str] | None = None, max_categories: int = 2) -> dict:
+    """Heuristic MCP helper: recommend at most ``max_categories`` top-level categories.
+
+    The goal is not perfect semantic routing. The goal is to stop the agent from
+    spraying 5-10 category queries and blowing context. Recommendations are kept
+    short, deterministic, and grounded in the same anti-patterns already encoded
+    in ``CATEGORY_GUIDE``.
+    """
+    dataset_columns = dataset_columns or []
+    task_lower = (task_description or '').lower()
+    col_lower = [c.lower() for c in dataset_columns]
+
+    score_map: dict[str, int] = {}
+    reason_map: dict[str, list[str]] = {}
+    avoid_map: dict[str, list[str]] = {}
+
+    def add(cat: str, score: int, reason: str) -> None:
+        score_map[cat] = score_map.get(cat, 0) + score
+        reason_map.setdefault(cat, []).append(reason)
+
+    def avoid(cat: str, score: int, reason: str) -> None:
+        avoid_map.setdefault(cat, []).append(reason)
+        score_map.setdefault(cat, 0)
+
+    def has_any(*keywords: str) -> bool:
+        return any(k in task_lower for k in keywords)
+
+    if has_any('multi-hop', 'multihop', 'qa pair', 'question-answer', 'question answer', '问答', '多跳', 'qa对', 'qa 对'):
+        add('core_text', 8, 'task explicitly asks for QA / multi-hop QA generation')
+        avoid('text_sft', 3, 'QA-from-text is not a text_sft construction task')
+
+    if has_any('summary', 'summarize', '摘要', '总结', 'classify', 'classification', 'sentiment', 'score', 'rewrite', 'paraphrase'):
+        add('core_text', 4, 'task is LLM-style text generation / evaluation / refinement')
+
+    if has_any('filter', 'threshold', '>=', '<=', 'rename', 'flatten', 'derive', '字段重命名', '展平', '过滤', '新增字段'):
+        add('core_text', 4, 'task needs deterministic field-level transform or rule filter')
+
+    if has_any('emoji', 'html', 'url', 'whitespace', 'dedup', 'language detect', 'punctuation', '去重', '清洗', 'html实体', '标点', '空格'):
+        add('general_text', 6, 'task mentions surface-form cleanup / language / dedup / deterministic text filters')
+
+    if has_any('pdf', 'markdown', '网页', 'url to markdown', 'chunk', '切块', '文档摄取', '知识库'):
+        add('knowledge_cleaning', 7, 'task starts from documents / URLs / PDF and likely needs ingestion operators')
+
+    if has_any('instruction', 'sft', 'alpaga', 'deita', 'superfiltering'):
+        add('text_sft', 7, 'task explicitly mentions SFT / instruction-quality processing')
+
+    if has_any('reasoning', 'cot', 'math', '逻辑推理', '推理题', '数学'):
+        add('reasoning', 7, 'task explicitly mentions reasoning / CoT / math')
+
+    if has_any('code', 'program', '函数', '代码'):
+        add('code', 7, 'task explicitly mentions code data')
+
+    if has_any('conversation', 'dialog', 'chat', '多轮对话', '对话'):
+        add('conversations', 6, 'task explicitly mentions conversations / multi-turn data')
+
+    if has_any('sql', 'text2sql', '数据库'):
+        add('text2sql', 7, 'task explicitly mentions SQL / database queries')
+
+    if has_any('vqa', 'vision', '图像问答', '图片'):
+        add('core_vision', 6, 'task explicitly mentions visual QA')
+
+    if has_any('speech', 'audio', '语音'):
+        add('core_speech', 6, 'task explicitly mentions speech/audio')
+
+    if has_any('smiles', 'chemistry', '化学'):
+        add('chemistry', 6, 'task explicitly mentions chemistry / smiles')
+
+    if any(col in {'chunk', 'text', 'doc', 'review_text', 'raw_content', 'content'} for col in col_lower):
+        add('core_text', 2, 'dataset columns look like text-generation inputs')
+
+    if any(col in {'url', 'pdf_path', 'markdown', 'html'} for col in col_lower):
+        add('knowledge_cleaning', 2, 'dataset columns suggest document/url ingestion')
+
+    if any(col in {'instruction', 'response', 'answer'} for col in col_lower):
+        add('text_sft', 2, 'dataset columns resemble SFT-format data')
+
+    if any(col in {'code', 'completion'} for col in col_lower):
+        add('code', 2, 'dataset columns resemble code-format data')
+
+    if not score_map:
+        add('core_text', 1, 'default starting point for generic text pipelines')
+        add('general_text', 1, 'secondary fallback for deterministic cleanup/filtering')
+
+    ranked = sorted(score_map.items(), key=lambda item: (-item[1], item[0]))
+    chosen = ranked[:max_categories]
+
+    recommended = [
+        {
+            'category': category,
+            'score': score,
+            'reason': '; '.join(reason_map.get(category, [])[:2]) or 'closest available match',
+        }
+        for category, score in chosen
+    ]
+
+    avoid_ranked = sorted(avoid_map.items(), key=lambda item: item[0])
+    avoid_items = [
+        {
+            'category': category,
+            'score': 0,
+            'reason': '; '.join(reasons[:2]),
+        }
+        for category, reasons in avoid_ranked
+        if category not in {item['category'] for item in recommended}
+    ]
+
+    return {
+        'recommended_categories': recommended,
+        'avoid_categories': avoid_items[:3],
+        'next_action': (
+            'Call list_operators only for the recommended categories, then inspect specific candidates with '
+            'get_operator_detail_by_name before create/update. Do not browse more than 2 categories unless the '
+            'first pass clearly fails.'
+        ),
+        'query_budget': {
+            'max_category_queries': max_categories,
+            'why': 'Keep MCP context bounded and avoid broad catalog exploration.',
+        },
+    }

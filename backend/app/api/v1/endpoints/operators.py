@@ -9,7 +9,9 @@ from loguru import logger as log
 from app.schemas.operator import (
     OperatorSchema,
     OperatorDetailSchema,
-    OperatorDetailsResponseSchema
+    OperatorDetailsResponseSchema,
+    OperatorCategoryRecommendationRequest,
+    OperatorCategoryRecommendationSchema,
 )
 from app.api.v1.resp import ok
 from app.api.v1.envelope import ApiResponse
@@ -19,11 +21,49 @@ from app.api.v1.errors import ValidationBizError
 from app.services.operator_registry import OPS_JSON_PATH
 from app.services.operator_category_guide import (
     build_category_response,
+    recommend_categories,
     valid_categories,
 )
 from app.core.container import container
 
 router = APIRouter(tags=["operators"])
+
+
+def _build_operator_agent_tips(op: Dict[str, Any]) -> tuple[list[str], str | None, str]:
+    op_name = op.get("name") or "unknown_operator"
+    level_1 = ((op.get("type") or {}).get("level_1") or "unknown")
+    parameter = op.get("parameter") or {}
+    init_params = {item.get("name") for item in parameter.get("init", []) if item.get("name")}
+    run_params = {item.get("name") for item in parameter.get("run", []) if item.get("name")}
+
+    tips: list[str] = [
+        "先确认这个算子是否真的属于你当前已选 category，再决定是否继续保留它。",
+    ]
+    if any(name in init_params for name in ("llm_serving", "embedding_serving")):
+        tips.append("这是依赖 serving 的算子；先调用 list_serving，填真实 id，不要留空也不要写占位符。")
+    if "prompt_template" in init_params:
+        tips.append("如果需要 prompt_template，只能传类名字符串或包含 cls_name 的结构化对象；优先直接用 system_prompt。")
+    if any(name in init_params for name in ("process_fn", "filter_rules")):
+        tips.append("动态代码参数只接受 lambda/def 字符串、带 code 字段的对象，或这两种形式组成的列表。")
+    if any(name in run_params for name in ("input_key", "input_keys")):
+        tips.append("input_key/input_keys 必须来自 get_dataset_columns 或上游 output_key，不能依赖默认字段名。")
+        tips.append("在 validate_pipeline_config 返回 missing_input_field 时，优先采用 suggested_fields / repair_hint 修正字段绑定，而不是继续扩展 category 查询。")
+    if any(name in run_params for name in ("output_key", "output_meta_key")):
+        tips.append("output_key/output_meta_key 会进入后续字段流；命名后先做 validate_pipeline_config 再提交。")
+
+    field_hint = None
+    if any(name in run_params for name in ("input_key", "input_keys")):
+        field_hint = (
+            "This operator's default input/output field names are only demo defaults. "
+            "Compare them against the user's real dataset columns and override when needed."
+        )
+
+    context_hint = (
+        f"This operator is from top-level category '{level_1}'. Keep MCP context small: "
+        "inspect only a small candidate set, then validate and commit instead of browsing more categories."
+    )
+    return tips, field_hint, context_hint
+
 
 @router.get(
     "/",
@@ -233,7 +273,12 @@ def get_operator_detail_by_name(op_name: str, lang: str = "zh"):
                 if not isinstance(op, dict):
                     continue
                 if op.get("name") == op_name:
-                    return ok(op)
+                    op_copy = dict(op)
+                    agent_tips, field_hint, context_hint = _build_operator_agent_tips(op_copy)
+                    op_copy["agent_tips"] = agent_tips
+                    op_copy["field_binding_hint"] = field_hint
+                    op_copy["mcp_context_hint"] = context_hint
+                    return ok(op_copy)
 
         # Not found
         raise HTTPException(status_code=404, detail=f"Operator '{op_name}' not found")
@@ -246,4 +291,25 @@ def get_operator_detail_by_name(op_name: str, lang: str = "zh"):
         raise
     except Exception as e:
         log.error(f"Failed to get operator details (single): {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post(
+    "/recommend_categories",
+    response_model=ApiResponse[OperatorCategoryRecommendationSchema],
+    operation_id="recommend_operator_categories",
+    summary=(
+        "Recommend up to 2 top-level operator categories from the task description and dataset columns. "
+        "Use this to avoid broad category browsing in MCP."
+    ),
+)
+def recommend_operator_categories(payload: OperatorCategoryRecommendationRequest):
+    try:
+        recommendation = recommend_categories(
+            task_description=payload.task_description,
+            dataset_columns=payload.dataset_columns or [],
+            max_categories=payload.max_categories,
+        )
+        return ok(recommendation)
+    except Exception as e:
+        log.error(f"Failed to recommend operator categories: {e}")
         raise HTTPException(status_code=500, detail=str(e))
