@@ -65,6 +65,15 @@ def list_serving_instances():
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get(
+    "/plural_alias",
+    operation_id="list_servings",
+    response_model=ApiResponse[List[ServingDetailSchema]],
+    summary="Backward-compatible alias of list_serving for older skills/prompts"
+)
+def list_servings_alias():
+    return list_serving_instances()
+
+@router.get(
     "/classes",
     response_model=ApiResponse[List[ServingClassSchema]],
     operation_id="list_serving_classes",

@@ -275,33 +275,47 @@ export default {
         },
         agentSyncPayload(payload) {
             if (!payload) return
-            const flow = useVueFlow(this.flowId)
-            // Reset and apply nodes/edges from agent
-            flow.$reset()
-            if (payload.nodes && payload.nodes.length > 0) {
-                flow.addNodes(payload.nodes)
+            // 让现有 renderPipeline 把 pipeline.config 完整渲染出来——和从侧边栏
+            // 点选 pipeline 的路径完全一致，这样节点类型 / 参数 / 样式 / 边 handle
+            // 都能正确生成；后端 sync_pipeline 里的 nodes/edges 字段已废弃（仅兼容）。
+            const pipeline = payload.pipeline || null
+            if (!pipeline || !pipeline.config) {
+                // 实在没有 config 才退回原始的手动添加逻辑
+                const flow = useVueFlow(this.flowId)
+                flow.$reset()
+                if (payload.nodes && payload.nodes.length > 0) flow.addNodes(payload.nodes)
+                if (payload.edges && payload.edges.length > 0) flow.addEdges(payload.edges)
+                return
             }
-            if (payload.edges && payload.edges.length > 0) {
-                flow.addEdges(payload.edges)
+
+            // 先刷新数据集/算子/pipeline 列表，保证 renderPipeline 查得到
+            const confirmDatasetCall = (_, dataset) => {
+                this.confirmDataset(dataset, true)
             }
-            // If payload carries pipeline info with dataset, try to load it
-            if (payload.pipeline && payload.pipeline.config) {
-                const config = payload.pipeline.config
-                if (config.input_dataset) {
-                    this.getDatasets().then(() => {
-                        const ds = this.datasets.find(d => d.id === config.input_dataset.id)
-                        if (ds) {
-                            this.confirmDataset(ds, true)
-                        }
-                    })
-                }
-                // Set current pipeline
-                if (payload.pipeline.id) {
-                    this.getPipelines().then(() => {
-                        // pipeline list refreshed; select from sidebar is handled by pipeline component
-                    })
-                }
+            const doRender = async () => {
+                await usePipelineOperation().renderPipeline(
+                    pipeline.config,
+                    this.flowId,
+                    this.datasets,
+                    this.flatFormatedOperators,
+                    this,
+                    this.$nextTick,
+                    confirmDatasetCall,
+                    this.$Guid
+                )
             }
+
+            // 依赖项可能还没加载（尤其是首次打开 + Agent 立刻创建）。
+            // datasets / pipelines 每次都刷新一下，因为 Agent 可能刚刚通过
+            // register_dataset / create_pipeline 新增了条目。
+            const prep = [this.getDatasets(), this.getPipelines()]
+            if (!this.flatFormatedOperators || !this.flatFormatedOperators.length) {
+                prep.push(this.getOperators('zh'))
+            }
+
+            Promise.all(prep).then(doRender).catch((err) => {
+                console.error('[agentSyncPayload] renderPipeline failed:', err)
+            })
         }
     },
     computed: {
@@ -368,7 +382,8 @@ export default {
             'getTasks',
             'getExecution',
             'clearExecution',
-            'getDatasets'
+            'getDatasets',
+            'getOperators'
         ]),
         setViewport() {
             const flow = useVueFlow(this.flowId)

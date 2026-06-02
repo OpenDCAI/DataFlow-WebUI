@@ -1,4 +1,38 @@
 ---
+description: DataFlow pipeline construction skill (auto-generated from .claude/skills/generating-dataflow-pipeline/SKILL.md by scripts/setup_agent.sh).
+globs: ["**/*.py", "**/*.jsonl", "**/*.json"]
+alwaysApply: true
+---
+
+# DataFlow pipeline construction (Cursor)
+
+This rule mirrors the canonical Claude skill so Cursor produces the same
+pipelines as Claude Code in this repo. Do NOT edit by hand — re-run
+`./scripts/setup_agent.sh cursor` after changing the skill.
+
+## 首次使用（环境配置）
+
+如果这是你第一次在本项目工作，或者用户要求你帮忙配置环境：
+
+1. 阅读 `AGENT_SETUP.md` 获取完整配置流程
+2. 运行 `./scripts/setup_all.sh` 安装所有依赖
+3. 运行 `./scripts/start.sh --daemon` 启动后端
+4. 按下方 MCP 激活步骤确认工具可用
+
+## MCP 激活
+
+本项目通过 MCP 提供 DataFlow 工具（创建/验证/执行 pipeline 等）。如果你在工具
+列表中看不到 `mcp_dataflow_*` 开头的工具，说明 MCP server 尚未激活。请引导用户：
+
+1. 打开 **Cursor Settings → Features → MCP Servers**
+2. 找到 `dataflow`（来源: `.cursor/mcp.json`），将其切换为 **启用**
+3. 确认后端正在运行: `./scripts/start.sh --status`
+4. 如果状态显示 "failed"，点击 Refresh 或重启 Cursor
+
+激活成功后你应该能看到 `mcp_dataflow_list_operator_categories` 等工具。
+用一次简单调用确认连通后再开始构建 pipeline。
+
+---
 name: generating-dataflow-pipeline
 description: Reasoning-guided pipeline planner that generates standard DataFlow pipeline code
 version: 1.0.0
@@ -62,15 +96,20 @@ When a specialized operator exists for the task, it MUST be used over generic op
 | Generate new content from a single field        | `PromptedGenerator`                                                                           | —                                         |
 | Generate new content from multiple fields       | `FormatStrPromptedGenerator`                                                                  | Multiple `PromptedGenerator` steps       |
 
-**Key principle**: `PromptedGenerator` is the fallback for generic single-field generation. If the target mentions "QA", "question-answer", "问答" — always reach for `Text2MultiHopQAGenerator` first.
+**Key principle**: `PromptedGenerator` is the fallback for generic single-field generation. If the target mentions "QA", "question-answer", "问答" — always reach for `Text2MultiHopQAGenerator` first. In MCP/WebUI mode, browse top-level category `core_text`; do not hallucinate query categories like `core_text/generate`.
+If both `core_text` and another top-level category seem plausible, call `recommend_operator_categories` with the task description plus dataset columns before spending more MCP context. Treat its result as a hard budget: inspect at most the top 1-2 suggested categories, then switch to `get_operator_detail_by_name` instead of further category scans.
 
 ## Field Dependency Rules (MANDATORY)
+
+When this skill is used through the WebUI agent rather than raw local codegen, first call `get_dataset_columns` for the registered dataset id and treat those returned column names as the ground-truth initial field set.
 
 1. **Inspect sample first**: Identify all available fields in user's sample data
 2. **Field existence check**: If step N needs field X, then X must exist in original sample OR be output by step M where M < N
 3. **Generate missing fields**: Use `PromptedGenerator` or `FormatStrPromptedGenerator` to create missing semantic fields
 4. **Never reference before creation**: Cannot consume a field before it exists
 5. **Avoid overwriting**: Do not overwrite original user fields unless explicitly requested
+6. **If committing through MCP/WebUI**: call `validate_pipeline_config` before create/update; field-flow errors should be fixed before commit
+7. If `validate_pipeline_config` returns `missing_input_field`, treat its `suggested_fields` and `repair_hint` as the first repair path. Fix the binding and re-validate; do **not** broaden MCP browsing or switch categories just because a field name was wrong.
 
 ```
 ✗ WRONG: Filter by "quality_score" before generating it
@@ -164,6 +203,7 @@ When the pipeline is intended for WebUI execution (not local `python pipeline.py
 - Use the WebUI Serving Manager to create a serving with the correct `api_url`, `model_name`, and `api_key`
 - In the WebUI pipeline editor, assign the serving to **ALL** LLM-dependent operators (not just the first one)
 - Common failure: only the first operator gets a serving assigned; the rest remain empty, causing `Failed to process parameter: llm_serving` errors at execution time
+- In WebUI/MCP mode, older prompts may still say `list_servings`; the backend now provides both `list_serving` and a backward-compatible alias, but prefer `list_serving` in new prompts/skills
 
 ## Standard Code Generation Rule (MANDATORY)
 

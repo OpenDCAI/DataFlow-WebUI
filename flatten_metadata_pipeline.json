@@ -1,0 +1,18 @@
+{
+  "input_dataset": {
+    "id": "0980835804"
+  },
+  "operators": [
+    {
+      "name": "PandasOperator",
+      "params": {
+        "process_fn": [
+          "lambda df: df.assign(title=df['metadata'].apply(lambda x: x.get('title', '') if isinstance(x, dict) else ''))",
+          "lambda df: df.assign(author_name=df['metadata'].apply(lambda x: x.get('author', {}).get('name', '') if isinstance(x, dict) and isinstance(x.get('author'), dict) else ''))",
+          "lambda df: df.assign(author_email=df['metadata'].apply(lambda x: x.get('author', {}).get('email', '') if isinstance(x, dict) and isinstance(x.get('author'), dict) else ''))",
+          "lambda df: df.assign(tags=df['metadata'].apply(lambda x: x.get('tags', []) if isinstance(x, dict) else []))"
+        ]
+      }
+    }
+  ]
+}

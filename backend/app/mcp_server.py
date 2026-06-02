@@ -28,7 +28,10 @@ def create_mcp_server(app: FastAPI) -> FastApiMCP:
         description="Tools for managing DataFlow pipelines, tasks, operators and datasets",
         # 白名单：只暴露安全的只读/创建操作 + 自定义同步工具
         include_operations=[
-            "list_operators",                   # GET /api/v1/operators/
+            "list_operator_categories",         # GET /api/v1/operators/categories  ← 便宜入口，带 use_for/not_for 指引；agent 必须先调
+            "recommend_operator_categories",    # POST /api/v1/operators/recommend_categories  ← 结合任务描述/列名给出最多 2 个候选 category
+            "list_operators",                   # GET /api/v1/operators/by_category?category=xxx  category 必填，缺省/非法会 40010/40011
+            "get_operator_detail_by_name",      # GET /api/v1/operators/details/{name} 单个算子详情
             "list_pipelines",                   # GET /api/v1/pipelines/
             "create_pipeline",                  # POST /api/v1/pipelines/
             "update_pipeline",                  # PUT /api/v1/pipelines/{pipeline_id}
@@ -38,7 +41,12 @@ def create_mcp_server(app: FastAPI) -> FastApiMCP:
             "get_execution_status",             # GET /api/v1/tasks/execution/{task_id}/status
             "get_task_result",                  # GET /api/v1/tasks/execution/{task_id}/result
             "list_datasets",                    # GET /api/v1/datasets/
+            "get_dataset_columns",              # GET /api/v1/datasets/columns/{ds_id}
+            "get_dataset_preview",              # GET /api/v1/datasets/preview/{ds_id}  ← 必须在设置 lang 等语义参数前调用，agent 凭样本判断数据语言
+            "register_dataset",                 # POST /api/v1/datasets/
             "list_serving",                     # GET /api/v1/serving/
+            "list_servings",                    # GET /api/v1/serving/plural_alias (backward-compatible alias)
+            "validate_pipeline_config",         # POST /api/v1/pipelines/validate
             "render_pipeline_in_editor",        # POST /api/v1/agent/render (自定义)
         ],
     )
@@ -80,7 +88,7 @@ def _register_render_pipeline_route(app: FastAPI):
     )
     async def render_pipeline_in_editor(req: RenderRequest) -> RenderResponse:
         from app.core.container import container
-        from app.api.v1.endpoints.agent import ws_manager
+        from app.api.v1.endpoints.agent import ws_manager, agent_manager
 
         pipeline = container.pipeline_registry.get_pipeline(req.pipeline_id)
         if not pipeline:
@@ -90,16 +98,29 @@ def _register_render_pipeline_route(app: FastAPI):
             )
 
         nodes, edges = _config_to_vue_flow(pipeline.get("config", {}))
-        await ws_manager.broadcast({
+        payload = {
             "type": "sync_pipeline",
-            "pipeline": pipeline,
+            "pipeline": pipeline,                 # ← 关键：前端 renderPipeline() 用这个（完整 config）
+            "pipeline_id": req.pipeline_id,
+            # 下面两个是给旧消费者的兼容字段，真正的渲染走 pipeline.config
             "nodes": nodes,
             "edges": edges,
-        })
-        logger.info(
-            f"Pipeline {req.pipeline_id} synced to editor "
-            f"({len(nodes)} nodes, {len(edges)} edges)"
-        )
+        }
+        # 优先向"最近发起对话的用户"定向推送，避免串扰到其他浏览器窗口。
+        # 仅在没有已知活跃用户时回退为广播。
+        target_uid = agent_manager.get_last_active_user_id()
+        if target_uid:
+            await ws_manager.send(target_uid, payload)
+            logger.info(
+                f"Pipeline {req.pipeline_id} synced to editor for user={target_uid} "
+                f"({len(nodes)} nodes, {len(edges)} edges)"
+            )
+        else:
+            await ws_manager.broadcast(payload)
+            logger.info(
+                f"Pipeline {req.pipeline_id} broadcast to all editors "
+                f"({len(nodes)} nodes, {len(edges)} edges)"
+            )
         return RenderResponse(
             status="ok",
             message=f"Pipeline '{pipeline.get('name', req.pipeline_id)}' 已同步到编辑器",
