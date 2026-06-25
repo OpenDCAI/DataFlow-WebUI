@@ -47,7 +47,7 @@
         </fv-Collapse>
         <fv-Collapse :theme="theme" v-model="item.expanded" v-for="(item, index) in datasets" :key="index"
             class="dataset-item" :title="item.name" :content="numSamples(item)"
-            :maxHeight="item.showPreview ? 690 : 380" background="rgba(251, 251, 251, 1)">
+            :maxHeight="item.showPreview ? 690 : 620" background="rgba(251, 251, 251, 1)">
             <template v-slot:icon>
                 <fv-img :src="img.database" style="width: auto; height: 30px; margin: 0px 5px"></fv-img>
             </template>

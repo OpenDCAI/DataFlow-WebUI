@@ -372,7 +372,7 @@ export default {
             }
             if (this.choosenClsItem.params) {
                 for (let param of this.choosenClsItem.params) {
-                    if (!param.value) {
+                    if (param.required && (param.value === null || param.value === undefined || param.value === '')) {
                         return false
                     }
                 }
@@ -388,7 +388,7 @@ export default {
             }
             if (item.params) {
                 for (let param of item.params) {
-                    if (!param.value) {
+                    if (param.required && !param.masked && (param.value === null || param.value === undefined || param.value === '')) {
                         return false
                     }
                 }

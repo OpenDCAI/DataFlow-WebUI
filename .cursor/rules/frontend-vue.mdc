@@ -1,0 +1,235 @@
+---
+description: DataFlow WebUI frontend development. Activate when editing Vue 3 frontend code — components, views, stores, router, or API client.
+globs: ["**/frontend/src/**/*.{vue,js,ts,scss,css}"]
+alwaysApply: false
+---
+
+# DataFlow WebUI Frontend (Vue 3 + Vite)
+
+> **⚠ CHANGE POLICY**: Before creating any new page, route, or nav item, check `webui-change-policy.mdc`. Only operator rendering fixes and missing param editors are allowed. New dashboard pages, analytics views, and feature-level UI are prohibited unless the user explicitly overrides.
+
+## Tech Stack
+
+- **Vue 3** + **Vite**
+- **Vue Router** (hash history: `createWebHashHistory`)
+- **Pinia** (setup-store style)
+- **Vue Flow** (`@vue-flow/core`) for pipeline DAG editor
+- **VueFluent3** (`@creatorsn/vfluent3`) for UI components
+- **Axios** for API calls (auto-generated from OpenAPI)
+
+## Two Component Styles (both are used)
+
+| Area | Style |
+|---|---|
+| `mainFlow/nodes/`, new components | `<script setup>` + `defineProps` / `defineEmits` |
+| `mainFlow/pipeline/`, panels, views | Options API: `export default { props, data, computed, methods }` |
+
+**Do NOT convert existing components between styles.** Match the style of the file you're editing.
+
+## Router — Adding a New Manage Page
+
+1. Add route in `frontend/src/router/Manage/index.js`:
+```javascript
+{
+    path: 'my-page',
+    component: () => AsyncLoad(() => import('@/views/manage/myPage/index.vue')),
+    meta: { title: 'Dataflow-MyPage' }
+}
+```
+
+2. Add nav item in `frontend/src/views/manage/index.vue` (`navList` array):
+```javascript
+{
+    key: 4,
+    name: () => this.local('My Page'),
+    icon: 'ViewDashboard',
+    route: '/m/my-page'
+}
+```
+
+3. Create `frontend/src/views/manage/myPage/index.vue`
+
+**Note:** Lazy loading uses `AsyncLoad` wrapper (not raw `import()`), defined in `router/tools.js`.
+
+## Vue Flow Pipeline Editor
+
+The pipeline canvas is `components/manage/mainFlow/index.vue`. Key architecture:
+
+### Node Types (registered via slots)
+
+```html
+<VueFlow v-model:nodes="thisNodes" v-model:edges="thisEdges">
+    <template #node-base-node="nodeProps">
+        <baseNode v-bind="nodeProps" />
+    </template>
+    <template #node-operator-node="nodeProps">
+        <operatorNode v-bind="nodeProps" @update-node-data="updateNodeData" />
+    </template>
+    <template #node-database-node="nodeProps">
+        <databaseNode v-bind="nodeProps" />
+    </template>
+</VueFlow>
+```
+
+### Adding Nodes Programmatically
+
+```javascript
+import { useVueFlow } from '@vue-flow/core'
+
+const flow = useVueFlow(flowId)
+flow.addNodes({
+    id: $Guid(),
+    type: 'operator-node',      // must match a #node-xxx slot
+    position: { x: 100, y: 200 },
+    data: {
+        flowId: props.id,
+        label: 'MyOperator',
+        ...operatorData
+    }
+})
+```
+
+### Node Component Pattern (`<script setup>`)
+
+```javascript
+import { computed } from 'vue'
+import { Position, Handle } from '@vue-flow/core'
+
+const props = defineProps({
+    id: { type: String, required: true },
+    position: { type: Object, required: true },
+    selected: { type: Boolean, default: false },
+    data: { type: Object, default: () => ({}) }
+})
+
+const emits = defineEmits(['delete-node', 'update-node-data'])
+```
+
+## Pinia Stores
+
+**Setup-store style** (this project's convention):
+
+```javascript
+import { defineStore } from 'pinia'
+import { ref, computed, getCurrentInstance } from 'vue'
+
+export const useMyStore = defineStore('useMyStore', () => {
+    const instance = getCurrentInstance()
+    const proxy = instance.proxy   // access $api, $barWarning, etc.
+
+    const items = ref([])
+    const loading = ref(false)
+
+    const getItems = async () => {
+        const res = await proxy.$api.myResource.list_items()
+        if (res.code === 200) {
+            items.value = res.data
+        }
+    }
+
+    return { items, loading, getItems }
+})
+```
+
+**In Options API components**, use `mapState` / `mapActions`:
+```javascript
+import { mapState, mapActions } from 'pinia'
+import { useDataflow } from '@/stores/dataflow'
+
+computed: {
+    ...mapState(useDataflow, ['pipelines', 'operators'])
+},
+methods: {
+    ...mapActions(useDataflow, ['getPipelines', 'getOperators'])
+}
+```
+
+## API Calls
+
+**Global access**: `this.$api` (Options API) or `useGlobal().$api` (Composition API)
+
+```javascript
+// Options API
+this.$api.pipelines.list_pipelines().then(res => {
+    if (res.code === 200) { /* res.data */ }
+})
+
+// Composition API
+import { useGlobal } from '@/hooks/general/useGlobal'
+const { $api } = useGlobal()
+const res = await $api.datasets.list_datasets()
+```
+
+**Response shape**: `{ success, code, message, data, meta }`. Check `res.code === 200` for success.
+
+**API client** is auto-generated in `frontend/src/axios/api.js` from OpenAPI. Each domain is an exported class with static async methods. To add a new endpoint call, add a static method following the existing pattern.
+
+## VueFluent3 UI Components
+
+**Always pass `:theme="theme"`** to VueFluent components. Common components:
+
+| Component | Usage |
+|---|---|
+| `<fv-button>` | Buttons (`:borderRadius="8"`, `:isBoxShadow="true"`) |
+| `<fv-text-box>` | Text input |
+| `<fv-combobox>` | Dropdown select |
+| `<fv-pivot>` | Tab navigation |
+| `<fv-expander>` | Collapsible sections |
+| `<fv-toggle-switch>` | Boolean toggle |
+| `<fv-progress-ring>` | Loading spinner |
+| `<fv-drop-down>` | Dropdown menu |
+| `<fv-details-list>` | Data table |
+| `<fv-navigation-view>` | Side navigation (used in manage layout) |
+| `<fv-command-bar>` | Toolbar |
+
+**Icons**: Segoe MDL2 classes — `<i class="ms-Icon ms-Icon--Add"></i>`
+
+## Global Utilities
+
+```javascript
+// Composition API — useGlobal()
+import { useGlobal } from '@/hooks/general/useGlobal'
+const { $api, $router, $Guid, $infoBox, $barWarning } = useGlobal()
+
+// Options API — this.$xxx
+this.$api        // API client
+this.$router     // Vue Router
+this.$Guid()     // Generate UUID
+this.$infoBox    // Info dialog
+this.$barWarning // Warning toast
+```
+
+## i18n
+
+```javascript
+// In Options API (via mapActions)
+import { mapActions } from 'pinia'
+import { useAppConfig } from '@/stores/appConfig'
+
+methods: {
+    ...mapActions(useAppConfig, ['local']),
+    // Usage in template: {{ local('Pipeline') }}
+}
+
+// In Composition API
+const appConfig = useAppConfig()
+appConfig.local('Pipeline')
+```
+
+## Key Files
+
+| File | Purpose |
+|---|---|
+| `src/router/Manage/index.js` | Manage page routes (add new pages here) |
+| `src/router/tools.js` | `AsyncLoad` lazy-loading wrapper |
+| `src/views/manage/index.vue` | Manage layout shell + nav items (`navList`) |
+| `src/components/manage/mainFlow/index.vue` | Vue Flow canvas (node slots, drag-drop) |
+| `src/components/manage/mainFlow/nodes/` | Node components (operator, database, base) |
+| `src/components/manage/mainFlow/panels/` | Side panels (operator, pipeline, task, dataset) |
+| `src/stores/dataflow.js` | Pipeline/operator/task/dataset state |
+| `src/stores/appConfig.js` | Language, i18n, screen config |
+| `src/stores/theme.js` | Dark/light theme |
+| `src/axios/api.js` | Auto-generated API client (static methods) |
+| `src/axios/config.js` | Axios baseURL + interceptors |
+| `src/hooks/general/useGlobal.js` | `useGlobal()` for `$api`, `$Guid`, etc. |
+| `src/main.js` | App bootstrap (VueFluent, Pinia, Router) |

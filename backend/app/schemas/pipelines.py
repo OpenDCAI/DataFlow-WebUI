@@ -116,3 +116,27 @@ class PipelineExecutionResult(BaseModel):
     logs: List[str] = Field(default_factory=list, description="执行日志列表")
     started_at: Optional[str] = Field(None, description="执行开始时间")
     completed_at: Optional[str] = Field(None, description="执行完成时间")
+
+
+class PipelineValidationIssue(BaseModel):
+    """Pipeline 静态校验中的单个问题。"""
+    level: str = Field(..., description="问题级别：error 或 warning")
+    code: str = Field(..., description="稳定的错误码")
+    message: str = Field(..., description="可直接展示给用户的诊断信息")
+    operator_index: Optional[int] = Field(None, description="0-based 算子索引")
+    operator_name: Optional[str] = Field(None, description="算子名称")
+    param_name: Optional[str] = Field(None, description="相关参数名")
+    field_name: Optional[str] = Field(None, description="相关字段名")
+    available_fields: List[str] = Field(default_factory=list, description="当时可用字段")
+    suggested_fields: List[str] = Field(default_factory=list, description="最可能的替代字段名")
+    repair_hint: Optional[str] = Field(None, description="建议的修复方式")
+
+
+class PipelineValidationResult(BaseModel):
+    """Pipeline 静态校验结果。"""
+    valid: bool = Field(..., description="是否通过校验")
+    errors: List[PipelineValidationIssue] = Field(default_factory=list, description="阻断性问题")
+    warnings: List[PipelineValidationIssue] = Field(default_factory=list, description="非阻断性问题")
+    dataset_id: Optional[str] = Field(None, description="解析出的输入数据集 ID")
+    available_input_fields: List[str] = Field(default_factory=list, description="输入数据集列名")
+    final_available_fields: List[str] = Field(default_factory=list, description="顺序执行后可见字段")

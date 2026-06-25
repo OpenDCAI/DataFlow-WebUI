@@ -1,0 +1,79 @@
+---
+description: Strict change policy for DataFlow WebUI frontend and backend. Limits what modifications are allowed.
+globs: ["**/backend/app/**/*.py", "**/frontend/src/**/*.{vue,js,ts,scss,css}"]
+alwaysApply: false
+---
+
+# WebUI Change Policy (MANDATORY)
+
+## Allowed Changes
+
+You may ONLY make the following types of changes to the WebUI frontend and backend:
+
+### 1. Operator Rendering Support (Frontend)
+
+Add or fix **rendering** for DataFlow operators that are not yet properly displayed in the WebUI pipeline canvas.
+
+**What this means:**
+- Add a new node component in `components/manage/mainFlow/nodes/` for an operator type that renders as a broken/empty box
+- Fix parameter rendering in operator config panels (e.g., `promptParamModel`, init/run param editors)
+- Add missing operator-specific UI elements (e.g., a special param editor for a new param type)
+- Fix display bugs for operators that exist in DataFlow but show incorrectly in the canvas
+
+**How to verify an operator is "not yet supported":**
+- It exists in the DataFlow `OPERATOR_REGISTRY` (check via `GET /api/v1/operators/`)
+- But the WebUI does not render it properly (broken node, missing params, crash on open)
+
+### 2. Operator API Support (Backend)
+
+Add or fix **API endpoints** that serve existing DataFlow operator/pipeline/serving/dataset data to the frontend.
+
+**What this means:**
+- Add a missing CRUD endpoint for an existing DataFlow resource type
+- Fix serialization of operator parameters that the frontend cannot parse
+- Fix edge cases in existing endpoints (e.g., null handling, pagination bugs)
+- Add query params or filters to existing list endpoints
+
+## Prohibited Changes
+
+You MUST NOT:
+
+| Prohibited Action | Example |
+|---|---|
+| Create new analytical pages/dashboards | Taxonomy Analytics page, custom report pages |
+| Create new backend endpoints for derived/computed data | `/api/v1/taxonomy/analytics`, `/api/v1/custom-stats` |
+| Add new navigation items to the sidebar | New entries in `navList` in `manage/index.vue` |
+| Add new routes in `router/Manage/index.js` | New `{ path: 'xxx', component: ... }` entries |
+| Create new `views/manage/*/index.vue` pages | Any new top-level manage page |
+| Add new services/registries in `core/container.py` | New `self.xxx_registry` attributes |
+| Add new config paths in `core/config.py` | New `XXX_REGISTRY` settings |
+| Build feature-level functionality not tied to operator rendering | Anything beyond making existing operators work in the UI |
+
+## Decision Flowchart
+
+Before making any change, ask:
+
+```
+1. Does this change make an EXISTING DataFlow operator 
+   render correctly in the WebUI?
+   → YES: Allowed (operator rendering support)
+   → NO: Go to 2
+
+2. Does this change fix a bug in an EXISTING API endpoint 
+   that serves operator/pipeline/dataset/serving data?
+   → YES: Allowed (API bug fix)
+   → NO: Go to 3
+
+3. Does this change add a missing CRUD operation for an 
+   existing resource type already in the backend?
+   → YES: Allowed (missing CRUD)
+   → NO: PROHIBITED — do not proceed
+```
+
+## If the User Asks for a Prohibited Change
+
+When the user requests a feature that falls outside allowed changes (e.g., "add a taxonomy analytics page", "create a dashboard for X"), respond with:
+
+> This change falls outside the WebUI change policy. The policy only allows adding rendering and API support for operators not yet supported in the UI. [Describe what was requested] would be a new feature, not operator rendering support.
+>
+> If you'd like to proceed anyway, please explicitly confirm you want to override the change policy.

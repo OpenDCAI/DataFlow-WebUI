@@ -9,6 +9,44 @@ from pydantic_core import ValidationError
 _TRUE_STRINGS = {"true", "1", "yes", "y", "on"}
 _FALSE_STRINGS = {"false", "0", "no", "n", "off"}
 
+# Magic prefix used by the frontend operator param panel to refer to a saved
+# JSON Schema by id (see components/manage/mainFlow/nodes/operatorNode/valueInput).
+# The string "schema_ref:<schema_id>" is dereferenced to the stored schema JSON
+# before any type coercion runs.
+_SCHEMA_REF_PREFIX = "schema_ref:"
+
+
+def _resolve_schema_ref(value: Any) -> Any:
+    """If value looks like "schema_ref:<id>", return the stored schema JSON
+    (as a Python object when possible, otherwise the raw string). Unknown refs
+    are returned unchanged so that the caller can fail loudly instead of
+    silently passing an empty dict."""
+    if not isinstance(value, str):
+        return value
+    if not value.startswith(_SCHEMA_REF_PREFIX):
+        return value
+    schema_id = value[len(_SCHEMA_REF_PREFIX):].strip()
+    if not schema_id:
+        return value
+    # Lazy import to avoid circular dependency at module load time.
+    try:
+        from app.core.container import container
+        manager = getattr(container, "json_schema_manager", None)
+        if manager is None:
+            return value
+        record = manager.get(schema_id)
+        if not record:
+            return value
+        schema_text = record.get("schema")
+        if isinstance(schema_text, str):
+            try:
+                return json.loads(schema_text)
+            except Exception:
+                return schema_text
+        return schema_text
+    except Exception:
+        return value
+
 
 def _normalize_empty_string(value: Any) -> Any:
     if isinstance(value, str) and value == "":
@@ -74,6 +112,9 @@ def coerce_param_value(
     2) Fall back to coercion based on default_value runtime type.
     """
     value = _normalize_empty_string(value)
+    # Resolve "schema_ref:<id>" written by the operator params panel into the
+    # actual JSON Schema contents before any type coercion.
+    value = _resolve_schema_ref(value)
 
     if value is not None and annotation is not inspect.Parameter.empty:
         try:

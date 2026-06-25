@@ -5,6 +5,7 @@ from app.core.dataflow_setup import setup_dataflow_core
 from app.core.container import container
 from app.api.v1.handlers import install_exception_handlers
 from app.api.v1.router import api_router as api_v1
+from app.mcp_server import create_mcp_server
 
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import FastAPI
@@ -34,11 +35,16 @@ def create_app() -> FastAPI:
     )
     DIST_DIR = Path(__file__).resolve().parent.parent.parent / "frontend" / "dist"
     INDEX_FILE = DIST_DIR / "index.html"
+    install_exception_handlers(app)
+
+    # 挂载 MCP Server（必须在 StaticFiles catch-all 之前注册，否则 /mcp 请求被静态文件拦截）
+    create_mcp_server(app)
+
     if not INDEX_FILE.exists():
         logger.warning("Warning: UI index file not found, please build the frontend first")
     else:
         app.mount("/", StaticFiles(directory=DIST_DIR, html=True), name="ui")
-    install_exception_handlers(app)
+
     return app
 
 app = create_app()

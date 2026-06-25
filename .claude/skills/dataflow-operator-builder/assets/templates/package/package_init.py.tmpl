@@ -1,0 +1,25 @@
+import importlib
+import pkgutil
+
+
+def _auto_import_operators():
+    base_pkg_name = __name__ + ".operators"
+    try:
+        operators_pkg = importlib.import_module(base_pkg_name)
+    except ImportError:
+        return
+
+    for _, module_name, _ in pkgutil.walk_packages(
+        operators_pkg.__path__, operators_pkg.__name__ + "."
+    ):
+        importlib.import_module(module_name)
+
+
+_auto_import_operators()
+
+
+def main():
+    _auto_import_operators()
+
+
+__all__ = ["main"]

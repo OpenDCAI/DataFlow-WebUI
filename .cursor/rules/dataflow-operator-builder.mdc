@@ -1,0 +1,102 @@
+---
+description: DataFlow operator builder. Activate when user asks to create, build, or implement a new DataFlow operator, custom filter, generator, refiner, or evaluator.
+globs: ["**/operators/**/*.py", "**/dataflow/operators/**"]
+alwaysApply: false
+---
+
+# DataFlow Operator Builder
+
+When asked to create a new DataFlow operator, follow this pattern exactly.
+
+## Operator Skeleton
+
+```python
+from dataflow.operators.base import OperatorABC
+from dataflow.utils.storage import FileStorage
+from dataflow.utils.registry import OPERATOR_REGISTRY
+
+@OPERATOR_REGISTRY.register()
+class MyOperator(OperatorABC):
+    def __init__(self, threshold: float = 0.5):
+        super().__init__()
+        self.threshold = threshold
+
+    def run(
+        self,
+        storage: FileStorage,
+        input_key: str = "text",
+        output_key: str = "result",
+    ) -> list[str]:
+        dataset = storage.read()
+        # ... process dataset ...
+        storage.write(dataset)
+        return [output_key]
+
+    @staticmethod
+    def get_desc(lang: str = "zh") -> str:
+        descs = {
+            "zh": "算子描述（中文）",
+            "en": "Operator description (English)",
+        }
+        return descs.get(lang, descs["en"])
+```
+
+## Mandatory Checklist
+
+- [ ] Inherits `OperatorABC`, calls `super().__init__()`
+- [ ] Has `@OPERATOR_REGISTRY.register()` decorator immediately above class
+- [ ] `run()` parameters named `input_*` / `output_*` / `storage`
+- [ ] `run()` returns list of output key names
+- [ ] Both `storage.read()` and `storage.write()` present
+- [ ] LLM-driven operators: member variable named `self.llm_serving`
+- [ ] Each LLM response wrapped in individual `try/except` with sensible default
+- [ ] Strip `<think>` tags from CoT models when not needed
+- [ ] `@staticmethod get_desc(lang: str = "zh")` supporting `zh` / `en`
+- [ ] Register in `__init__.py` under `TYPE_CHECKING` block
+
+## LLM Operator Pattern
+
+```python
+@OPERATOR_REGISTRY.register()
+class MyLLMOperator(OperatorABC):
+    def __init__(self, llm_serving, system_prompt: str = "You are helpful."):
+        super().__init__()
+        self.llm_serving = llm_serving  # MUST be named llm_serving
+        self.system_prompt = system_prompt
+
+    def run(self, storage: FileStorage, input_key: str = "text", output_key: str = "result") -> list[str]:
+        dataset = storage.read()
+        results = []
+        for _, row in dataset.iterrows():
+            try:
+                response = self.llm_serving.generate(row[input_key], self.system_prompt)
+                # Strip <think> tags if present
+                response = re.sub(r"<think>.*?</think>", "", response, flags=re.DOTALL).strip()
+                results.append(response)
+            except Exception:
+                results.append("")  # Graceful fallback
+        dataset[output_key] = results
+        storage.write(dataset)
+        return [output_key]
+```
+
+## Four Operator Types
+
+- **generate**: Adds new columns (output_key is a new column)
+- **filter**: Removes rows (returns empty list or filtered boolean series)  
+- **refine**: Overwrites existing columns
+- **eval**: Adds score columns without removing rows
+
+## Spec JSON Format (for batch creation)
+
+```json
+{
+  "package_name": "my_dataflow_ext",
+  "operator_type": "filter",
+  "operator_class_name": "QualityFilter",
+  "operator_module_name": "quality_filter",
+  "input_key": "text",
+  "output_key": "is_valid",
+  "uses_llm": false
+}
+```

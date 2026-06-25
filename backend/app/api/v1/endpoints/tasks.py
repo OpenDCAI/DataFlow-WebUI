@@ -192,6 +192,16 @@ def download_task_result(task_id: str, step: int = None):
         raise HTTPException(500, f"Failed to download execution result: {str(e)}")
 
 
+@router.get("/stats", response_model=ApiResponse[Dict], operation_id="get_task_stats", summary="获取任务统计信息（状态分布等）")
+def get_task_stats():
+    try:
+        stats = container.task_registry.get_statistics()
+        return ok(stats)
+    except Exception as e:
+        logger.error(f"Failed to get task stats: {e}")
+        raise HTTPException(500, f"Failed to get task stats: {e}")
+
+
 # Pipeline执行API
 @router.post("/execute", response_model=ApiResponse[PipelineExecutionResult], operation_id="execute_pipeline", summary="执行Pipeline")
 async def execute_pipeline(request: Request, pipeline_id):

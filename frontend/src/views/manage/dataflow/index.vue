@@ -1,5 +1,5 @@
 <template>
-    <div class="df-default-container" :class="[{ dark: theme === 'dark', 'show-pipeline': show.pipeline }]">
+    <div class="df-default-container" :class="[{ dark: theme === 'dark', 'show-pipeline': show.pipeline, 'show-chat': show.chat }]">
         <pipeline v-model="show.pipeline" v-model:loading="lock.loading" v-model:pipeline="currentPipeline"
             :flow-id="flowId" class="df-pipeline-container" @confirm-dataset="confirmDataset($event, true)"
             @select-pipeline="selectPipelineCallback"></pipeline>
@@ -67,12 +67,25 @@
                                 :title="local('Delete')" style="width: 30px; height: 30px" @click="resetFlow">
                                 <i class="ms-Icon ms-Icon--Delete"></i>
                             </fv-button>
+                            <fv-button
+                                :theme="show.chat ? 'dark' : theme"
+                                :background="show.chat ? 'linear-gradient(90deg, rgba(69, 98, 213, 1), rgba(161, 145, 206, 1))' : ''"
+                                :foreground="show.chat ? 'rgba(255, 255, 255, 1)' : ''"
+                                border-radius="30" :title="local('AI Assistant')"
+                                style="width: 30px; height: 30px" @click="show.chat = !show.chat">
+                                <i class="ms-Icon ms-Icon--Robot"></i>
+                            </fv-button>
                         </div>
                     </template>
                 </fv-command-bar>
                 <current-pipeline-block v-model="currentPipeline" :taskId="executionInfo.task_id"
                     @recover-click="recoverPipeline"></current-pipeline-block>
             </div>
+        </div>
+        <!-- AI Assistant Chat Panel -->
+        <!-- 使用 v-show 而非 v-if：保持组件挂载状态，隐藏/显示时不销毁，对话历史不丢失 -->
+        <div v-show="show.chat" class="df-chat-container">
+            <chatPanel></chatPanel>
         </div>
         <page-loading :model-value="!lock.loading" title="Loading..."></page-loading>
         <datasetPanel v-model="show.dataset" :title="local('Dataset')" @confirm="confirmDataset"></datasetPanel>
@@ -130,6 +143,7 @@ import pageLoading from '@/components/general/pageLoading.vue'
 import currentPipelineBlock from '@/components/manage/mainFlow/tools/currentPipelineBlock.vue'
 import execResultPanel from '@/components/manage/mainFlow/panels/execResultPanel/index.vue'
 import taskPanel from '@/components/manage/mainFlow/panels/taskPanel.vue'
+import chatPanel from '@/components/manage/chatPanel/index.vue'
 
 import databaseIcon from '@/assets/flow/database.svg'
 import pipelineIcon from '@/assets/flow/pipeline.svg'
@@ -150,7 +164,8 @@ export default {
         pageLoading,
         currentPipelineBlock,
         execResultPanel,
-        taskPanel
+        taskPanel,
+        chatPanel
     },
     data() {
         return {
@@ -230,7 +245,8 @@ export default {
                 operator: false,
                 serving: false,
                 execResult: false,
-                taskPanel: false
+                taskPanel: false,
+                chat: false
             },
             lock: {
                 serving: true,
@@ -256,6 +272,50 @@ export default {
             if (val) {
                 this.useEdgeSync.autoConnectAllRunEdges(this.flowId, this.$Guid)
             }
+        },
+        agentSyncPayload(payload) {
+            if (!payload) return
+            // 让现有 renderPipeline 把 pipeline.config 完整渲染出来——和从侧边栏
+            // 点选 pipeline 的路径完全一致，这样节点类型 / 参数 / 样式 / 边 handle
+            // 都能正确生成；后端 sync_pipeline 里的 nodes/edges 字段已废弃（仅兼容）。
+            const pipeline = payload.pipeline || null
+            if (!pipeline || !pipeline.config) {
+                // 实在没有 config 才退回原始的手动添加逻辑
+                const flow = useVueFlow(this.flowId)
+                flow.$reset()
+                if (payload.nodes && payload.nodes.length > 0) flow.addNodes(payload.nodes)
+                if (payload.edges && payload.edges.length > 0) flow.addEdges(payload.edges)
+                return
+            }
+
+            // 先刷新数据集/算子/pipeline 列表，保证 renderPipeline 查得到
+            const confirmDatasetCall = (_, dataset) => {
+                this.confirmDataset(dataset, true)
+            }
+            const doRender = async () => {
+                await usePipelineOperation().renderPipeline(
+                    pipeline.config,
+                    this.flowId,
+                    this.datasets,
+                    this.flatFormatedOperators,
+                    this,
+                    this.$nextTick,
+                    confirmDatasetCall,
+                    this.$Guid
+                )
+            }
+
+            // 依赖项可能还没加载（尤其是首次打开 + Agent 立刻创建）。
+            // datasets / pipelines 每次都刷新一下，因为 Agent 可能刚刚通过
+            // register_dataset / create_pipeline 新增了条目。
+            const prep = [this.getDatasets(), this.getPipelines()]
+            if (!this.flatFormatedOperators || !this.flatFormatedOperators.length) {
+                prep.push(this.getOperators('zh'))
+            }
+
+            Promise.all(prep).then(doRender).catch((err) => {
+                console.error('[agentSyncPayload] renderPipeline failed:', err)
+            })
         }
     },
     computed: {
@@ -268,7 +328,8 @@ export default {
             'datasets',
             'groupOperators',
             'tasks',
-            'execution'
+            'execution',
+            'agentSyncPayload'
         ]),
         flatFormatedOperators() {
             let operators = []
@@ -320,7 +381,9 @@ export default {
             'getPromptInfo',
             'getTasks',
             'getExecution',
-            'clearExecution'
+            'clearExecution',
+            'getDatasets',
+            'getOperators'
         ]),
         setViewport() {
             const flow = useVueFlow(this.flowId)
@@ -868,6 +931,17 @@ export default {
         border-radius: 15px;
         box-shadow: inset 0px 0px 6px rgba(0, 0, 0, 0.1);
         overflow: hidden;
+    }
+
+    .df-chat-container {
+        position: relative;
+        width: 320px;
+        height: 100%;
+        flex-shrink: 0;
+        border-radius: 15px;
+        overflow: hidden;
+        box-shadow: -1px 0px 4px rgba(0, 0, 0, 0.08);
+        margin-left: 10px;
     }
 
     .control-menu-block {

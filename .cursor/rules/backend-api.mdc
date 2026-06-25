@@ -1,0 +1,193 @@
+---
+description: DataFlow WebUI backend development. Activate when editing FastAPI backend code — endpoints, services, schemas, or config.
+globs: ["**/backend/app/**/*.py"]
+alwaysApply: false
+---
+
+# DataFlow WebUI Backend (FastAPI)
+
+> **⚠ CHANGE POLICY**: Before creating any new endpoint, service, or registry, check `webui-change-policy.mdc`. Only operator rendering support and existing-resource CRUD fixes are allowed. New analytical endpoints, dashboards, and feature-level APIs are prohibited unless the user explicitly overrides.
+
+## Response Envelope — ALL responses return HTTP 200
+
+This project wraps every response in `ApiResponse[T]`. Errors are NOT HTTP 4xx/5xx on the wire — they are `success: false` with the real status in `meta.http_status`.
+
+```python
+from app.api.v1.resp import ok, created, no_content
+from app.api.v1.envelope import ApiResponse
+
+# Success
+return ok(data)                    # {"success": true, "code": 200, "data": ...}
+return created(data)               # Same shape, HTTP still 200
+return no_content()                # Empty body, HTTP 200
+
+# Errors — raise HTTPException or ApiError subclass, handler wraps into ApiResponse
+from fastapi import HTTPException
+raise HTTPException(404, "Pipeline not found")  # → {"success": false, "code": 40400, ...}
+
+from app.api.v1.errors import NotFoundError, ConflictError, ValidationBizError
+raise NotFoundError("Dataset not found")        # code=40401, meta.http_status=404
+```
+
+## Endpoint Pattern
+
+```python
+from fastapi import APIRouter, HTTPException
+from app.api.v1.envelope import ApiResponse
+from app.api.v1.resp import ok, created
+from app.core.container import container
+from app.schemas.my_resource import MyResourceIn, MyResourceOut
+
+router = APIRouter(tags=["my_resource"])
+
+# GET list
+@router.get("/", response_model=ApiResponse[list[MyResourceOut]],
+            operation_id="list_my_resources", summary="列出所有资源")
+def list_my_resources():
+    return ok(container.my_resource_registry.list())
+
+# POST create
+@router.post("/", response_model=ApiResponse[MyResourceOut],
+             operation_id="create_my_resource", summary="创建新资源")
+def create_my_resource(payload: MyResourceIn):
+    try:
+        result = container.my_resource_registry.add_or_update(payload.model_dump(mode="json"))
+    except Exception as e:
+        raise HTTPException(400, f"Failed to create: {e}")
+    return created(result)
+
+# GET by id
+@router.get("/{resource_id}", response_model=ApiResponse[MyResourceOut],
+            operation_id="get_my_resource", summary="获取单个资源")
+def get_my_resource(resource_id: str):
+    item = container.my_resource_registry.get(resource_id)
+    if not item:
+        raise HTTPException(404, "Resource not found")
+    return ok(item)
+
+# PUT update
+@router.put("/{resource_id}", response_model=ApiResponse[MyResourceOut],
+            operation_id="update_my_resource", summary="更新资源")
+def update_my_resource(resource_id: str, payload: MyResourceUpdateIn):
+    data = payload.model_dump(exclude_unset=True)
+    updated = container.my_resource_registry.update(resource_id, data)
+    return ok(updated)
+
+# DELETE
+@router.delete("/{resource_id}", response_model=ApiResponse[dict],
+               operation_id="delete_my_resource", summary="删除资源")
+def delete_my_resource(resource_id: str):
+    item = container.my_resource_registry.get(resource_id)
+    if not item:
+        raise HTTPException(404, "Resource not found")
+    container.my_resource_registry.remove(resource_id)
+    return ok(message="Resource deleted")
+```
+
+## Register New Endpoint
+
+1. Create `backend/app/api/v1/endpoints/my_resource.py` with `router = APIRouter(tags=[...])`
+2. Add to `backend/app/api/v1/router.py`:
+   ```python
+   from app.api.v1.endpoints import my_resource
+   api_router.include_router(my_resource.router, prefix="/my_resource")
+   ```
+3. Every route MUST have `response_model=ApiResponse[...]`, `operation_id`, and `summary`
+
+## Schema Conventions
+
+```python
+from pydantic import BaseModel, Field
+from typing import Optional, List, Dict, Any
+
+# Request body: suffix *In
+class MyResourceIn(BaseModel):
+    name: str = Field(..., description="资源名称")
+    config: Dict[str, Any] = Field(default_factory=dict, description="配置")
+
+# Partial update: suffix *UpdateIn, all fields Optional
+class MyResourceUpdateIn(BaseModel):
+    name: Optional[str] = Field(None, description="资源名称")
+    config: Optional[Dict[str, Any]] = Field(None, description="配置")
+
+# Response: suffix *Out, extends *In or standalone
+class MyResourceOut(MyResourceIn):
+    id: str = Field(..., description="唯一标识符")
+    created_at: str = ""
+    class Config:
+        from_attributes = True
+
+# Nested/composed: suffix *Schema
+class ParamSchema(BaseModel):
+    name: str = Field(..., description="参数名称")
+    value: Any = Field(None, description="参数值")
+```
+
+## Service / Registry Layer
+
+Data is persisted in YAML/JSON files. Registries follow this pattern:
+
+```python
+import yaml
+from app.core.config import settings
+
+class MyResourceRegistry:
+    def __init__(self, path: str | None = None):
+        self.path = path or settings.MY_RESOURCE_REGISTRY
+        self._ensure()
+
+    def _ensure(self):
+        if not os.path.exists(self.path):
+            self._write({"resources": {}})
+
+    def _read(self) -> dict:
+        with open(self.path, "r", encoding="utf-8") as f:
+            return yaml.safe_load(f) or {"resources": {}}
+
+    def _write(self, data: dict):
+        with open(self.path, "w", encoding="utf-8") as f:
+            yaml.safe_dump(data, f, allow_unicode=True, sort_keys=False)
+
+    def list(self) -> list[dict]: ...
+    def get(self, id: str) -> dict | None: ...
+    def add_or_update(self, item: dict) -> dict: ...
+    def remove(self, id: str): ...
+```
+
+## DI Container
+
+Register new services in `backend/app/core/container.py`:
+
+```python
+class AppContainer:
+    def __init__(self):
+        self.my_resource_registry = None  # ← add attribute
+
+    def init(self):
+        from app.services.my_resource_registry import MyResourceRegistry
+        # ...
+        self.my_resource_registry = MyResourceRegistry()  # ← instantiate
+```
+
+## Config (Settings)
+
+Add new registry paths in `backend/app/core/config.py`:
+
+```python
+class Settings(BaseSettings):
+    MY_RESOURCE_REGISTRY: str = os.path.join(BASE_DIR, "data", "my_resource_registry.yaml")
+```
+
+## Key Files
+
+| File | Purpose |
+|---|---|
+| `app/api/v1/router.py` | Mount all endpoint routers under `/api/v1` |
+| `app/api/v1/envelope.py` | `ApiResponse[T]` generic wrapper |
+| `app/api/v1/resp.py` | `ok()`, `created()`, `no_content()` helpers |
+| `app/api/v1/errors.py` | `ApiError`, `NotFoundError`, `ConflictError` |
+| `app/api/v1/handlers.py` | Global exception handlers (all return HTTP 200) |
+| `app/core/container.py` | DI container — `AppContainer` with `init()` |
+| `app/core/config.py` | `Settings(BaseSettings)` with file paths |
+| `app/main.py` | `create_app()` — router mount, CORS, MCP, static UI |
+| `app/mcp_server.py` | MCP tool whitelist (`include_operations`) |

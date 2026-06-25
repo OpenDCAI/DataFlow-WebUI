@@ -14,6 +14,8 @@ class AppContainer:
         self.text2sql_database_registry = None
         self.text2sql_database_manager_registry = None
         self.dataset_visualize_service = None
+        self.json_schema_manager = None
+        self.user_prompt_registry = None
 
     def init(self):
         from app.services.dataset_registry import DatasetRegistry, VisualizeDatasetService
@@ -23,6 +25,8 @@ class AppContainer:
         from app.services.serving_registry import ServingRegistry
         from app.services.task_registry import TaskRegistry
         from app.services.text2sql_database_registry import Text2SQLDatabaseRegistry, Text2SQLDatabaseManagerRegistry
+        from app.services.json_schema_manager import JsonSchemaManager
+        from app.services.user_prompt_registry import UserPromptRegistry
         
         from .config import settings
         import importlib
@@ -47,6 +51,8 @@ class AppContainer:
         self.pipeline_registry = PipelineRegistry()
         self.text2sql_database_registry = Text2SQLDatabaseRegistry()
         self.text2sql_database_manager_registry = Text2SQLDatabaseManagerRegistry()
+        self.json_schema_manager = JsonSchemaManager()
+        self.user_prompt_registry = UserPromptRegistry()
 
 
 

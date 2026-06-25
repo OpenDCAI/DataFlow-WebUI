@@ -4,6 +4,8 @@ from app.schemas.pipelines import (
     PipelineIn,
     PipelineOut,
     PipelineUpdateIn,
+    PipelineConfig,
+    PipelineValidationResult,
 )
 from app.core.container import container
 from app.api.v1.resp import ok, created
@@ -58,6 +60,24 @@ def create_pipeline(request: Request, payload: PipelineIn):
         logger.error(f"Failed to create pipeline: {str(e)}", exc_info=True)
         raise HTTPException(400, f"Failed to create pipeline: {str(e)}")
 
+
+@router.post(
+    "/validate",
+    response_model=ApiResponse[PipelineValidationResult],
+    operation_id="validate_pipeline_config",
+    summary="静态校验一个 Pipeline 配置，检查 dataset / 字段流 / prompt_template / serving 风险",
+)
+def validate_pipeline_config(payload: PipelineConfig):
+    try:
+        validation = container.pipeline_registry.validate_pipeline_config(payload.model_dump())
+        return ok(validation)
+    except ValueError as e:
+        logger.error(f"Failed to validate pipeline config: {str(e)}", exc_info=True)
+        raise HTTPException(400, f"Failed to validate pipeline config: {str(e)}")
+    except Exception as e:
+        logger.error(f"Unexpected error while validating pipeline config: {str(e)}", exc_info=True)
+        raise HTTPException(500, f"Failed to validate pipeline config: {str(e)}")
+
 @router.get("/{pipeline_id}", response_model=ApiResponse[PipelineOut], operation_id="get_pipeline", summary="根据ID获取Pipeline详情")
 def get_pipeline(pipeline_id: str):
     pipeline = container.pipeline_registry.get_pipeline(pipeline_id)
@@ -78,7 +98,8 @@ def update_pipeline(pipeline_id: str, payload: PipelineUpdateIn):
         return ok(updated_pipeline)
     except ValueError as e:
         logger.error(f"Failed to update pipeline: {str(e)}")
-        raise HTTPException(404, str(e))
+        status_code = 404 if "not found" in str(e).lower() else 400
+        raise HTTPException(status_code, str(e))
     except Exception as e:
         logger.error(f"Failed to update pipeline {pipeline_id}: {e}")
         raise HTTPException(400, f"Failed to update pipeline: {e}")
@@ -95,4 +116,3 @@ def delete_pipeline(pipeline_id: str):
     except Exception as e:
         logger.error(f"Failed to delete pipeline {pipeline_id}: {e}")
         raise HTTPException(500, f"Failed to delete pipeline: {e}")
-

@@ -1,6 +1,7 @@
 import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
 import { getCurrentInstance } from 'vue'
+import axios from 'axios'
 
 export const useDataflow = defineStore('useDataflow', () => {
     const instance = getCurrentInstance()
@@ -266,6 +267,31 @@ export const useDataflow = defineStore('useDataflow', () => {
         isAutoConnection.value = val
     }
 
+    // Agent sync: store the latest payload from Claude agent so views can watch it
+    const agentSyncPayload = ref(null)
+    const syncFromAgent = (payload) => {
+        agentSyncPayload.value = payload
+    }
+
+    // JSON Schemas — available schemas users saved on the "schemas" page.
+    // These power the json_schema value-input on operator params.
+    const jsonSchemaList = ref([])
+    const getJsonSchemaList = async () => {
+        try {
+            const res = await axios.get('/api/v1/json_schemas/')
+            const payload = res.data && res.data.data ? res.data.data : res.data
+            const list = Array.isArray(payload) ? payload : []
+            // normalise for fv-combobox consumption
+            list.forEach((item) => {
+                item.key = item.id
+                item.text = item.name
+            })
+            jsonSchemaList.value = list
+        } catch (e) {
+            // silent — schemas page is optional
+        }
+    }
+
     return {
         operators,
         groupOperators,
@@ -291,6 +317,10 @@ export const useDataflow = defineStore('useDataflow', () => {
         getExecution,
         clearExecution,
         isAutoConnection,
-        switchAutoConnection
+        switchAutoConnection,
+        agentSyncPayload,
+        syncFromAgent,
+        jsonSchemaList,
+        getJsonSchemaList
     }
 })

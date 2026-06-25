@@ -8,6 +8,7 @@ import hashlib
 from typing import List, Optional, Dict, Any, Tuple, Union
 from app.core.logger_setup import get_logger
 from app.core.config import settings
+from app.schemas.pipelines import PipelineValidationIssue, PipelineValidationResult
 # from app.services.operator_registry import _op_registry
 from app.core.container import container
 logger = get_logger(__name__)
@@ -398,17 +399,58 @@ class PipelineRegistry:
 
     def _update_all_api_pipelines_operators(self):
         """
-        更新所有api pipeline的operators列表和input_dataset
+        更新所有api pipeline的operators列表和input_dataset，
+        同时发现并注册 api_pipelines 目录中新增的 .py 文件
         """
         try:
             data = self._read()
             api_pipelines_dir = os.path.join(settings.DATAFLOW_CORE_DIR, "api_pipelines")
-            print(api_pipelines_dir)
+            logger.info(f"Scanning api_pipelines dir: {api_pipelines_dir}")
             if not os.path.exists(api_pipelines_dir):
                 logger.warning(f"API pipelines directory not found: {api_pipelines_dir}")
                 return
             
             updated = False
+
+            existing_file_paths = set()
+            for pipeline_id, pipeline_data in data.get("pipelines", {}).items():
+                if "api" in pipeline_data.get("tags", []):
+                    fp = pipeline_data.get("config", {}).get("file_path", "")
+                    if fp:
+                        existing_file_paths.add(os.path.normpath(fp))
+
+            for filename in os.listdir(api_pipelines_dir):
+                if not filename.endswith(".py") or filename.startswith("__"):
+                    continue
+                file_path = os.path.join(api_pipelines_dir, filename)
+                if os.path.normpath(file_path) in existing_file_paths:
+                    continue
+                try:
+                    analyzer = PipelineFileAnalyzer.from_file(file_path)
+                    operators = analyzer.operators()
+                    input_dataset = self._find_dataset_id(file_path)
+                    current_time = self.get_current_time()
+                    new_id = str(uuid.uuid4())
+                    pipeline_entry = {
+                        "id": new_id,
+                        "name": filename[:-3].replace("_", " ").title(),
+                        "config": {
+                            "file_path": file_path,
+                            "input_dataset": input_dataset,
+                            "operators": operators,
+                        },
+                        "tags": ["api", "template"],
+                        "created_at": current_time,
+                        "updated_at": current_time,
+                        "status": "queued",
+                    }
+                    enriched = self._enrich_pipeline_operators_internal(pipeline_entry)
+                    data["pipelines"][new_id] = enriched
+                    updated = True
+                    logger.info(f"Discovered new API pipeline: {enriched['name']} ({new_id})")
+                except Exception as e:
+                    logger.warning(f"Failed to register new pipeline {filename}: {e}")
+
             # 遍历所有pipeline
             for pipeline_id, pipeline_data in data.get("pipelines", {}).items():
                 # 检查是否是api pipeline
@@ -499,14 +541,16 @@ class PipelineRegistry:
         if isinstance(params, dict):
             if "init" in params or "run" in params:
                 merged = {}
-                for item in (params.get("init", []) or []):
-                    name = item.get("name")
-                    if name is not None:
-                        merged[name] = item.get("value")
-                for item in (params.get("run", []) or []):
-                    name = item.get("name")
-                    if name is not None:
-                        merged[name] = item.get("value")
+                for section in ("init", "run"):
+                    section_val = params.get(section, []) or []
+                    if isinstance(section_val, dict):
+                        merged.update(section_val)
+                    elif isinstance(section_val, list):
+                        for item in section_val:
+                            if isinstance(item, dict):
+                                name = item.get("name")
+                                if name is not None:
+                                    merged[name] = item.get("value")
                 return merged
             return params
         parsed = {}
@@ -517,6 +561,509 @@ class PipelineRegistry:
                 if key is not None:
                     parsed[key] = value
         return parsed
+
+    def _extract_dataset_id(self, input_dataset: Any) -> Optional[str]:
+        if isinstance(input_dataset, dict):
+            return input_dataset.get("id")
+        if isinstance(input_dataset, str):
+            return input_dataset
+        return None
+
+    def _make_validation_issue(
+        self,
+        *,
+        level: str,
+        code: str,
+        message: str,
+        operator_index: int | None = None,
+        operator_name: str | None = None,
+        param_name: str | None = None,
+        field_name: str | None = None,
+        available_fields: list[str] | None = None,
+        suggested_fields: list[str] | None = None,
+        repair_hint: str | None = None,
+    ) -> PipelineValidationIssue:
+        return PipelineValidationIssue(
+            level=level,
+            code=code,
+            message=message,
+            operator_index=operator_index,
+            operator_name=operator_name,
+            param_name=param_name,
+            field_name=field_name,
+            available_fields=available_fields or [],
+            suggested_fields=suggested_fields or [],
+            repair_hint=repair_hint,
+        )
+
+    def _split_operator_params(
+        self,
+        op_name: str,
+        raw_params: Any,
+        op_details: Optional[Dict[str, Any]] = None,
+    ) -> tuple[Dict[str, Any], Dict[str, Any], Optional[Dict[str, Any]]]:
+        op_details = op_details or container.operator_registry.get_op_details(op_name)
+        if not raw_params:
+            return {}, {}, op_details
+
+        if isinstance(raw_params, dict) and ("init" in raw_params or "run" in raw_params):
+            init_val = raw_params.get("init", []) or []
+            run_val = raw_params.get("run", []) or []
+            init_parsed = init_val if isinstance(init_val, dict) else self._parse_frontend_params(init_val)
+            run_parsed = run_val if isinstance(run_val, dict) else self._parse_frontend_params(run_val)
+            return (init_parsed, run_parsed, op_details)
+
+        merged = self._parse_frontend_params(raw_params)
+        init_names = {
+            item.get("name")
+            for item in (op_details or {}).get("parameter", {}).get("init", [])
+            if item.get("name")
+        }
+        run_names = {
+            item.get("name")
+            for item in (op_details or {}).get("parameter", {}).get("run", [])
+            if item.get("name")
+        }
+        init_params: Dict[str, Any] = {}
+        run_params: Dict[str, Any] = {}
+        for key, value in merged.items():
+            if key in init_names and key not in run_names:
+                init_params[key] = value
+            else:
+                run_params[key] = value
+        return init_params, run_params, op_details
+
+    @staticmethod
+    def _looks_like_input_field_param(param_name: str) -> bool:
+        if param_name.startswith("output_") or param_name.endswith("_output_key"):
+            return False
+        return (
+            param_name.startswith("input_")
+            or param_name.endswith("_input_key")
+            or (param_name.endswith("_key") and param_name != "output_key")
+            or param_name.endswith("_keys")
+        )
+
+    @staticmethod
+    def _looks_like_output_field_param(param_name: str) -> bool:
+        return param_name.startswith("output_") or param_name == "output_key" or param_name.endswith("_output_key")
+
+    @staticmethod
+    def _extract_serving_id(value: Any) -> Optional[str]:
+        if isinstance(value, dict):
+            serving_id = value.get("id") or value.get("serving_id")
+            return str(serving_id) if serving_id else None
+        if value is None:
+            return None
+        return str(value)
+
+    @staticmethod
+    def _suggest_similar_fields(field_name: str, available_fields: List[str], limit: int = 3) -> List[str]:
+        if not field_name or not available_fields:
+            return []
+
+        import difflib
+
+        normalized_map: Dict[str, str] = {}
+        for candidate in available_fields:
+            normalized = re.sub(r"[^a-z0-9]+", "", str(candidate).lower())
+            if normalized and normalized not in normalized_map:
+                normalized_map[normalized] = candidate
+
+        normalized_field = re.sub(r"[^a-z0-9]+", "", str(field_name).lower())
+        suggestions: List[str] = []
+        if normalized_field and normalized_map:
+            normalized_matches = difflib.get_close_matches(
+                normalized_field,
+                list(normalized_map.keys()),
+                n=limit,
+                cutoff=0.45,
+            )
+            for match in normalized_matches:
+                candidate = normalized_map[match]
+                if candidate not in suggestions:
+                    suggestions.append(candidate)
+
+        direct_matches = difflib.get_close_matches(
+            str(field_name),
+            [str(item) for item in available_fields],
+            n=limit,
+            cutoff=0.45,
+        )
+        for match in direct_matches:
+            if match not in suggestions:
+                suggestions.append(match)
+
+        return suggestions[:limit]
+
+    @classmethod
+    def _build_missing_input_field_hint(
+        cls,
+        *,
+        field_name: str,
+        param_name: str,
+        available_fields: List[str],
+    ) -> tuple[List[str], str]:
+        suggestions = cls._suggest_similar_fields(field_name, available_fields)
+        if suggestions:
+            hint = (
+                f"将参数 '{param_name}' 从 '{field_name}' 改成最接近的真实字段之一："
+                + ", ".join(suggestions)
+                + "；若这些都不对，就先查看 get_dataset_columns / 上游 output_key 再修正。"
+            )
+        else:
+            hint = (
+                f"字段 '{field_name}' 当前不存在。先用 get_dataset_columns 确认输入列名，"
+                f"再检查上游 output_key 是否真的产出了 '{field_name}'。"
+            )
+        return suggestions, hint
+
+    def _collect_input_field_refs(
+        self,
+        run_params: Dict[str, Any],
+        run_defs: List[Dict[str, Any]],
+    ) -> List[Tuple[str, str]]:
+        refs: List[Tuple[str, str]] = []
+        fixed_run_names = {item.get("name") for item in run_defs if item.get("name")}
+        has_var_kwargs = any(item.get("kind") == "VAR_KEYWORD" for item in run_defs)
+
+        for param_name, value in run_params.items():
+            if value is None:
+                continue
+
+            if self._looks_like_input_field_param(param_name):
+                if isinstance(value, str):
+                    refs.append((param_name, value))
+                elif isinstance(value, list):
+                    refs.extend((param_name, item) for item in value if isinstance(item, str))
+                elif isinstance(value, dict):
+                    refs.extend((param_name, item) for item in value.values() if isinstance(item, str))
+                continue
+
+            if has_var_kwargs and param_name not in fixed_run_names and isinstance(value, str):
+                refs.append((param_name, value))
+
+        return refs
+
+    def _collect_output_field_refs(self, run_params: Dict[str, Any]) -> List[Tuple[str, str]]:
+        refs: List[Tuple[str, str]] = []
+        for param_name, value in run_params.items():
+            if value is None or not self._looks_like_output_field_param(param_name):
+                continue
+            if isinstance(value, str):
+                refs.append((param_name, value))
+            elif isinstance(value, list):
+                refs.extend((param_name, item) for item in value if isinstance(item, str))
+        return refs
+
+    @staticmethod
+    def _maybe_parse_json_container(value: Any) -> Any:
+        if not isinstance(value, str):
+            return value
+        stripped = value.strip()
+        if not stripped or stripped[0] not in "[{":
+            return value
+        try:
+            return json.loads(stripped)
+        except json.JSONDecodeError:
+            return value
+
+    @classmethod
+    def _normalize_dynamic_code_param(cls, value: Any, *, param_name: str) -> Tuple[Optional[List[Any]], Optional[str]]:
+        value = cls._maybe_parse_json_container(value)
+
+        if callable(value):
+            return [value], None
+
+        if isinstance(value, str):
+            code = value.strip()
+            if code.startswith("lambda ") or code.startswith("def "):
+                return [code], None
+            return None, (
+                f"参数 '{param_name}' 必须是 lambda/def 代码字符串、包含 code 字段的对象，"
+                "或这两种形式组成的列表。"
+            )
+
+        if isinstance(value, dict):
+            code = value.get("code")
+            if isinstance(code, str) and code.strip():
+                return cls._normalize_dynamic_code_param(code, param_name=param_name)
+            return None, f"参数 '{param_name}' 的对象形式缺少非空 code 字段。"
+
+        if isinstance(value, list):
+            normalized: List[Any] = []
+            for item in value:
+                child_items, child_error = cls._normalize_dynamic_code_param(item, param_name=param_name)
+                if child_error:
+                    return None, child_error
+                normalized.extend(child_items or [])
+            if not normalized:
+                return None, f"参数 '{param_name}' 至少需要包含一条可执行规则。"
+            return normalized, None
+
+        return None, (
+            f"参数 '{param_name}' 的类型不受支持：{type(value).__name__}。"
+            "请传代码字符串、对象或列表。"
+        )
+
+    def validate_pipeline_config(self, config: Dict[str, Any]) -> PipelineValidationResult:
+        errors: List[PipelineValidationIssue] = []
+        warnings: List[PipelineValidationIssue] = []
+
+        dataset_id = self._extract_dataset_id(config.get("input_dataset"))
+        available_fields: List[str] = []
+
+        if not dataset_id:
+            errors.append(self._make_validation_issue(
+                level="error",
+                code="missing_input_dataset",
+                message="Pipeline config 缺少 input_dataset.id，后端无法解析输入数据集。",
+            ))
+        else:
+            dataset = container.dataset_registry.get(dataset_id)
+            if not dataset:
+                errors.append(self._make_validation_issue(
+                    level="error",
+                    code="dataset_not_found",
+                    message=f"输入数据集 '{dataset_id}' 未注册，create/update 后执行会直接失败。",
+                    field_name=dataset_id,
+                ))
+            else:
+                try:
+                    available_fields = list(container.dataset_registry.get_columns(dataset_id) or [])
+                except Exception as exc:
+                    logger.warning(f"Failed to inspect dataset columns for {dataset_id}: {exc}")
+                    available_fields = []
+                if not available_fields:
+                    warnings.append(self._make_validation_issue(
+                        level="warning",
+                        code="dataset_columns_unavailable",
+                        message=(
+                            f"数据集 '{dataset_id}' 的列名不可用，后端无法提前校验字段流。"
+                            " 如果这是 json/jsonl/parquet 以外的格式，建议先转成可枚举列名的数据集。"
+                        ),
+                        field_name=dataset_id,
+                    ))
+
+        current_fields = list(available_fields)
+        operators = config.get("operators", []) or []
+
+        for idx, op in enumerate(operators):
+            op_name = op.get("name") or f"operator_{idx}"
+            init_params, run_params, op_details = self._split_operator_params(op_name, op.get("params"))
+
+            if not op_details:
+                errors.append(self._make_validation_issue(
+                    level="error",
+                    code="unknown_operator",
+                    message=f"算子 '{op_name}' 未在 operator registry 中注册。",
+                    operator_index=idx,
+                    operator_name=op_name,
+                    available_fields=current_fields,
+                ))
+                continue
+
+            if "prompt_template" in init_params and isinstance(init_params.get("prompt_template"), dict):
+                prompt_template = init_params.get("prompt_template") or {}
+                if not prompt_template.get("cls_name"):
+                    errors.append(self._make_validation_issue(
+                        level="error",
+                        code="invalid_prompt_template_dict",
+                        message=(
+                            f"算子 '{op_name}' 的 prompt_template 使用了 dict，但缺少 cls_name。"
+                            " 仅允许结构化 prompt 对象（含 cls_name）或 prompt 类名字符串。"
+                        ),
+                        operator_index=idx,
+                        operator_name=op_name,
+                        param_name="prompt_template",
+                        available_fields=current_fields,
+                    ))
+
+            init_defs = (op_details.get("parameter") or {}).get("init", [])
+            init_def_names = {item.get("name") for item in init_defs if item.get("name")}
+
+            for dynamic_param_name in ("process_fn", "filter_rules"):
+                if dynamic_param_name not in init_def_names:
+                    continue
+                dynamic_value = init_params.get(dynamic_param_name)
+                if dynamic_value is None:
+                    errors.append(self._make_validation_issue(
+                        level="error",
+                        code="missing_dynamic_code_param",
+                        message=f"算子 '{op_name}' 缺少必需参数 '{dynamic_param_name}'。",
+                        operator_index=idx,
+                        operator_name=op_name,
+                        param_name=dynamic_param_name,
+                        available_fields=current_fields,
+                    ))
+                    continue
+                _, dynamic_error = self._normalize_dynamic_code_param(
+                    dynamic_value,
+                    param_name=dynamic_param_name,
+                )
+                if dynamic_error:
+                    errors.append(self._make_validation_issue(
+                        level="error",
+                        code="invalid_dynamic_code_param",
+                        message=f"算子 '{op_name}' 的参数 '{dynamic_param_name}' 非法：{dynamic_error}",
+                        operator_index=idx,
+                        operator_name=op_name,
+                        param_name=dynamic_param_name,
+                        available_fields=current_fields,
+                    ))
+
+            if "llm_serving" in init_def_names:
+                raw_serving = init_params.get("llm_serving")
+                serving_id = self._extract_serving_id(raw_serving)
+                if raw_serving is None:
+                    warnings.append(self._make_validation_issue(
+                        level="warning",
+                        code="missing_llm_serving",
+                        message=(
+                            f"算子 '{op_name}' 依赖 llm_serving，但当前配置未显式指定。"
+                            " 运行时可能依赖默认 serving 自动填充，稳定性和可解释性都会变差。"
+                        ),
+                        operator_index=idx,
+                        operator_name=op_name,
+                        param_name="llm_serving",
+                        available_fields=current_fields,
+                    ))
+                elif not serving_id:
+                    errors.append(self._make_validation_issue(
+                        level="error",
+                        code="invalid_serving_reference",
+                        message=(
+                            f"算子 '{op_name}' 的 llm_serving 不是可解析的 serving id。"
+                            " 请输入真实的 serving id，或传入带 `id` / `serving_id` 的对象。"
+                        ),
+                        operator_index=idx,
+                        operator_name=op_name,
+                        param_name="llm_serving",
+                        available_fields=current_fields,
+                    ))
+                elif not container.serving_registry or not container.serving_registry._get(serving_id):
+                    errors.append(self._make_validation_issue(
+                        level="error",
+                        code="serving_not_found",
+                        message=f"算子 '{op_name}' 引用了不存在的 llm_serving '{serving_id}'。",
+                        operator_index=idx,
+                        operator_name=op_name,
+                        param_name="llm_serving",
+                        field_name=serving_id,
+                        available_fields=current_fields,
+                    ))
+
+            if "embedding_serving" in init_def_names:
+                raw_embedding_serving = init_params.get("embedding_serving")
+                embedding_serving_id = self._extract_serving_id(raw_embedding_serving)
+                if raw_embedding_serving is not None and not embedding_serving_id:
+                    errors.append(self._make_validation_issue(
+                        level="error",
+                        code="invalid_serving_reference",
+                        message=(
+                            f"算子 '{op_name}' 的 embedding_serving 不是可解析的 serving id。"
+                            " 请输入真实的 serving id，或传入带 `id` / `serving_id` 的对象。"
+                        ),
+                        operator_index=idx,
+                        operator_name=op_name,
+                        param_name="embedding_serving",
+                        available_fields=current_fields,
+                    ))
+                elif embedding_serving_id and (not container.serving_registry or not container.serving_registry._get(embedding_serving_id)):
+                    errors.append(self._make_validation_issue(
+                        level="error",
+                        code="serving_not_found",
+                        message=f"算子 '{op_name}' 引用了不存在的 embedding_serving '{embedding_serving_id}'。",
+                        operator_index=idx,
+                        operator_name=op_name,
+                        param_name="embedding_serving",
+                        field_name=embedding_serving_id,
+                        available_fields=current_fields,
+                    ))
+
+            if "prompt_template" in init_def_names and init_params.get("prompt_template") is not None:
+                prompt_template_value = init_params.get("prompt_template")
+                allowed_prompts = set(op_details.get("allowed_prompts") or [])
+                if isinstance(prompt_template_value, str):
+                    if allowed_prompts and prompt_template_value not in allowed_prompts:
+                        errors.append(self._make_validation_issue(
+                            level="error",
+                            code="invalid_prompt_template_class",
+                            message=(
+                                f"算子 '{op_name}' 的 prompt_template='{prompt_template_value}' 不在允许列表中："
+                                f"{sorted(allowed_prompts)}。"
+                            ),
+                            operator_index=idx,
+                            operator_name=op_name,
+                            param_name="prompt_template",
+                            available_fields=current_fields,
+                        ))
+                elif isinstance(prompt_template_value, dict):
+                    cls_name = prompt_template_value.get("cls_name")
+                    if cls_name and allowed_prompts and cls_name not in allowed_prompts:
+                        errors.append(self._make_validation_issue(
+                            level="error",
+                            code="invalid_prompt_template_class",
+                            message=(
+                                f"算子 '{op_name}' 的 prompt_template.cls_name='{cls_name}' 不在允许列表中："
+                                f"{sorted(allowed_prompts)}。"
+                            ),
+                            operator_index=idx,
+                            operator_name=op_name,
+                            param_name="prompt_template",
+                            available_fields=current_fields,
+                        ))
+
+            run_defs = (op_details.get("parameter") or {}).get("run", [])
+            for param_name, field_name in self._collect_input_field_refs(run_params, run_defs):
+                if current_fields and field_name not in current_fields:
+                    suggested_fields, repair_hint = self._build_missing_input_field_hint(
+                        field_name=field_name,
+                        param_name=param_name,
+                        available_fields=current_fields,
+                    )
+                    errors.append(self._make_validation_issue(
+                        level="error",
+                        code="missing_input_field",
+                        message=(
+                            f"算子 '{op_name}' 的参数 '{param_name}' 引用了字段 '{field_name}'，"
+                            "但它既不在输入数据集中，也不是上游算子已产出的字段。"
+                        ),
+                        operator_index=idx,
+                        operator_name=op_name,
+                        param_name=param_name,
+                        field_name=field_name,
+                        available_fields=current_fields,
+                        suggested_fields=suggested_fields,
+                        repair_hint=repair_hint,
+                    ))
+
+            for param_name, field_name in self._collect_output_field_refs(run_params):
+                if field_name in current_fields:
+                    warnings.append(self._make_validation_issue(
+                        level="warning",
+                        code="output_field_overwrite",
+                        message=(
+                            f"算子 '{op_name}' 的参数 '{param_name}' 将写回已存在字段 '{field_name}'。"
+                            " 这会覆盖原始列或上游结果，容易让字段流失真。"
+                        ),
+                        operator_index=idx,
+                        operator_name=op_name,
+                        param_name=param_name,
+                        field_name=field_name,
+                        available_fields=current_fields,
+                    ))
+                if field_name not in current_fields:
+                    current_fields.append(field_name)
+
+        return PipelineValidationResult(
+            valid=len(errors) == 0,
+            errors=errors,
+            warnings=warnings,
+            dataset_id=dataset_id,
+            available_input_fields=available_fields,
+            final_available_fields=current_fields,
+        )
 
     def get_current_time(self):
         """获取当前时间的ISO格式字符串"""
@@ -549,6 +1096,10 @@ class PipelineRegistry:
         
         # 直接创建字典表示的pipeline
         config = pipeline_data.get("config", {})
+        validation = self.validate_pipeline_config(config)
+        if not validation.valid:
+            joined_errors = "; ".join(issue.message for issue in validation.errors)
+            raise ValueError(f"Invalid pipeline configuration: {joined_errors}")
         operators = config.get("operators", [])
         for op in operators:
             params = op.get("params", {})
@@ -674,7 +1225,8 @@ class PipelineRegistry:
         # update Operators
         new_pipeline_config = pipeline_data.get("config", None)
         if new_pipeline_config is not None:
-            updated_pipeline["config"]["input_dataset"] = new_pipeline_config.get("input_dataset", "")
+            if "input_dataset" in new_pipeline_config:
+                updated_pipeline["config"]["input_dataset"] = new_pipeline_config.get("input_dataset", "")
             if "operators" in new_pipeline_config:
                 op_map = {}
                 for idx, op in enumerate(updated_pipeline["config"]["operators"]):
@@ -698,6 +1250,11 @@ class PipelineRegistry:
                 
                 # 更新 operators 列表
                 updated_pipeline["config"]["operators"] = updated_operators
+
+            validation = self.validate_pipeline_config(updated_pipeline["config"])
+            if not validation.valid:
+                joined_errors = "; ".join(issue.message for issue in validation.errors)
+                raise ValueError(f"Invalid pipeline configuration: {joined_errors}")
             
         
         # 更新字段，保留创建时间和状态

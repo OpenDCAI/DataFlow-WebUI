@@ -19,8 +19,15 @@ from app.services.serving_registry import SERVING_CLS_REGISTRY
 
 router = APIRouter(tags=["serving"])
 
+
+def _mask_key(key: str) -> str:
+    if not key or len(key) <= 8:
+        return "****"
+    return key[:3] + "****" + key[-4:]
+
 @router.get(
     "/",
+    operation_id="list_serving",
     response_model=ApiResponse[List[ServingDetailSchema]],
 )
 def list_serving_instances():
@@ -34,12 +41,37 @@ def list_serving_instances():
                 v_copy = copy.deepcopy(v)
                 v_copy['id'] = k
                 if v_copy.get('cls_name') == 'APILLMServing_request':
-                    # Filter out key_name_of_api_key from response
-                    v_copy['params'] = [p for p in v_copy.get('params', []) if p['name'] not in ['key_name_of_api_key', 'api_key']]
+                    v_copy['params'] = [p for p in v_copy.get('params', []) if p['name'] != 'key_name_of_api_key']
+                    api_key_p = None
+                    rest = []
+                    for p in v_copy['params']:
+                        if p['name'] == 'api_key':
+                            raw = p.get('value') or p.get('default_value') or ''
+                            p['value'] = _mask_key(str(raw))
+                            p['masked'] = True
+                            api_key_p = p
+                        else:
+                            rest.append(p)
+                    if api_key_p:
+                        idx = next((i for i, p in enumerate(rest) if p['name'] == 'model_name'), len(rest))
+                        rest.insert(idx, api_key_p)
+                    v_copy['params'] = rest
+                for p in v_copy.get('params', []):
+                    if 'value' not in p or p['value'] is None:
+                        p['value'] = p.get('default_value')
                 result.append(v_copy)
         return ok(result)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.get(
+    "/plural_alias",
+    operation_id="list_servings",
+    response_model=ApiResponse[List[ServingDetailSchema]],
+    summary="Backward-compatible alias of list_serving for older skills/prompts"
+)
+def list_servings_alias():
+    return list_serving_instances()
 
 @router.get(
     "/classes",
@@ -56,12 +88,9 @@ def list_serving_classes():
         api_llm_info = [x for x in classes_info if x['cls_name'] == 'APILLMServing_request']
         for item in api_llm_info:
             item['params'] = [p for p in item['params'] if p['name'] != 'key_name_of_api_key']
-            item['params'].append({
-                "name": "api_key",
-                "type": "str",
-                "default_value": "",
-                "required": True
-            })
+            api_key_param = {"name": "api_key", "type": "str", "default_value": "", "required": True}
+            idx = next((i for i, p in enumerate(item['params']) if p['name'] == 'model_name'), len(item['params']))
+            item['params'].insert(idx, api_key_param)
         return ok(api_llm_info)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -85,8 +114,12 @@ def get_serving_detail(id: str):
         
         resp_data = copy.deepcopy(serving_data)
         if resp_data.get('cls_name') == 'APILLMServing_request':
-             # Filter out key_name_of_api_key from response
-            resp_data['params'] = [p for p in resp_data.get('params', []) if p['name'] not in ['key_name_of_api_key', 'api_key']]
+            resp_data['params'] = [p for p in resp_data.get('params', []) if p['name'] != 'key_name_of_api_key']
+            for p in resp_data['params']:
+                if p['name'] == 'api_key':
+                    raw = p.get('value') or p.get('default_value') or ''
+                    p['value'] = _mask_key(str(raw))
+                    p['masked'] = True
             
         return ok(resp_data)
     except Exception as e:
@@ -108,14 +141,10 @@ def update_serving_instance(id: str, body: ServingUpdateSchema):
             params_list = []
             for p in body.params:
                 p_dict = p.model_dump(exclude_unset=True)
-                # Map api_key back to key_name_of_api_key logic NOT needed here 
-                # because we store api_key separately now.
-                # Just ensure we are passing 'value' if present to update logic
-                
-                # However, the schema uses 'default_value' for storage in the registry mainly.
-                # But the user request says frontend sends 'name' and 'value'
-                # The schema update added 'value'.
-                
+                if p_dict.get('name') == 'api_key':
+                    val = p_dict.get('value', '')
+                    if not val or '****' in str(val):
+                        continue
                 params_list.append(p_dict)
             
         success = container.serving_registry._update(
@@ -184,7 +213,7 @@ def create_serving_instance(
             pname = user_p['name']
             
             # Special validation for APILLMServing_request
-            if cls_name == 'APILLMServing_request' and name == 'key_name_of_api_key':
+            if cls_name == 'APILLMServing_request' and pname == 'key_name_of_api_key':
                 raise ValueError("key_name_of_api_key should not be provided in input")
 
             if pname in final_params_map:
@@ -223,7 +252,7 @@ def test_serving_instance(id: str, body: ServingTestSchema):
         ## This part of code is only for APILLMServing_request
         if serving_info['cls_name'] == 'APILLMServing_request':
             api_key_val = None
-            key_name_var = "DF_API_KEY"
+            key_name_var = f"DF_API_KEY_{id}"
             
             # First pass: find values
             for params in serving_info['params']:
