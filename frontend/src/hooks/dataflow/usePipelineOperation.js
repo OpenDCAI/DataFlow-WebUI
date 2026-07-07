@@ -18,10 +18,10 @@ export function usePipelineOperation() {
         data.enableDelete = true
         // 获取指定ID的Vue Flow实例
         const flow = useVueFlow(flowId)
-        // 计算节点位置，Y轴添加随机偏移
+        // 计算节点位置
         const position = {
             x: data.location.x,
-            y: data.location.y + parseInt(5 * Math.random())
+            y: data.location.y
         }
         // 构建新节点对象
         const newNode = {
@@ -69,12 +69,15 @@ export function usePipelineOperation() {
         if (!pipelineConfig) return
 
         // 解析管道配置
-        const { input_dataset, operators } = pipelineConfig
-        // 设置节点基础位置
-        const basicPos = {
-            x: 350,
-            y: 0
-        }
+        // 兼容两种 input_dataset 形状：
+        //   - agent 通过 MCP create_pipeline 存的裸字符串 id（如 "3c0a5764ac"）
+        //   - 前端编辑器保存的对象 { id, location }
+        // 之前只认对象形状，agent 存字符串时 input_dataset.id === undefined，
+        // 导致 datasets.find 找不到、不建 dataset 节点、pipeline 在画布上是孤立算子。
+        const { input_dataset: _rawInputDataset, operators } = pipelineConfig
+        const input_dataset = (typeof _rawInputDataset === 'string')
+            ? { id: _rawInputDataset, location: undefined }
+            : (_rawInputDataset || {})
 
         // 查找输入数据集
         let dataset = datasets.find((item) => item.id === input_dataset.id)
@@ -133,20 +136,12 @@ export function usePipelineOperation() {
         formatOperators.sort((a, b) => a.pipeline_idx - b.pipeline_idx)
 
         // 处理每个操作符并添加到流程图中
+        // 自动水平布局：不信任存储/agent 给的坐标（agent 常把算子全存成同一竖列
+        // 导致重叠）。db-node 在最左(~x:50, y:160)，算子从其右侧起按固定间距等距
+        // 排开、纵向对齐成一条水平线，保证任何来源的 pipeline 都整齐不堆叠。
+        const LAYOUT = { startX: 350, gapX: 320, y: 160 }
         formatOperators.forEach((item, idx) => {
-            // 如果位置是数组格式，转换为对象格式
-            if (Array.isArray(item.location)) {
-                item.location = {
-                    x: item.location[0],
-                    y: item.location[1]
-                }
-            }
-            // 如果位置未设置或为0，计算默认位置
-            if (item.location.x === 0 || item.location.y === 0)
-                item.location = {
-                    x: idx === 0 ? basicPos.x : formatOperators[idx - 1].location.x + 350,
-                    y: basicPos.y
-                }
+            item.location = { x: LAYOUT.startX + idx * LAYOUT.gapX, y: LAYOUT.y }
             // 生成节点唯一ID
             item.nodeId = $Guid()
             // 添加节点到流程图
@@ -154,6 +149,10 @@ export function usePipelineOperation() {
         })
 
         // 检查是否存在数据集节点
+        // db-node 是通过 $emit('confirm-dataset') 跨组件异步添加的（父组件的
+        // updateDatabaseNode → flow.addNodes('db-node')），这里先等一个 tick，
+        // 确保它已进入 flow，否则首个算子会因找不到 db-node 而漏连输入边。
+        await $nextTick()
         let existsDatasetNode = flow.findNode('db-node')
 
         // 为操作符之间添加连接线

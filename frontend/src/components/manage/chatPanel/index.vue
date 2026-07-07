@@ -168,10 +168,10 @@
                     ref="inputRef"
                     v-model="inputText"
                     class="chat-input"
-                    :placeholder="isLoading ? '等待回复中...' : '输入你的需求，例如：帮我创建一个 QA 生成 pipeline...'"
-                    :disabled="isLoading"
-                    @keydown.enter.exact.prevent="sendMessage"
-                    @keydown.shift.enter="inputText += '\n'"
+                    :placeholder="isLoading ? '回复中，可继续输入下一条，待完成后发送…' : '输入你的需求，例如：帮我创建一个 QA 生成 pipeline...'"
+                    @keydown.enter.exact.prevent="onEnterKey"
+                    @compositionstart="isComposing = true"
+                    @compositionend="isComposing = false"
                     rows="3"
                 ></textarea>
                 <fv-button
@@ -251,6 +251,8 @@ export default {
             messages: [],
             inputText: '',
             isLoading: false,
+            // 中文/日文输入法组字状态：组字期间按 Enter 不应触发发送
+            isComposing: false,
             ws: null,
             userId: getUserId(),
             wsUrl: buildWsUrl(),
@@ -491,6 +493,12 @@ export default {
             this.$nextTick(() => this.scrollToBottom())
         },
 
+        onEnterKey() {
+            // 输入法组字/选字过程中的 Enter 不发送（避免把半成品和候选词误发）
+            if (this.isComposing) return
+            this.sendMessage()
+        },
+
         sendMessage() {
             const text = this.inputText.trim()
             if (!text || this.isLoading) return
@@ -593,6 +601,10 @@ export default {
     background: rgba(252, 252, 252, 1);
     border-left: 1px solid rgba(230, 230, 230, 1);
     font-size: 13px;
+    /* 锁定整个聊天面板的字体栈，避免继承全局那个本机不存在的 "Akkurat Std"
+       导致英文在个别浏览器/缓存状态下渲染异常。 */
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+        "Microsoft YaHei", Roboto, Helvetica, Arial, sans-serif;
 }
 
 .chat-panel.dark {
@@ -759,6 +771,11 @@ export default {
     background: rgba(255, 255, 255, 1);
     border: 1px solid rgba(230, 230, 230, 1);
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    /* 显式指定稳定的系统字体栈。全局用的 "Akkurat Std" 本机不存在也未加载，
+       fallback 链在不同浏览器上不确定，曾导致英文字符在个别环境下不显示。
+       这里锁定系统 UI 字体，中英文都稳定渲染。 */
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+        "Microsoft YaHei", Roboto, Helvetica, Arial, sans-serif;
 }
 
 .dark .message-text {

@@ -84,7 +84,14 @@
         </div>
         <!-- AI Assistant Chat Panel -->
         <!-- 使用 v-show 而非 v-if：保持组件挂载状态，隐藏/显示时不销毁，对话历史不丢失 -->
-        <div v-show="show.chat" class="df-chat-container">
+        <div v-show="show.chat" class="df-chat-container" :style="{ width: chatWidth + 'px' }">
+            <!-- 左边缘拖拽手柄：按住左右拖动改变聊天面板宽度 -->
+            <div
+                class="df-chat-resizer"
+                :class="{ dragging: isResizingChat }"
+                title="拖动调整宽度"
+                @mousedown.prevent="startChatResize"
+            ></div>
             <chatPanel></chatPanel>
         </div>
         <page-loading :model-value="!lock.loading" title="Loading..."></page-loading>
@@ -152,6 +159,19 @@ import taskIcon from '@/assets/flow/task.svg'
 import saveIcon from '@/assets/flow/save.svg'
 
 import axios from '@/axios/config'
+
+// 聊天面板宽度持久化（跨刷新记住用户拖拽后的宽度）
+const CHAT_WIDTH_KEY = 'df_chat_width'
+const CHAT_WIDTH_DEFAULT = 320
+const CHAT_WIDTH_MIN = 280
+const CHAT_WIDTH_MAX = 900
+function getStoredChatWidth() {
+    try {
+        const v = parseInt(localStorage.getItem(CHAT_WIDTH_KEY), 10)
+        if (!isNaN(v)) return Math.min(CHAT_WIDTH_MAX, Math.max(CHAT_WIDTH_MIN, v))
+    } catch (e) { /* ignore */ }
+    return CHAT_WIDTH_DEFAULT
+}
 
 export default {
     name: "dataflowPage",
@@ -252,7 +272,11 @@ export default {
                 serving: true,
                 running: true,
                 loading: true
-            }
+            },
+            // 聊天面板宽度（可拖拽调整，跨刷新持久化）
+            chatWidth: getStoredChatWidth(),
+            isResizingChat: false,
+            _chatResizeState: null,
         }
     },
     watch: {
@@ -371,6 +395,11 @@ export default {
         this.getServing()
         this.getPromptInfo()
     },
+    beforeUnmount() {
+        // 兜底清理拖拽监听，避免组件销毁后仍挂在 window 上
+        window.removeEventListener('mousemove', this.onChatResize)
+        window.removeEventListener('mouseup', this.stopChatResize)
+    },
     methods: {
         ...mapActions(useDataflow, [
             'switchAutoConnection',
@@ -404,10 +433,14 @@ export default {
                     ...this.sourceDatabase
                 })
             } else {
-                let position = { x: 500, y: 160 }
-                if (this.sourceDatabase.location) {
-                    position.x = this.sourceDatabase.location[0]
-                    position.y = this.sourceDatabase.location[1]
+                let position = { x: 50, y: 160 }
+                // location 可能缺失、或 agent config 里是占位的 [0,0]；这两种
+                // 情况都用可见的默认位（算子节点在 x:350，dataset 放其左侧），
+                // 避免 db-node 落在 (0,0) 与视口/算子重叠而"看不见"。
+                const loc = this.sourceDatabase.location
+                if (Array.isArray(loc) && (loc[0] || loc[1])) {
+                    position.x = loc[0]
+                    position.y = loc[1]
                 }
                 flow.addNodes({
                     id: 'db-node',
@@ -878,6 +911,38 @@ export default {
                     flow.$reset()
                 }
             })
+        },
+        // ── 聊天面板拖拽调整宽度 ──────────────────────────────
+        startChatResize(event) {
+            this.isResizingChat = true
+            // 面板在右侧：手柄在左边缘，向左拖 => 变宽，所以用起始 X - 当前 X。
+            this._chatResizeState = {
+                startX: event.clientX,
+                startWidth: this.chatWidth,
+            }
+            window.addEventListener('mousemove', this.onChatResize)
+            window.addEventListener('mouseup', this.stopChatResize)
+            // 拖拽时禁止选中文字、统一光标
+            document.body.style.userSelect = 'none'
+            document.body.style.cursor = 'col-resize'
+        },
+        onChatResize(event) {
+            if (!this._chatResizeState) return
+            const delta = this._chatResizeState.startX - event.clientX
+            let next = this._chatResizeState.startWidth + delta
+            next = Math.min(CHAT_WIDTH_MAX, Math.max(CHAT_WIDTH_MIN, next))
+            this.chatWidth = next
+        },
+        stopChatResize() {
+            this.isResizingChat = false
+            this._chatResizeState = null
+            window.removeEventListener('mousemove', this.onChatResize)
+            window.removeEventListener('mouseup', this.stopChatResize)
+            document.body.style.userSelect = ''
+            document.body.style.cursor = ''
+            try {
+                localStorage.setItem(CHAT_WIDTH_KEY, String(this.chatWidth))
+            } catch (e) { /* ignore */ }
         }
     }
 }
@@ -942,6 +1007,42 @@ export default {
         overflow: hidden;
         box-shadow: -1px 0px 4px rgba(0, 0, 0, 0.08);
         margin-left: 10px;
+
+        .df-chat-resizer {
+            position: absolute;
+            left: 0px;
+            top: 0px;
+            width: 8px;
+            height: 100%;
+            cursor: col-resize;
+            z-index: 5;
+            /* 手柄本身透明，hover / 拖拽时高亮一条竖线 */
+            background: transparent;
+            transition: background 0.15s;
+
+            &::after {
+                content: '';
+                position: absolute;
+                left: 3px;
+                top: 50%;
+                transform: translateY(-50%);
+                width: 2px;
+                height: 40px;
+                border-radius: 2px;
+                background: rgba(120, 120, 120, 0.25);
+                transition: background 0.15s;
+            }
+
+            &:hover::after,
+            &.dragging::after {
+                background: rgba(69, 98, 213, 0.8);
+            }
+
+            &:hover,
+            &.dragging {
+                background: rgba(69, 98, 213, 0.06);
+            }
+        }
     }
 
     .control-menu-block {

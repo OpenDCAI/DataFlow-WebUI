@@ -1015,6 +1015,40 @@ class PipelineRegistry:
                         ))
 
             run_defs = (op_details.get("parameter") or {}).get("run", [])
+            # 提前拦截「run 里塞了算子 run() 签名之外的参数」这类错误。执行时
+            # operator.run(**run_params) 会因未知关键字参数直接崩溃，且真实异常
+            # 常被吞掉，所以在 validate 阶段就报 error，让 agent 能立即纠正。
+            # 常见误用：把 serving_name / system_prompt / user_prompt（其实属于
+            # init）塞进了 run。若算子 run() 声明了 **kwargs（VAR_KEYWORD）则放行。
+            run_def_names = {item.get("name") for item in run_defs if item.get("name")}
+            run_accepts_kwargs = any(
+                item.get("kind") == "VAR_KEYWORD" for item in run_defs
+            )
+            if run_def_names and not run_accepts_kwargs:
+                init_def_name_set = {item.get("name") for item in init_defs if item.get("name")}
+                for provided_name in run_params.keys():
+                    if provided_name in ("storage",):
+                        continue
+                    if provided_name not in run_def_names:
+                        belongs_to_init = provided_name in init_def_name_set
+                        hint = (
+                            f" 该参数其实属于该算子的 init 参数，请移到 init。"
+                            if belongs_to_init else
+                            f" 该算子 run() 只接受：{sorted(run_def_names)}。"
+                        )
+                        errors.append(self._make_validation_issue(
+                            level="error",
+                            code="unknown_run_param",
+                            message=(
+                                f"算子 '{op_name}' 的 run 参数 '{provided_name}' 不在 run() 签名中。"
+                                f"{hint}"
+                            ),
+                            operator_index=idx,
+                            operator_name=op_name,
+                            param_name=provided_name,
+                            available_fields=current_fields,
+                        ))
+
             for param_name, field_name in self._collect_input_field_refs(run_params, run_defs):
                 if current_fields and field_name not in current_fields:
                     suggested_fields, repair_hint = self._build_missing_input_field_hint(

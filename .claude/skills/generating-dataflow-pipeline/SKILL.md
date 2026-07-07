@@ -171,6 +171,59 @@ When the pipeline is intended for WebUI execution (not local `python pipeline.py
 - Common failure: only the first operator gets a serving assigned; the rest remain empty, causing `Failed to process parameter: llm_serving` errors at execution time
 - In WebUI/MCP mode, older prompts may still say `list_servings`; the backend now provides both `list_serving` and a backward-compatible alias, but prefer `list_serving` in new prompts/skills
 
+### MCP `create_pipeline` config structure (MANDATORY — WebUI/MCP mode)
+
+When building a pipeline via the MCP `create_pipeline` / `update_pipeline` tools (NOT
+local codegen), the operator params JSON has two buckets — `init` and `run` — and
+**where each value goes is determined by the operator's real signature**, which you
+MUST fetch first with `get_operator_detail_by_name`. Getting this wrong makes the
+pipeline crash at execution time, not at create time.
+
+Hard rules:
+
+1. **LLM serving goes in `init.llm_serving`, as the serving *id* (not the name).**
+   Call `list_serving`, find the serving the user named, and use its `id`
+   (e.g. `"0510fc816d385c6f"`). NEVER put serving in a `run` param such as
+   `serving_name` — the operator's `run()` does not accept it and
+   `run(**run_params)` will raise "unexpected keyword argument".
+
+2. **`system_prompt` / `user_prompt` / `json_schema` / `prompt_template` are `init`
+   params, not `run` params** for generator operators (e.g. `PromptedGenerator`,
+   `ReasoningAnswerGenerator`). Only put a value in `run` if it appears in the
+   operator's `run()` signature returned by `get_operator_detail_by_name`.
+
+3. **Never send `None` (or empty string) for an optional text param that has a
+   non-empty default.** If you don't have a real `user_prompt`, OMIT the param
+   entirely so the operator uses its own default (e.g. `user_prompt=""`). Sending
+   `None` can cause `None + str` TypeErrors inside the operator.
+
+4. **`prompt_template` must be a plain allowed class name string** (e.g.
+   `"MathAnswerGeneratorPrompt"`), taken from the operator detail's
+   `allowed_prompts`. Do NOT send the `<class '...'>` repr — the validator rejects it.
+
+5. **Always call `validate_pipeline_config` before `create_pipeline`** and fix any
+   reported error (not just warnings) before creating.
+
+Minimal correct example (PromptedGenerator, one LLM op):
+
+```
+operators: [{
+  name: "PromptedGenerator",
+  params: {
+    init: [
+      { name: "llm_serving",   value: "<serving_id_from_list_serving>" },
+      { name: "system_prompt", value: "You are a helpful assistant." }
+      // user_prompt omitted -> operator default "" is used
+    ],
+    run: [
+      { name: "input_key",  value: "instruction" },
+      { name: "output_key", value: "generated_answer" }
+    ]
+  }
+}]
+```
+
+
 ## Standard Code Generation Rule (MANDATORY)
 
 **All generated Python code must follow the standard pipeline organization shown in the `examples/` folder of this skill package.**

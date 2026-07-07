@@ -20,6 +20,7 @@ import time
 from contextlib import redirect_stdout, redirect_stderr
 
 from app.services.param_coercion import coerce_param_value
+from app.services.pipeline_compile_check import compile_check
 
 logger = get_logger(__name__)
 
@@ -275,12 +276,40 @@ def dataflow_pipeline_execute(pipeline_config: Dict[str, Any], dataflow_runtime:
                     )
                 init_sig = inspect.signature(getattr(operator_cls, "__init__", lambda: None))
                 run_sig = inspect.signature(getattr(operator_cls, "run", lambda: None))
-                
+                # 该算子的 run() 是否接受 **kwargs（VAR_KEYWORD）。若不接受，
+                # 则任何不在签名里的 run 参数都会导致 run(**run_params) 抛
+                # "unexpected keyword argument"。Agent 有时会把 serving_name /
+                # system_prompt / user_prompt 之类塞进 run 里（它们其实属于 init
+                # 或根本不存在），这里直接跳过并记日志，避免整条 pipeline 崩掉。
+                run_accepts_kwargs = any(
+                    p.kind == inspect.Parameter.VAR_KEYWORD
+                    for p in run_sig.parameters.values()
+                )
+
                 # 处理 init 参数
                 for param in op.get("params", {}).get("init", []):
                     param_name = param.get("name")
                     param_value = param.get("value")
                     default_value = param.get("default_value")
+                    # 若前端/agent 把某个 init 参数存成了 None，但算子 __init__ 对
+                    # 该参数有非 None 默认值（如 user_prompt=""），不要用 None 覆盖，
+                    # 否则算子内部像 `self.user_prompt + str(x)` 会抛
+                    # "unsupported operand type(s) for +: 'NoneType' and 'str'"。
+                    # 让算子用自己的默认值即可。（llm_serving 等有专门分支，不受影响）
+                    if (
+                        param_value is None
+                        and param_name not in ("llm_serving", "embedding_serving",
+                                               "process_fn", "filter_rules")
+                        and param_name in init_sig.parameters
+                        and init_sig.parameters[param_name].default
+                            not in (None, inspect.Parameter.empty)
+                    ):
+                        logger.info(
+                            f"Operator {op_name}: init param '{param_name}' is None; "
+                            f"keeping operator default "
+                            f"{init_sig.parameters[param_name].default!r}"
+                        )
+                        continue
                     try:
                         if param_name == "llm_serving":
                             serving_id = param_value
@@ -437,7 +466,23 @@ def dataflow_pipeline_execute(pipeline_config: Dict[str, Any], dataflow_runtime:
                         else:
                             ann = init_sig.parameters.get(param_name).annotation if param_name in init_sig.parameters else inspect.Parameter.empty
                             param_value = coerce_param_value(param_value, annotation=ann, default_value=default_value)
-                        
+
+                        # 若强制类型转换后得到 None（例如空字符串被 normalize 成
+                        # None），但算子对该参数有非 None 默认值，则不要用 None
+                        # 覆盖算子默认值，避免算子内部 `None + str` 之类崩溃。
+                        if (
+                            param_value is None
+                            and param_name in init_sig.parameters
+                            and init_sig.parameters[param_name].default
+                                not in (None, inspect.Parameter.empty)
+                        ):
+                            logger.info(
+                                f"Operator {op_name}: init param '{param_name}' resolved to "
+                                f"None; keeping operator default "
+                                f"{init_sig.parameters[param_name].default!r}"
+                            )
+                            continue
+
                         init_params[param_name] = param_value
                         
                     except DataFlowEngineError:
@@ -468,6 +513,14 @@ def dataflow_pipeline_execute(pipeline_config: Dict[str, Any], dataflow_runtime:
                             item_default = item.get("default_value")
                             run_params[item_name] = coerce_param_value(item_val, annotation=inspect.Parameter.empty, default_value=item_default)
                     else:
+                        # 跳过签名里不存在、且 run() 又不吃 **kwargs 的多余参数，
+                        # 否则 operator.run(**run_params) 会因未知关键字参数直接失败。
+                        if param_name not in run_sig.parameters and not run_accepts_kwargs:
+                            logger.warning(
+                                f"Operator {op_name}: dropping unknown run param "
+                                f"'{param_name}' (not in run() signature)"
+                            )
+                            continue
                         ann = run_sig.parameters.get(param_name).annotation if param_name in run_sig.parameters else inspect.Parameter.empty
                         run_params[param_name] = coerce_param_value(param_value, annotation=ann, default_value=default_value)
                 
@@ -493,6 +546,38 @@ def dataflow_pipeline_execute(pipeline_config: Dict[str, Any], dataflow_runtime:
                     },
                     original_error=e
                 )
+
+        # ── compile key 预检 ────────────────────────────────────────────
+        # 用已实例化的算子 + storage 跑一遍 DataFlow 官方的 compile() key 校验
+        # （与手写 pipeline 调 pipeline.compile() 完全等价）。任何算子的
+        # input_* key 若不在「数据集列 + 上游 output_* 产出」的累积集合里，就在
+        # 真正执行前拦下，给出精确的 key 错误——保证「能跑通的才跑」，而不是
+        # 跑到某个算子中途才崩。compile 只登记 key 图、不会真正执行算子/调 LLM。
+        try:
+            compile_result = compile_check(run_op, storage)
+        except Exception as _ce:
+            # 兜底:预检自身不该成为新的失败点
+            logger.warning(f"[compile] pre-check raised, skipping: {_ce!r}", exc_info=True)
+            compile_result = {"ok": True, "skipped": True, "detail": str(_ce), "errors": []}
+
+        if compile_result.get("skipped"):
+            add_log("init", f"[{datetime.now().isoformat()}] [compile] key check skipped: {compile_result.get('detail','')}")
+            logger.warning(f"[compile] key check skipped: {compile_result.get('detail','')}")
+        elif not compile_result["ok"]:
+            detail = compile_result.get("detail", "key matching error")
+            add_log("init", f"[{datetime.now().isoformat()}] [compile] key 校验未通过，已在执行前中止:\n{detail}")
+            logger.error(f"[compile] key check FAILED, aborting before run:\n{detail}")
+            raise DataFlowEngineError(
+                "Pipeline key 校验未通过（compile）——上游算子的 output key 与下游 input key 不匹配，已在执行前中止。",
+                context={
+                    "compile_errors": compile_result.get("errors", []),
+                    "detail": detail,
+                },
+            )
+        else:
+            add_log("init", f"[{datetime.now().isoformat()}] [compile] key check passed")
+            logger.info("[compile] key check passed")
+
         add_log("run", f"[{datetime.now().isoformat()}] Step 3: Executing {len(run_op)} operators...")
         logger.info(f"Executing {len(run_op)} operators...")
         
@@ -616,6 +701,12 @@ def dataflow_pipeline_execute(pipeline_config: Dict[str, Any], dataflow_runtime:
             except Exception as e:
                 operators_detail[op_key]["status"] = "failed"
                 operators_detail[op_key]["error"] = str(e)
+                # 记录真实异常的完整 traceback，否则只剩笼统的
+                # "执行Operator失败: X"，无法定位根因（见 bug 诊断）。
+                logger.error(
+                    f"Operator {op_name} run failed with underlying error: {e!r}",
+                    exc_info=True,
+                )
                 update_execution_status("failed", {
                     "operators_detail": operators_detail,
                     "operator_logs": operator_logs

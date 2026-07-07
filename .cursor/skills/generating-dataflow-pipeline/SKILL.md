@@ -169,6 +169,22 @@ When the pipeline is intended for WebUI execution (not local `python pipeline.py
 - In the WebUI pipeline editor, assign the serving to **ALL** LLM-dependent operators (not just the first one)
 - Common failure: only the first operator gets a serving assigned; the rest remain empty, causing `Failed to process parameter: llm_serving` errors at execution time
 
+### MCP `create_pipeline` config structure (MANDATORY — WebUI/MCP mode)
+
+When building via MCP `create_pipeline`/`update_pipeline`, operator params split into
+`init` and `run`. Where each value goes is set by the operator's real signature —
+fetch it with `get_operator_detail_by_name` first. Wrong placement crashes at run time.
+
+1. **LLM serving → `init.llm_serving`, as the serving *id*** (from `list_serving`),
+   never a `run` param like `serving_name`.
+2. **`system_prompt`/`user_prompt`/`json_schema`/`prompt_template` are `init` params**
+   for generators; only put a key in `run` if it's in the operator's `run()` signature.
+3. **Never send `None`/empty for an optional text param with a non-empty default** —
+   omit it so the operator uses its default (avoids `None + str` TypeErrors).
+4. **`prompt_template` = plain allowed class name** (e.g. `"MathAnswerGeneratorPrompt"`),
+   from the operator detail's `allowed_prompts`; not the `<class '...'>` repr.
+5. **Call `validate_pipeline_config` before create**, fix errors first.
+
 ## Standard Code Generation Rule (MANDATORY)
 
 **All generated Python code must follow the standard pipeline organization shown in the `examples/` folder of this skill package.**
