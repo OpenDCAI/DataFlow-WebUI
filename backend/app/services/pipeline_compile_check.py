@@ -22,6 +22,7 @@ actual key-graph validation happens in ``_build_operator_nodes_graph``.
 """
 from __future__ import annotations
 
+import copy
 from typing import Any, Dict, List, Tuple
 
 from dataflow.pipeline import PipelineABC
@@ -92,15 +93,16 @@ def compile_check(run_op: List[Tuple[Any, Dict[str, Any], str, str]], storage: A
                 op.run(storage=self._df_storage.step(), **key_params)
 
     try:
-        # storage.step() must not advance the real executor's storage: give
-        # compile a fresh reset copy. FileStorage.reset() returns self with the
-        # step counter reset; .step() then returns shallow copies.
-        compile_storage = storage.reset() if hasattr(storage, "reset") else storage
+        # 用一个浅拷贝的 storage 做 compile，绝不触碰执行器真实的 storage —
+        # FileStorage.reset() 返回的是 self（同一对象），若直接用它，compile 阶段
+        # 的 step() 会推进真实 storage 的计数器；靠"事后 reset 回 -1"能凑效但依赖
+        # "compile 总在 step==-1 时调用"这个隐含契约，一旦将来加 resume/retry 就会
+        # 踩坑。浅拷贝 + 独立归零 step，让 compile 对真实执行完全无副作用。
+        compile_storage = copy.copy(storage)
+        if hasattr(compile_storage, "operator_step"):
+            compile_storage.operator_step = -1
         pipeline = _ConfigPipeline(compile_storage, ops_and_keys)
         pipeline.compile()
-        # reset the executor's storage step counter back for the real run.
-        if hasattr(storage, "reset"):
-            storage.reset()
         return {"ok": True, "detail": "compile key check passed", "errors": [], "skipped": False}
 
     except KeyError as e:
@@ -111,11 +113,6 @@ def compile_check(run_op: List[Tuple[Any, Dict[str, Any], str, str]], storage: A
         for idx, (_operator, _kp, op_name) in enumerate(ops_and_keys):
             detail = detail.replace(f"`_op_{idx}`", f"`{op_name}` (operator #{idx + 1})")
             detail = detail.replace(f"_op_{idx}.run()", f"{op_name}.run()")
-        if hasattr(storage, "reset"):
-            try:
-                storage.reset()
-            except Exception:
-                pass
         return {
             "ok": False,
             "detail": detail,
@@ -131,11 +128,6 @@ def compile_check(run_op: List[Tuple[Any, Dict[str, Any], str, str]], storage: A
             f"[compile] key check skipped due to unexpected error: {e!r}",
             exc_info=True,
         )
-        if hasattr(storage, "reset"):
-            try:
-                storage.reset()
-            except Exception:
-                pass
         return {
             "ok": True,
             "detail": f"compile check skipped: {e!r}",

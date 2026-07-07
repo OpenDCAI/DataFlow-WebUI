@@ -399,6 +399,12 @@ export default {
         // 兜底清理拖拽监听，避免组件销毁后仍挂在 window 上
         window.removeEventListener('mousemove', this.onChatResize)
         window.removeEventListener('mouseup', this.stopChatResize)
+        // 若卸载时正处于拖拽中，恢复 body 样式，否则 cursor/userSelect 会
+        // 永久残留（整页文字无法选中、光标变成 col-resize）。
+        if (this.isResizingChat) {
+            document.body.style.userSelect = ''
+            document.body.style.cursor = ''
+        }
     },
     methods: {
         ...mapActions(useDataflow, [

@@ -74,7 +74,10 @@ export function usePipelineOperation() {
         //   - 前端编辑器保存的对象 { id, location }
         // 之前只认对象形状，agent 存字符串时 input_dataset.id === undefined，
         // 导致 datasets.find 找不到、不建 dataset 节点、pipeline 在画布上是孤立算子。
-        const { input_dataset: _rawInputDataset, operators } = pipelineConfig
+        const { input_dataset: _rawInputDataset, operators: _rawOperators } = pipelineConfig
+        // operators 可能缺失 / 为 null（agent 刚创建、或存储不完整的 config），
+        // 兜底成空数组，避免下方 operators.forEach 抛 TypeError。
+        const operators = Array.isArray(_rawOperators) ? _rawOperators : []
         const input_dataset = (typeof _rawInputDataset === 'string')
             ? { id: _rawInputDataset, location: undefined }
             : (_rawInputDataset || {})
