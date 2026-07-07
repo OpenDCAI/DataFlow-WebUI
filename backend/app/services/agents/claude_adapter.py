@@ -49,10 +49,22 @@ class ClaudeAdapter(AgentAdapter):
             "--print", message,
             "--output-format", "stream-json",
             "--verbose",
+            # Emit partial message chunks (text_delta stream_events) as tokens
+            # arrive, instead of only whole `assistant` blocks after each turn.
+            # Without this the frontend receives text in one lump per turn and
+            # the chat never appears to "stream". _translate() already handles
+            # the stream_event/text_delta chunks. See buglog bug-004.
+            "--include-partial-messages",
             "--mcp-config", str(self.mcp_config_path),
             "--append-system-prompt", self.system_prompt,
             "--allowedTools", self.allowed_tools,
-            "--permission-mode", "dontAsk",
+            # acceptEdits (not dontAsk): dontAsk auto-approves MCP tools but
+            # DENIES the built-in Write/Edit tools, so the agent cannot create
+            # the dataset .jsonl files its skill requires — the turn then ends
+            # empty with stop_reason=None. acceptEdits auto-accepts file edits
+            # while keeping other guardrails, which fits this local pipeline-
+            # building workflow. See buglog bug-003.
+            "--permission-mode", "acceptEdits",
         ]
         if session_id:
             cmd += ["--resume", session_id]
