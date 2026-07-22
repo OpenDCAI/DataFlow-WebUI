@@ -2,7 +2,43 @@
 
 [![](https://img.shields.io/github/repo-size/OpenDCAI/DataFlow-webui?color=green)](https://github.com/OpenDCAI/DataFlow-webui)
 
-**DataFlow-WebUI** is a full-stack open-source web application that provides a graphical interface for the [DataFlow](https://github.com/OpenDCAI/DataFlow) framework. It supports multiple AI code agents (Claude Code, Codex, Cursor) to help you build data pipelines through natural language.
+## Overview
+
+**DataFlow-WebUI** is a full-stack open-source graphical interface for [DataFlow](https://github.com/OpenDCAI/DataFlow). It helps users build, run, and manage DataFlow pipelines through both a visual canvas and natural language interaction **with Code Agents such as Claude Code, Codex, and Cursor**.
+
+DataFlow-WebUI is the engineering and interaction layer of [**DataFlow-Harness**](https://huggingface.co/papers/2607.16617). DataFlow-Harness brings together [**DataFlow-Skills**](https://github.com/OpenDCAI/DataFlow-Skills), **MCP**, and **DataFlow-WebUI**. DataFlow-Skills provide workflow knowledge such as operator selection, schema links, and assembly steps. MCP connects Agents to the live operator registry and current pipeline state. DataFlow-WebUI turns Agent-built workflows into persistent, editable visual DAGs for AI-ready data preparation, including LLM fine-tuning and RAG knowledge base building.
+
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/c54d92ea-a6d5-4c3c-8144-87c3cdfee276" alt="DataFlow-WebUI" width="90%">
+</p>
+
+*The dual-modality interface of DataFlow-WebUI, illustrating the synchronization between the conversational Agent and the visual DAG editor.*
+
+<p align="center">
+  <img width="1280" height="638" alt="1280X1280 (1)" src="https://github.com/user-attachments/assets/d9c862ac-a1a2-42b1-9f07-440d20d59d8f" />
+</p>
+
+*The DataFlow-Harness architecture. A shared pipeline representation is synchronized across the Agent runtime and DataFlow-WebUI. DataFlow-Skills guide construction, while the Validation Engine checks DAG structure and schema compatibility.*
+
+
+---
+## Key Features
+
+### ✅ Bridges the NL2Pipeline gap
+
+DataFlow-WebUI helps turn natural-language workflow intent into persistent, platform-native pipeline artifacts. Users can inspect, edit, run, and reuse the generated workflows in the visual DAG canvas.
+
+### 🧠 Procedural knowledge for complex data workflows
+
+Many data tasks require more than knowing which tools are available. They also require knowing how to use these tools in the right order. For example, building a VQA dataset from textbooks may involve PDF parsing, layout understanding, OCR, image-text alignment, QA extraction, and quality filtering. DataFlow-WebUI provides this procedural knowledge to Code Agents, helping them build better workflows for complex tasks.
+
+### ⚙️ Better for long-term data workflow reuse
+
+DataFlow-WebUI makes data workflows visible, editable, runnable, and reusable. For teams working on LLM training, RAG, or data evaluation, this helps turn data preparation from one-time scripts into reusable DataFlow pipelines.
+
+### 📊 DataFlow-Harness powered data preparation
+
+In the DataFlow-Harness evaluation, the system reaches a 93.3% observed end-to-end pass rate on a 12-task data engineering benchmark. Compared with Vanilla Claude Code, it reduces measured cost by 72.5% and generation latency by 49.9%. This shows the efficiency of the Harness design used by DataFlow-WebUI.
 
 ---
 
@@ -155,3 +191,15 @@ If you use DataFlow in your research, feel free to give us a cite.
   year={2025}
 }
 ```
+
+---
+
+## Community & Support
+
+Join the DataFlow community to get updates, ask questions, and share your feedback with the team.
+
+Scan the QR code below to connect with us and follow the latest DataFlow-Harness progress.
+
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/7992ab37-d5b1-4539-99e7-44139ca6808d" alt="DataFlow community QR code" width="85%">
+</p>
