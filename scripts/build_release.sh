@@ -32,7 +32,6 @@ echo "[build_release] PKG_NAME=$PKG_NAME"
 # ---- 依赖检查（尽早失败）----
 command -v node >/dev/null 2>&1 || { echo "node not found"; exit 1; }
 command -v npm  >/dev/null 2>&1 || { echo "npm not found"; exit 1; }
-command -v python >/dev/null 2>&1 || { echo "python not found"; exit 1; }
 command -v zip >/dev/null 2>&1 || { echo "zip not found (ubuntu: apt-get install zip)"; exit 1; }
 command -v rsync >/dev/null 2>&1 || { echo "rsync not found (ubuntu: apt-get install rsync)"; exit 1; }
 
@@ -40,19 +39,18 @@ command -v rsync >/dev/null 2>&1 || { echo "rsync not found (ubuntu: apt-get ins
 rm -rf "$OUT_STAGING"
 mkdir -p "$OUT_STAGING/$PKG_NAME"
 
-# ---- 1) 构建前端（你现在 dist 已在 frontend/ 下）----
+# ---- 1) 构建前端 ----
 echo "[build_release] Building frontend..."
 pushd "$FRONTEND_DIR" >/dev/null
-# 你仓库里是 yarn.lock；若你更想用 yarn，就把 npm ci 换成 yarn install --frozen-lockfile
-# 这里先用 npm（要求有 package-lock.json）；如果你没 lock，建议改用 yarn
 if [[ -f "package-lock.json" ]]; then
   npm ci
-  npm run build
 else
-  echo "No package-lock.json found, using npm install (consider using yarn with yarn.lock)."
-  npm install
-  npm run build
+  # This repository currently tracks yarn.lock but it contains platform-specific
+  # optional packages. Avoid mutating it during Linux release builds until the
+  # project adopts one package manager and regenerates a portable lockfile.
+  npm install --no-package-lock
 fi
+npm run build
 popd >/dev/null
 
 # dist 必须存在
@@ -95,7 +93,7 @@ cd "$(dirname "$0")"
 # 后端依赖
 cd backend
 
-uvicorn app.main:app --reload --port 8000  --reload-dir app --host=0.0.0.0
+uvicorn app.main:app --port 8000 --host=0.0.0.0
 EOF
 chmod +x "$OUT_STAGING/$PKG_NAME/run.sh"
 
@@ -106,7 +104,7 @@ cd /d "%~dp0"
 
 cd backend
 
-uvicorn app.main:app --reload --port 8000  --reload-dir app --host=0.0.0.0
+uvicorn app.main:app --port 8000 --host=0.0.0.0
 EOF
 
 # ---- 4) 打 zip ----

@@ -4,3 +4,4 @@ pydantic_settings
 pandas
 loguru
 ray
+open-dataflow
