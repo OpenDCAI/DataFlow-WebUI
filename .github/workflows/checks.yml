@@ -1,0 +1,424 @@
+name: checks
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  # Static guards that need no DataFlow install, so they are fast and always
+  # runnable. These are the checks that catch the "found at runtime after
+  # release" class of bug this repo kept hitting.
+  static:
+    name: Static guards
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install shellcheck
+        run: sudo apt-get update && sudo apt-get install -y shellcheck
+
+      # Python 3.10 has no stdlib tomllib, and the Codex configurator refuses to
+      # edit a config it cannot parse. Install the declared dependency so the
+      # MCP-merge assertions below exercise the real code path.
+      - name: Install configure-agent dependencies
+        run: pip install -r installers/requirements-configure.txt
+
+      - name: Shell syntax + lint
+        run: bash installers/checks/check_shell.sh --require-shellcheck
+
+      - name: Skill lint (manifest, frontmatter, links, directives)
+        run: python3 installers/checks/check_skills.py
+
+      # Generated agent assets are not tracked in git, so generate them first,
+      # then assert the generator is deterministic and its inputs are valid.
+      # (--check regenerates into a temp dir and diffs against what is on disk.)
+      - name: Generate agent assets
+        run: python3 installers/generate_agent_assets.py
+
+      - name: Generator is deterministic
+        run: python3 installers/generate_agent_assets.py --check
+
+      - name: MCP tool whitelist resolves to real routes
+        run: python3 installers/checks/check_mcp_whitelist.py
+
+      - name: Profile manifests are valid and self-consistent
+        run: python3 installers/checks/check_profiles.py
+
+      - name: Documentation links resolve
+        run: python3 installers/checks/check_docs.py
+
+      - name: Installer dry-run for every profile
+        run: |
+          for p in webui harness skills; do
+            echo "::group::dry-run $p"
+            ./install.sh --profile "$p" --dry-run
+            echo "::endgroup::"
+          done
+
+      - name: Dry run creates nothing
+        run: |
+          if [ -e .dataflow-install ]; then
+            echo "::error::--dry-run created .dataflow-install"
+            exit 1
+          fi
+          if git status --porcelain | grep -q .; then
+            echo "::error::--dry-run modified the working tree:"
+            git status --porcelain
+            exit 1
+          fi
+          echo "dry run left no trace"
+
+      - name: A TOML parser is reachable
+        run: |
+          # Guards the assertions below: without a parser the configurator
+          # correctly refuses (exit 2), which would make the conflict tests
+          # pass for the wrong reason.
+          python3 -c "
+import sys
+try:
+    import tomllib
+except ModuleNotFoundError:
+    import tomli  # noqa: F401
+print('TOML parser available')
+"
+
+      - name: MCP config merge refuses unsafe edits
+        run: |
+          # These paths guard a user's own config file, so they are asserted
+          # rather than trusted. Each must exit non-zero and change nothing.
+          set +e
+          fail=0
+
+          printf 'this is [not valid toml\n' > /tmp/bad.toml
+          before=$(md5sum /tmp/bad.toml | cut -d' ' -f1)
+          python3 installers/lib/codex_config.py /tmp/bad.toml http://localhost:8000/mcp >/dev/null 2>&1
+          [ $? -eq 0 ] && { echo "::error::accepted invalid TOML"; fail=1; }
+          [ "$(md5sum /tmp/bad.toml | cut -d' ' -f1)" = "$before" ] || { echo "::error::modified invalid TOML"; fail=1; }
+
+          printf '[mcp_servers.dataflow]\ncommand = "python"\n' > /tmp/stdio.toml
+          python3 installers/lib/codex_config.py /tmp/stdio.toml http://localhost:8000/mcp >/dev/null 2>&1
+          [ $? -eq 4 ] || { echo "::error::did not refuse a command/stdio TOML entry"; fail=1; }
+
+          printf '{"mcpServers":{"dataflow":{"command":"python"}}}\n' > /tmp/stdio.json
+          python3 installers/lib/mcp_json_config.py /tmp/stdio.json http://localhost:8000/mcp >/dev/null 2>&1
+          [ $? -eq 4 ] || { echo "::error::did not refuse a command/stdio JSON entry"; fail=1; }
+
+          printf '{"mcpServers":{"dataflow":{"type":"sse","url":"http://elsewhere/mcp"}}}\n' > /tmp/other.json
+          python3 installers/lib/mcp_json_config.py /tmp/other.json http://localhost:8000/mcp >/dev/null 2>&1
+          [ $? -eq 4 ] || { echo "::error::did not refuse redirecting a different URL"; fail=1; }
+
+          # A quoted table name must be updated in place, not duplicated.
+          printf '[mcp_servers."dataflow"]\nurl = "http://localhost:8000/mcp"\n' > /tmp/quoted.toml
+          out=$(python3 installers/lib/codex_config.py /tmp/quoted.toml http://localhost:8000/mcp 2>/dev/null)
+          n=$(printf '%s\n' "$out" | grep -c 'mcp_servers')
+          [ "$n" -eq 1 ] || { echo "::error::quoted table produced $n dataflow tables"; fail=1; }
+
+          exit $fail
+
+  # The skills profile installs nothing but files, so a real install is cheap
+  # and worth verifying end to end — including that re-running is a no-op and
+  # that uninstall removes exactly what was added.
+  install-skills:
+    name: Install skills profile (real)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Nothing is installed before we start
+        run: |
+          # Generated skills are untracked, so a fresh checkout has none.
+          if [ -e .claude/skills ]; then
+            echo "::error::.claude/skills exists in a fresh checkout — it should be generated, not tracked"
+            exit 1
+          fi
+
+      - name: Install
+        run: ./install.sh --profile skills --scope project
+
+      - name: Installed skills are present, and rendered for this profile
+        run: |
+          test -f .claude/skills/generating-dataflow-pipeline/SKILL.md
+          test -d .claude/skills/core_text
+          # The skills profile has no MCP server, so MCP-only guidance must be
+          # absent — this is the profile-specific rendering, not the webui one.
+          if grep -q "validate_pipeline_config" .claude/skills/generating-dataflow-pipeline/SKILL.md; then
+            echo "::error::skills profile shipped MCP guidance it cannot honour"
+            exit 1
+          fi
+          # One receipt per skills destination, named by a hash of the target.
+          ls .dataflow-install/receipt-* >/dev/null
+          echo "skills present and correctly rendered"
+
+      - name: Codex and Cursor assets were installed too
+        run: |
+          fail=0
+          test -f AGENTS.md || { echo "::error::AGENTS.md missing"; fail=1; }
+
+          # Assert every managed skill for BOTH agents, not just that the
+          # directory exists — a partial copy passes a directory test while
+          # leaving the routing table pointing at absent files.
+          # One id per line; printed individually so the shell word-splits it.
+          ids=$(python3 -c "
+import json
+for s in json.load(open('installers/skills.manifest.json'))['skills']:
+    print(s['id'])
+")
+          for dir in .cursor/skills .codex/skills; do
+            for id in $ids; do
+              [ -r "$dir/$id/SKILL.md" ] || { echo "::error::$dir/$id/SKILL.md missing"; fail=1; }
+            done
+          done
+
+          # Every path AGENTS.md routes to must exist.
+          for target in $(grep -oE '\.codex/skills/[A-Za-z0-9_-]+/SKILL\.md' AGENTS.md | sort -u); do
+            [ -e "$target" ] || { echo "::error::AGENTS.md routes to missing $target"; fail=1; }
+          done
+
+          # AGENTS.md must stay a routing table, not an inlined dump.
+          lines=$(wc -l < AGENTS.md)
+          if [ "$lines" -gt 200 ]; then
+            echo "::error::AGENTS.md is $lines lines — it should route, not inline every skill"
+            fail=1
+          fi
+
+          for id in $ids; do
+            [ "$id" = "core_text" ] && continue
+            [ -r ".cursor/rules/$id.mdc" ] || { echo "::error::.cursor/rules/$id.mdc missing"; fail=1; }
+          done
+
+          # Retired duplicates must not survive an install.
+          for stale in dataflow-pipeline.mdc dataflow-pipeline-generator.mdc; do
+            if [ -f ".cursor/rules/$stale" ]; then
+              echo "::error::retired rule .cursor/rules/$stale still present"
+              fail=1
+            fi
+          done
+          exit $fail
+
+      - name: Re-run is idempotent (no skill rewritten)
+        run: |
+          out=$(./install.sh --profile skills --scope project 2>&1)
+          echo "$out"
+          if echo "$out" | grep -qE '^\[install\] OK      [a-z].* → '; then
+            echo "::error::second install rewrote skills; not idempotent"
+            exit 1
+          fi
+
+      - name: Uninstall removes what it installed
+        run: |
+          ./install.sh --uninstall
+          if [ -d .claude/skills/core_text ]; then
+            echo "::error::uninstall left core_text behind"
+            exit 1
+          fi
+          if ls .dataflow-install/receipt-* >/dev/null 2>&1; then
+            echo "::error::uninstall left a receipt behind"
+            exit 1
+          fi
+          echo "uninstall clean"
+
+      - name: Install does not clobber user-authored agent assets
+        run: |
+          ./install.sh --uninstall >/dev/null 2>&1 || true
+          rm -rf .cursor/skills AGENTS.md
+          mkdir -p .cursor/skills/my-private-skill
+          echo "# mine" > .cursor/skills/my-private-skill/SKILL.md
+          echo "# my own AGENTS.md" > AGENTS.md
+          ./install.sh --profile skills --scope project >/dev/null
+          if [ ! -f .cursor/skills/my-private-skill/SKILL.md ]; then
+            echo "::error::install deleted a user-authored Cursor skill"
+            exit 1
+          fi
+          if ! head -1 AGENTS.md | grep -q "my own"; then
+            echo "::error::install overwrote a user-authored AGENTS.md without --force"
+            exit 1
+          fi
+          echo "user-authored agent assets preserved"
+          rm -rf .cursor/skills/my-private-skill
+
+      - name: Uninstall does not delete skills it did not install
+        run: |
+          # A skill the user maintains themselves must survive an uninstall,
+          # even when its contents match what this repo ships.
+          mkdir -p /tmp/mine
+          ./install.sh --profile skills --scope project >/dev/null
+          cp -R .claude/skills/dataflow-dev /tmp/mine/dataflow-dev
+          ./install.sh --uninstall >/dev/null
+          # Re-create it as a pre-existing, user-owned directory, then install.
+          mkdir -p .claude/skills
+          cp -R /tmp/mine/dataflow-dev .claude/skills/dataflow-dev
+          ./install.sh --profile skills --scope project >/dev/null
+          ./install.sh --uninstall >/dev/null
+          if [ ! -d .claude/skills/dataflow-dev ]; then
+            echo "::error::uninstall deleted a skill it did not install"
+            exit 1
+          fi
+          echo "pre-existing skill preserved"
+
+  # The operator builder is the one skill that runs a script and writes into the
+  # user's repo, so its non-interactive behaviour is asserted rather than trusted.
+  operator-builder:
+    name: Operator builder (non-interactive safety)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Dry run writes nothing
+        run: |
+          script=skills/canonical/dataflow-operator-builder/scripts/build_operator_artifacts.py
+          spec=skills/canonical/dataflow-operator-builder/scripts/example_spec.json
+          mkdir -p /tmp/dr/out /tmp/dr/home
+          HOME=/tmp/dr/home python3 "$script" --spec "$spec" --output-root /tmp/dr/out --dry-run --log </dev/null
+          if [ -n "$(find /tmp/dr/out -type f 2>/dev/null)" ]; then
+            echo "::error::--dry-run wrote output files"; exit 1
+          fi
+          if [ -n "$(find /tmp/dr/home -name usage.jsonl 2>/dev/null)" ]; then
+            echo "::error::--dry-run wrote a usage log despite promising no writes"; exit 1
+          fi
+          echo "dry run is write-free"
+
+      - name: Refuses to write without confirmation when non-interactive
+        run: |
+          script=skills/canonical/dataflow-operator-builder/scripts/build_operator_artifacts.py
+          spec=skills/canonical/dataflow-operator-builder/scripts/example_spec.json
+          mkdir -p /tmp/nc/out /tmp/nc/home
+          if HOME=/tmp/nc/home python3 "$script" --spec "$spec" --output-root /tmp/nc/out </dev/null >/dev/null 2>&1; then
+            echo "::error::generated files with no confirmation and no --yes"; exit 1
+          fi
+          if [ -n "$(find /tmp/nc/out -type f 2>/dev/null)" ]; then
+            echo "::error::wrote files before refusing"; exit 1
+          fi
+          echo "refused cleanly, wrote nothing"
+
+      # The regression that mattered: a LATER target already exists, so the
+      # per-file check only tripped after the first few files were on disk.
+      - name: ask-each with a pre-existing later target writes nothing
+        run: |
+          script=skills/canonical/dataflow-operator-builder/scripts/build_operator_artifacts.py
+          spec=skills/canonical/dataflow-operator-builder/scripts/example_spec.json
+          mkdir -p /tmp/pe/out/test /tmp/pe/home
+          echo "# the user's own file" > /tmp/pe/out/test/test_my_generated_operator_registry.py
+          before=$(find /tmp/pe/out -type f | wc -l)
+          if HOME=/tmp/pe/home python3 "$script" --spec "$spec" --output-root /tmp/pe/out \
+               --yes --validation-level none </dev/null >/dev/null 2>&1; then
+            echo "::error::proceeded under ask-each with an existing target"; exit 1
+          fi
+          after=$(find /tmp/pe/out -type f | wc -l)
+          if [ "$before" != "$after" ]; then
+            echo "::error::partially generated $((after - before)) file(s) before stopping"
+            exit 1
+          fi
+          grep -q "the user's own file" /tmp/pe/out/test/test_my_generated_operator_registry.py || {
+            echo "::error::overwrote the user's file"; exit 1; }
+          echo "no partial generation, user's file intact"
+
+      - name: An explicit policy still works
+        run: |
+          script=skills/canonical/dataflow-operator-builder/scripts/build_operator_artifacts.py
+          spec=skills/canonical/dataflow-operator-builder/scripts/example_spec.json
+          mkdir -p /tmp/ok/out/test /tmp/ok/home
+          echo "# the user's own file" > /tmp/ok/out/test/test_my_generated_operator_registry.py
+          HOME=/tmp/ok/home python3 "$script" --spec "$spec" --output-root /tmp/ok/out \
+            --yes --overwrite skip-existing --validation-level none </dev/null >/dev/null
+          grep -q "the user's own file" /tmp/ok/out/test/test_my_generated_operator_registry.py || {
+            echo "::error::skip-existing overwrote the user's file"; exit 1; }
+          test -f /tmp/ok/out/dataflow_ext_custom/operators/generate/my_generated_operator.py
+          if [ -n "$(find /tmp/ok/home -name usage.jsonl 2>/dev/null)" ]; then
+            echo "::error::logged to the home directory without --log"; exit 1
+          fi
+          echo "skip-existing generated the rest and logged nothing"
+
+  # The zip is the only thing a release user ever sees, so a missing file or a
+  # bad default binding is discovered by them unless it is checked here.
+  release-package:
+    name: Release package
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install system deps
+        run: sudo apt-get update && sudo apt-get install -y zip unzip rsync
+
+      - name: Build the release zip
+        run: ./scripts/build_release.sh ci-test
+
+      # build_release.sh self-checks, but assert independently here so a
+      # regression in its own verification block cannot pass silently.
+      - name: Archive contains what its docs reference
+        run: |
+          zip=$(ls DataFlow-WebUI-ci-test.zip)
+          unzip -t "$zip" >/dev/null
+          listing=$(unzip -Z1 "$zip")
+          fail=0
+          for entry in \
+            DataFlow-WebUI-ci-test/run.sh \
+            DataFlow-WebUI-ci-test/run.bat \
+            DataFlow-WebUI-ci-test/docs/RELEASE-PACKAGE.md \
+            DataFlow-WebUI-ci-test/README-release-en.md \
+            DataFlow-WebUI-ci-test/README-release-zh.md \
+            DataFlow-WebUI-ci-test/backend/app/main.py \
+            DataFlow-WebUI-ci-test/frontend/dist/index.html; do
+            printf '%s\n' "$listing" | grep -qxF "$entry" || {
+              echo "::error::missing from release zip: $entry"; fail=1; }
+          done
+          # Tests are excluded from the package on purpose.
+          if printf '%s\n' "$listing" | grep -q "backend/tests/"; then
+            echo "::error::release zip ships backend/tests/"; fail=1
+          fi
+          exit $fail
+
+      - name: Release does not bind 0.0.0.0 by default
+        run: |
+          unzip -o -q DataFlow-WebUI-ci-test.zip -d /tmp/rel
+          run_sh=/tmp/rel/DataFlow-WebUI-ci-test/run.sh
+          if grep -qE 'host[= ]0\.0\.0\.0' "$run_sh"; then
+            echo "::error::run.sh hardcodes 0.0.0.0 — no auth, and pipelines are arbitrary code execution"
+            exit 1
+          fi
+          grep -q 'DATAFLOW_HOST' "$run_sh" || {
+            echo "::error::run.sh ignores DATAFLOW_HOST, so the documented override does nothing"
+            exit 1; }
+          grep -q '127\.0\.0\.1' "$run_sh" || {
+            echo "::error::run.sh does not default to 127.0.0.1"; exit 1; }
+          bash -n "$run_sh"
+          echo "release binds localhost by default and honours DATAFLOW_HOST"
+
+  backend:
+    name: Backend tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install backend dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+          pip install pytest
+
+      - name: pytest
+        working-directory: backend
+        run: pytest -q

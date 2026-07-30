@@ -78,22 +78,44 @@ rsync -a --delete \
   "$FRONTEND_DIR/dist/" \
   "$OUT_STAGING/$PKG_NAME/frontend/dist/"
 
-# 2.3 顶层文档（可选）
+# 2.3 顶层文档
 [[ -f "$ROOT_DIR/README-release-en.md" ]] && cp "$ROOT_DIR/README-release-en.md" "$OUT_STAGING/$PKG_NAME/"
 [[ -f "$ROOT_DIR/README-release-zh.md" ]] && cp "$ROOT_DIR/README-release-zh.md" "$OUT_STAGING/$PKG_NAME/"
 [[ -f "$ROOT_DIR/LICENSE" ]] && cp "$ROOT_DIR/LICENSE" "$OUT_STAGING/$PKG_NAME/" || true
 
+# 2.4 被 release README 链接的文档。两个 README 都指向
+# docs/RELEASE-PACKAGE.md；不打包它，用户解压后就是一个坏链接。
+mkdir -p "$OUT_STAGING/$PKG_NAME/docs"
+if [[ -f "$ROOT_DIR/docs/RELEASE-PACKAGE.md" ]]; then
+  cp "$ROOT_DIR/docs/RELEASE-PACKAGE.md" "$OUT_STAGING/$PKG_NAME/docs/"
+else
+  echo "[build_release] ERROR: docs/RELEASE-PACKAGE.md not found, but the release READMEs link to it."
+  exit 1
+fi
+
 # ---- 3) 一键启动脚本 ----
 # 关键：从 release 根目录启动，保证 backend 里用 ../frontend/dist 能找到前端资源
+# 绑定地址默认 127.0.0.1：本服务没有任何认证，且 pipeline 执行等于任意代码执行，
+# 因此默认不应暴露到局域网。需要局域网访问时显式设置 DATAFLOW_HOST=0.0.0.0。
+# （之前这里硬编码 0.0.0.0，导致文档里的 DATAFLOW_HOST 说明是无效承诺。）
 cat > "$OUT_STAGING/$PKG_NAME/run.sh" <<'EOF'
 #!/usr/bin/env bash
 set -e
 cd "$(dirname "$0")"
 
-# 后端依赖
-cd backend
+# 本服务无认证，且执行 pipeline 等同于任意代码执行。
+# 默认只监听本机；如需局域网访问：DATAFLOW_HOST=0.0.0.0 ./run.sh
+HOST="${DATAFLOW_HOST:-127.0.0.1}"
+PORT="${DATAFLOW_PORT:-8000}"
 
-uvicorn app.main:app --port 8000 --host=0.0.0.0
+if [[ "$HOST" != "127.0.0.1" && "$HOST" != "localhost" ]]; then
+  echo "[run] WARNING: binding $HOST — no authentication is enforced." >&2
+  echo "[run]          anyone who can reach this port can run pipelines." >&2
+fi
+
+echo "[run] http://localhost:$PORT/"
+cd backend
+exec uvicorn app.main:app --port "$PORT" --host "$HOST"
 EOF
 chmod +x "$OUT_STAGING/$PKG_NAME/run.sh"
 
@@ -102,15 +124,58 @@ cat > "$OUT_STAGING/$PKG_NAME/run.bat" <<'EOF'
 setlocal
 cd /d "%~dp0"
 
-cd backend
+REM 本服务无认证，且执行 pipeline 等同于任意代码执行。
+REM 默认只监听本机；如需局域网访问：set DATAFLOW_HOST=0.0.0.0
+if "%DATAFLOW_HOST%"=="" set DATAFLOW_HOST=127.0.0.1
+if "%DATAFLOW_PORT%"=="" set DATAFLOW_PORT=8000
 
-uvicorn app.main:app --port 8000 --host=0.0.0.0
+if not "%DATAFLOW_HOST%"=="127.0.0.1" (
+  echo [run] WARNING: binding %DATAFLOW_HOST% - no authentication is enforced.
+  echo [run]          anyone who can reach this port can run pipelines.
+)
+
+echo [run] http://localhost:%DATAFLOW_PORT%/
+cd backend
+uvicorn app.main:app --port %DATAFLOW_PORT% --host %DATAFLOW_HOST%
 EOF
 
 # ---- 4) 打 zip ----
 echo "[build_release] Creating zip..."
 pushd "$OUT_STAGING" >/dev/null
-zip -r "$ROOT_DIR/$ZIP_NAME" "$PKG_NAME"
+zip -qr "$ROOT_DIR/$ZIP_NAME" "$PKG_NAME"
 popd >/dev/null
+
+# ---- 5) 校验产物 ----
+# 发布包是用户拿到的唯一东西，缺文件只有解压后才会发现，所以在这里就查。
+echo "[build_release] Verifying archive..."
+
+zip -T "$ROOT_DIR/$ZIP_NAME" >/dev/null || {
+  echo "[build_release] ERROR: archive failed its integrity test."
+  exit 1
+}
+
+REQUIRED=(
+  "$PKG_NAME/run.sh"
+  "$PKG_NAME/run.bat"
+  "$PKG_NAME/docs/RELEASE-PACKAGE.md"
+  "$PKG_NAME/backend/app/main.py"
+  "$PKG_NAME/frontend/dist/index.html"
+)
+LISTING="$(unzip -Z1 "$ROOT_DIR/$ZIP_NAME")"
+MISSING=0
+for entry in "${REQUIRED[@]}"; do
+  if ! printf '%s\n' "$LISTING" | grep -qxF "$entry"; then
+    echo "[build_release] ERROR: missing from archive: $entry"
+    MISSING=$((MISSING + 1))
+  fi
+done
+[[ "$MISSING" -eq 0 ]] || exit 1
+
+# The release must not bind 0.0.0.0 by default — no auth, and running a pipeline
+# is arbitrary code execution.
+if grep -q 'host=0\.0\.0\.0\|--host 0\.0\.0\.0' "$OUT_STAGING/$PKG_NAME/run.sh"; then
+  echo "[build_release] ERROR: run.sh hardcodes 0.0.0.0; it must default to 127.0.0.1."
+  exit 1
+fi
 
 echo "[build_release] Done: $ROOT_DIR/$ZIP_NAME"
