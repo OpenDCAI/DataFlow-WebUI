@@ -19,7 +19,7 @@ You are installing:
 | ----------- | ----------------------- | ----------------------------- |
 | **Node.js** | Runs JavaScript tools   | Required to build the project |
 | **NVM**     | Manages Node versions   | Ensures correct Node version  |
-| **Yarn**    | Package manager         | Installs project dependencies |
+| **npm**     | Package manager         | Installs project dependencies (ships with Node.js) |
 | **Vite**    | Dev server & build tool | Runs the frontend locally     |
 
 ---
@@ -77,15 +77,18 @@ npm -v
 
 ---
 
-# 📦 3. Install Yarn
+# 📦 3. Check npm
 
-Yarn installs all project packages.
+npm installs all project packages and ships with Node.js — nothing extra to
+install.
 
 ```bash
-corepack enable
-corepack prepare yarn@stable --activate
-yarn -v
+npm -v
 ```
+
+> This project uses **npm**, not Yarn. A stale `yarn.lock` is still tracked but
+> is not used by any build path — see
+> [docs/architecture/adr-002-package-managers.md](../docs/architecture/adr-002-package-managers.md).
 
 ---
 
@@ -100,7 +103,7 @@ cd DataFlow-WebUI/frontend
 Install everything the project needs:
 
 ```bash
-yarn
+npm install
 ```
 
 *(This may take a few minutes the first time.)*
@@ -141,7 +144,7 @@ server: {
 Run:
 
 ```bash
-yarn dev
+npm run dev
 ```
 
 You should see something like:
@@ -171,7 +174,7 @@ VITE_BACKEND_URL=http://your-backend-address:8000
 ### Step 2: Build
 
 ```bash
-yarn build
+npm run build
 ```
 
 A `dist/` folder will be generated.
@@ -207,7 +210,7 @@ In `package.json`:
 Run:
 
 ```bash
-yarn api
+npm run api
 ```
 
 This regenerates API request code.
@@ -280,7 +283,7 @@ Check:
 
 ```bash
 rm -rf node_modules
-yarn
+npm install
 ```
 
 ## 🔹 UI Component Library

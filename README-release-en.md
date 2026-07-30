@@ -1,52 +1,17 @@
 # DataFlow-WebUI (Release)
 
-## English · Quick Start
+Quick start for this release package: **[docs/RELEASE-PACKAGE.md](docs/RELEASE-PACKAGE.md)**
+(中文与 English 均在同一份文档中).
 
-### 1. Prepare Python
-
-* Python **3.10 / 3.11** is recommended
-* Make sure `python` is available in your shell
-
-Choose one:
-
-**Option A: venv**
+Short version — from this directory:
 
 ```bash
-python -m venv .venv
-source .venv/bin/activate   # Windows: .venv\Scripts\activate
+cd backend && pip install -r requirements.txt && cd ..
+./run.sh          # Windows: run.bat
 ```
 
-**Option B: conda**
+Then open http://localhost:8000/
 
-```bash
-conda create -n dataflow python=3.10
-conda activate dataflow
-```
-
-### 2. Install backend dependencies
-
-```bash
-cd backend
-pip install -r requirements.txt
-cd ..
-```
-
-### 3. Run
-
-From the **release root directory**:
-
-```bash
-./run.sh
-```
-
-Windows:
-
-```bat
-run.bat
-```
-
-Open in browser:
-
-```
-http://localhost:8000/
-```
+Note: the server has no authentication, and running a pipeline is arbitrary code
+execution. It binds `127.0.0.1` by default — this machine only. To expose it on
+your network, opt in with `DATAFLOW_HOST=0.0.0.0 ./run.sh`.

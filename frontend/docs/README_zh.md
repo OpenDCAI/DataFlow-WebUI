@@ -18,7 +18,7 @@
 | ----------- | ----------- | ---------------- |
 | **Node.js** | 运行前端构建工具    | 前端项目必须依赖         |
 | **NVM**     | Node 版本管理工具 | 确保大家用同一个 Node 版本 |
-| **Yarn**    | 包管理器        | 下载项目所需依赖         |
+| **npm**     | 包管理器        | 下载项目所需依赖（随 Node.js 一起安装） |
 | **Vite**    | 前端开发服务器     | 用来本地运行页面         |
 
 ---
@@ -74,12 +74,10 @@ npm -v
 
 ---
 
-# 📦 3️⃣ 安装 Yarn
+# 📦 3️⃣ 检查 npm
 
 ```bash
-corepack enable
-corepack prepare yarn@stable --activate
-yarn -v
+npm -v
 ```
 
 ---
@@ -95,7 +93,7 @@ cd DataFlow-WebUI/frontend
 安装依赖：
 
 ```bash
-yarn
+npm install
 ```
 
 第一次可能需要几分钟。
@@ -131,7 +129,7 @@ proxy: {
 # ▶️ 6️⃣ 启动项目（本地运行）
 
 ```bash
-yarn dev
+npm run dev
 ```
 
 终端会显示：
@@ -158,7 +156,7 @@ VITE_BACKEND_URL=http://你的后端地址:8000
 ### 第二步：打包
 
 ```bash
-yarn build
+npm run build
 ```
 
 会生成 `dist/` 文件夹，这就是部署用的文件。
@@ -185,7 +183,7 @@ src/
 如果后端 API 更新：
 
 ```bash
-yarn api
+npm run api
 ```
 
 它会自动更新前端接口代码。
@@ -256,7 +254,7 @@ key_name::source::run_key
 
 ```bash
 rm -rf node_modules
-yarn
+npm install
 ```
 
 ## 🔹 UI 组件库
