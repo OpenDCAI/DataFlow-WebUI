@@ -1,6 +1,7 @@
 # DataFlow-Harness
 
 [![](https://img.shields.io/github/repo-size/OpenDCAI/DataFlow-WebUI?color=green)](https://github.com/OpenDCAI/DataFlow-WebUI)
+[![Technical Report](https://img.shields.io/badge/Technical%20Report-arXiv%3A2607.16617-B31B1B?logo=arxiv&logoColor=white)](https://arxiv.org/pdf/2607.16617)
 
 中文文档：**[README_zh.md](README_zh.md)**
 
