@@ -1,0 +1,11 @@
+# Dependencies for `./install.sh configure-agent --agent codex` on Python 3.10.
+#
+# Editing ~/.codex/config.toml requires parsing TOML first — the configurator
+# refuses to touch a file it cannot validate. Python 3.11+ has `tomllib` in the
+# standard library and needs nothing here; 3.10 does not, so it needs `tomli`.
+#
+#   pip install -r installers/requirements-configure.txt
+#
+# Deliberately NOT part of any install profile: no profile configures an agent,
+# and the `skills` profile promises to install no packages at all.
+tomli>=2.0.1; python_version < "3.11"

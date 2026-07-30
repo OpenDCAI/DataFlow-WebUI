@@ -1,0 +1,190 @@
+{
+  "$comment": [
+    "Single registry for every skill shipped by this repo (plan item P0-09).",
+    "'canonical' is the ONLY hand-edited source. Everything under .claude/skills/,",
+    ".cursor/skills/, .cursor/rules/ and AGENTS.md is generated from it by",
+    "installers/generate_agent_assets.py — never edit those by hand.",
+    "",
+    "Layers describe what a skill needs, which decides the profiles that ship it:",
+    "  core       = ships in all three profiles. MCP-aware guidance is rendered in",
+    "               for webui/harness and stripped for skills, so the same",
+    "               canonical file serves both worlds.",
+    "  harness    = requires the MCP server; webui + harness profiles only.",
+    "  standalone = no MCP, no backend; ships in all three profiles."
+  ],
+  "version": 1,
+  "layers": [
+    "core",
+    "harness",
+    "standalone"
+  ],
+  "skills": [
+    {
+      "id": "generating-dataflow-pipeline",
+      "canonical": "skills/canonical/generating-dataflow-pipeline",
+      "layer": "core",
+      "invocable": true,
+      "requires": [
+        "mcp-optional"
+      ],
+      "reads": [
+        "core_text"
+      ],
+      "agents": [
+        "claude",
+        "codex",
+        "cursor"
+      ],
+      "summary": "Plan an operator chain from a target + sample JSONL and emit a runnable pipeline. With MCP, also validates and commits it to the WebUI canvas.",
+      "version": "1.0.0"
+    },
+    {
+      "id": "dataflow-dev",
+      "canonical": "skills/canonical/dataflow-dev",
+      "layer": "standalone",
+      "invocable": true,
+      "requires": [],
+      "reads": [],
+      "agents": [
+        "claude",
+        "codex",
+        "cursor"
+      ],
+      "summary": "DataFlow developer assistant: loads architecture knowledge and routes intents (new operator / pipeline / prompt, diagnose, review).",
+      "version": "1.1.0"
+    },
+    {
+      "id": "dataflow-operator-builder",
+      "canonical": "skills/canonical/dataflow-operator-builder",
+      "layer": "standalone",
+      "invocable": true,
+      "requires": [
+        "local-scripts"
+      ],
+      "reads": [],
+      "agents": [
+        "claude",
+        "codex",
+        "cursor"
+      ],
+      "summary": "Scaffold production-grade operators (generate/filter/refine/eval) with registration, CLI wrapper and tests."
+    },
+    {
+      "id": "prompt-template-builder",
+      "canonical": "skills/canonical/prompt-template-builder",
+      "layer": "standalone",
+      "invocable": true,
+      "requires": [],
+      "reads": [],
+      "agents": [
+        "claude",
+        "codex",
+        "cursor"
+      ],
+      "summary": "Build reusable prompt_template classes for existing operators with static acceptance checks.",
+      "version": "1.0.0"
+    },
+    {
+      "id": "core_text",
+      "canonical": "skills/canonical/core_text",
+      "layer": "standalone",
+      "invocable": false,
+      "requires": [],
+      "reads": [],
+      "agents": [
+        "claude",
+        "codex",
+        "cursor"
+      ],
+      "summary": "Per-operator API reference (8 generate, 3 filter, 2 refine, 5 eval). Documentation only — read by generating-dataflow-pipeline, never invoked directly.",
+      "kind": "reference",
+      "contains_nested_skills": true
+    }
+  ],
+  "agents": {
+    "claude": {
+      "label": "Claude Code",
+      "skills_dir": ".claude/skills",
+      "context": {
+        "agent": "claude",
+        "structured_questions": "yes",
+        "slash_commands": "yes"
+      }
+    },
+    "codex": {
+      "label": "Codex",
+      "aggregate_file": "AGENTS.md",
+      "skills_dir": ".codex/skills",
+      "context": {
+        "agent": "codex",
+        "structured_questions": "no",
+        "slash_commands": "no"
+      }
+    },
+    "cursor": {
+      "label": "Cursor IDE",
+      "skills_dir": ".cursor/skills",
+      "rules_dir": ".cursor/rules",
+      "context": {
+        "agent": "cursor",
+        "structured_questions": "no",
+        "slash_commands": "no"
+      }
+    }
+  },
+  "$comment_routing": [
+    "Phrased as user intents, for the AGENTS.md routing table. An agent matches",
+    "the request against these and then reads only that skill's SKILL.md."
+  ],
+  "routing_triggers": {
+    "generating-dataflow-pipeline": "build a DataFlow pipeline from a target + sample JSONL, pick operators, or fix a pipeline that fails on field mismatches",
+    "dataflow-dev": "work inside the DataFlow repo itself: add an operator/pipeline/prompt, diagnose a DataFlow error, or review DataFlow code",
+    "dataflow-operator-builder": "scaffold a new operator with registry registration, a CLI wrapper and tests",
+    "prompt-template-builder": "write or rewrite a `prompt_template` class for an existing operator"
+  },
+  "$comment_cursor_rules": [
+    "Cursor rules split into two sets. Rules that merely restate a skill are",
+    "GENERATED as thin pointers into .cursor/skills/<id>/SKILL.md, so the skill",
+    "text lives in exactly one place. Rules below are genuinely hand-written",
+    "repo guidance with no skill counterpart and are left untouched."
+  ],
+  "handwritten_cursor_rules": [
+    "backend-api.mdc",
+    "dataflow-json-schema.mdc",
+    "frontend-vue.mdc",
+    "webui-change-policy.mdc"
+  ],
+  "$comment_retired": [
+    "Old rule filenames that no longer correspond to any skill id. Deleted on",
+    "regenerate. dataflow-dev.mdc / dataflow-operator-builder.mdc are NOT here:",
+    "those names are still produced by the generator from same-named skills."
+  ],
+  "retired_cursor_rules": [
+    "dataflow-pipeline.mdc",
+    "dataflow-pipeline-generator.mdc"
+  ],
+  "cursor_rule_globs": {
+    "generating-dataflow-pipeline": [
+      "**/*pipeline*.py",
+      "**/dataflow_*.py",
+      "**/*.jsonl"
+    ],
+    "dataflow-dev": [
+      "**/dataflow/**/*.py",
+      "**/DataFlow/**/*.py"
+    ],
+    "dataflow-operator-builder": [
+      "**/operators/**/*.py",
+      "**/dataflow/operators/**"
+    ],
+    "prompt-template-builder": [
+      "**/prompts/**/*.py",
+      "**/*prompt*.py"
+    ]
+  },
+  "$comment_frontmatter": [
+    "SKILL.md frontmatter carries only `name` and `description` — the two keys",
+    "every agent implementation understands. Version and package kind live here",
+    "instead, so a non-standard key cannot confuse an agent that does not know it."
+  ]
+}

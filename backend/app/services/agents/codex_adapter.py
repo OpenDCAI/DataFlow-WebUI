@@ -5,7 +5,8 @@ into NormalizedEvent. Codex differs from Claude Code in key ways:
 
 1. **MCP config location** — Codex reads ``~/.codex/config.toml`` and looks
    up MCP servers under ``[mcp_servers.<name>]``. There is no flag to point
-   at an alternate config file. ``setup_agent.sh`` writes the entry.
+   at an alternate config file, so there is no project-scoped Codex config.
+   ``./install.sh configure-agent --agent codex --scope user`` writes the entry.
 2. **System prompt delivery** — ``codex exec`` does not accept a system
    prompt flag in headless mode. We prepend the harness rules to the user
    message, same approach as Cursor.

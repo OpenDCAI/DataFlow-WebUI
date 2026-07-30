@@ -1,0 +1,119 @@
+{
+  "$comment": [
+    "Backend-only profile: MCP server + operator/pipeline services, no frontend.",
+    "The point of the must_not_touch list is that this profile must be installable",
+    "on a machine with no Node.js at all (plan item P1-05)."
+  ],
+  "id": "harness",
+  "label": "Harness backend + MCP (no WebUI)",
+  "description": "The DataFlow Harness backend: FastAPI service, MCP server over SSE, operator registry, pipeline validation, plus the MCP-aware workflow skills. Driven from Claude Code / Codex / Cursor — no browser UI.",
+  "audience": "Users who drive DataFlow from an agent via MCP and never open the canvas.",
+  "installs": [
+    "The DataFlow framework (open-dataflow) via pip",
+    "Backend Python dependencies from backend/requirements.txt",
+    "The DataFlow core data directory",
+    "Harness workflow skills (MCP-aware) and standalone skills"
+  ],
+  "does_not_install": [
+    "Node.js, npm, or any frontend dependency",
+    "The frontend build (frontend/dist) — the canvas will not be served",
+    "Agent MCP configuration (run `./install.sh configure-agent` separately)"
+  ],
+  "writes_outside_repo": [
+    "The chosen skills directory only. Agent MCP config is a separate, explicit command."
+  ],
+  "prerequisites": [
+    {
+      "id": "python",
+      "check": "$DF_PYTHON --version",
+      "min": "3.10",
+      "reason": "backend runtime"
+    },
+    {
+      "id": "pip",
+      "check": "$DF_PYTHON -m pip --version",
+      "reason": "installs backend dependencies"
+    }
+  ],
+  "skill_layers": [
+    "core",
+    "harness",
+    "standalone"
+  ],
+  "steps": [
+    {
+      "id": "dataflow",
+      "label": "Install the DataFlow framework",
+      "run": "df_pip_install open-dataflow",
+      "skip_if": "$DF_PYTHON -c 'import dataflow' 2>/dev/null",
+      "produces": "python package: dataflow"
+    },
+    {
+      "id": "backend-deps",
+      "label": "Install backend Python dependencies",
+      "run": "df_pip_install -r backend/requirements.txt",
+      "produces": "python packages: fastapi, uvicorn, ray, ..."
+    },
+    {
+      "id": "dataflow-core",
+      "label": "Initialize the DataFlow core data directory",
+      "run": "df_init_dataflow_core",
+      "skip_if": "df_dataflow_core_ready",
+      "produces": "backend/data/dataflow_core/"
+    },
+    {
+      "id": "generate-skills",
+      "label": "Render skills for Claude, Codex and Cursor from canonical sources",
+      "run": "$DF_PYTHON installers/generate_agent_assets.py --profile harness --agent all --out \"$DF_STAGING\"",
+      "produces": "$DF_STAGING/{.claude/skills, .cursor/skills, .cursor/rules, .codex/skills, AGENTS.md}"
+    },
+    {
+      "id": "install-skills",
+      "label": "Copy skills into the target skills directory",
+      "run": "df_install_skills core harness standalone",
+      "produces": "$DF_SKILLS_TARGET"
+    },
+    {
+      "id": "install-agent-assets",
+      "label": "Install Cursor, Codex and shared agent assets into this repo",
+      "run": "df_install_agent_assets",
+      "produces": ".cursor/skills/, .cursor/rules/<skill>.mdc, .codex/skills/, AGENTS.md"
+    }
+  ],
+  "verify": [
+    {
+      "id": "backend-imports",
+      "label": "Backend imports cleanly (app.main)",
+      "run": "df_verify_backend_import"
+    },
+    {
+      "id": "mcp-tools-declared",
+      "label": "MCP server declares its tool whitelist",
+      "run": "df_verify_mcp_whitelist"
+    },
+    {
+      "id": "skills-present",
+      "label": "Every installed skill has a readable SKILL.md",
+      "run": "df_verify_skills"
+    },
+    {
+      "id": "agent-assets-present",
+      "label": "Codex and Cursor assets were generated",
+      "run": "df_verify_agent_assets"
+    }
+  ],
+  "must_not_touch": [
+    "frontend/src",
+    "frontend/package.json",
+    "node_modules",
+    ".mcp.json",
+    "~/.codex/config.toml",
+    "~/.cursor/mcp.json"
+  ],
+  "next_steps": [
+    "Start the backend: ./scripts/start.sh",
+    "Point an agent at it: ./install.sh configure-agent --agent claude",
+    "Verify: curl -sf http://localhost:8000/mcp -H 'Accept: text/event-stream' --max-time 2",
+    "Note: the WebUI canvas is intentionally NOT available in this profile"
+  ]
+}

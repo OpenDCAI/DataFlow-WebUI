@@ -1,0 +1,84 @@
+{
+  "$comment": [
+    "Profile manifest read by install.sh. Declares what a profile installs so",
+    "the three profiles cannot drift into three copy-pasted shell flows.",
+    "",
+    "Contract: nothing in `steps` may touch anything listed in `must_not_touch`.",
+    "install.sh --dry-run prints these steps without running them."
+  ],
+  "id": "skills",
+  "label": "Standalone skills only",
+  "description": "Agent skills for writing DataFlow pipelines by hand in Claude Code / Codex / Cursor. No MCP, no backend, no services.",
+  "audience": "Users who want their coding agent to write DataFlow code directly, with no server running.",
+  "installs": [
+    "Standalone skills (no MCP dependency) into a Claude Code / Cursor skills directory",
+    "The core_text operator reference the pipeline skill reads"
+  ],
+  "does_not_install": [
+    "Python packages (no pip install at all)",
+    "The DataFlow framework itself",
+    "Node.js / npm dependencies",
+    "The FastAPI backend or MCP server",
+    "Any MCP client configuration"
+  ],
+  "writes_outside_repo": [
+    "The chosen skills directory only: ~/.claude/skills/<skill> (user scope) or ./.claude/skills/<skill> (project scope)"
+  ],
+  "prerequisites": [
+    {
+      "id": "python",
+      "check": "$DF_PYTHON --version",
+      "min": "3.9",
+      "reason": "runs the skill generator only; not installed into"
+    }
+  ],
+  "skill_layers": [
+    "core",
+    "standalone"
+  ],
+  "steps": [
+    {
+      "id": "generate-skills",
+      "label": "Render skills for Claude, Codex and Cursor from canonical sources",
+      "run": "$DF_PYTHON installers/generate_agent_assets.py --profile skills --agent all --out \"$DF_STAGING\"",
+      "produces": "$DF_STAGING/{.claude/skills, .cursor/skills, .cursor/rules, .codex/skills, AGENTS.md}"
+    },
+    {
+      "id": "install-skills",
+      "label": "Copy standalone skills into the target skills directory",
+      "run": "df_install_skills core standalone",
+      "produces": "$DF_SKILLS_TARGET"
+    },
+    {
+      "id": "install-agent-assets",
+      "label": "Install Cursor, Codex and shared agent assets into this repo",
+      "run": "df_install_agent_assets",
+      "produces": ".cursor/skills/, .cursor/rules/<skill>.mdc, .codex/skills/, AGENTS.md"
+    }
+  ],
+  "verify": [
+    {
+      "id": "skills-present",
+      "label": "Every installed skill has a readable SKILL.md",
+      "run": "df_verify_skills"
+    },
+    {
+      "id": "agent-assets-present",
+      "label": "Codex and Cursor assets were generated",
+      "run": "df_verify_agent_assets"
+    }
+  ],
+  "must_not_touch": [
+    "backend/app",
+    "frontend/src",
+    "frontend/package.json",
+    "node_modules",
+    ".mcp.json",
+    "~/.codex/config.toml",
+    "~/.cursor/mcp.json"
+  ],
+  "next_steps": [
+    "Open Claude Code (or Cursor) in any project and run /generating-dataflow-pipeline",
+    "If the slash command does not appear, restart the agent so it rescans the skills directory"
+  ]
+}

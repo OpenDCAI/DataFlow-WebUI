@@ -7,7 +7,7 @@
 #   ./scripts/start.sh --stop       # stop a backgrounded server
 #   ./scripts/start.sh --status     # check if backend is running
 #
-# Prerequisites: run ./scripts/setup_all.sh first.
+# Prerequisites: run ./install.sh --profile harness (or webui) first.
 
 set -euo pipefail
 
@@ -19,11 +19,13 @@ PORT="${DATAFLOW_PORT:-8000}"
 HOST="${DATAFLOW_HOST:-0.0.0.0}"
 
 # ---------- color helpers ---------------------------------------------------
+# Only the colours this script actually prints. (C_YELLOW and C_BOLD were
+# copied in from the installer's palette but there is no warn()/header() here.)
 if [[ -t 1 ]]; then
-  C_GREEN=$'\033[32m'; C_YELLOW=$'\033[33m'; C_RED=$'\033[31m'
-  C_BLUE=$'\033[34m'; C_BOLD=$'\033[1m'; C_RESET=$'\033[0m'
+  C_GREEN=$'\033[32m'; C_RED=$'\033[31m'
+  C_BLUE=$'\033[34m'; C_RESET=$'\033[0m'
 else
-  C_GREEN=""; C_YELLOW=""; C_RED=""; C_BLUE=""; C_BOLD=""; C_RESET=""
+  C_GREEN=""; C_RED=""; C_BLUE=""; C_RESET=""
 fi
 
 info()  { printf '%s[start]%s %s\n'            "$C_BLUE"   "$C_RESET" "$*"; }
@@ -34,7 +36,7 @@ err()   { printf '%s[start]%s %sERROR%s  %s\n' "$C_BLUE"   "$C_RESET" "$C_RED"  
 preflight() {
   # Check Python can import the app
   if ! python3 -c "import sys; sys.path.insert(0,'$BACKEND_DIR'); import app.main" 2>/dev/null; then
-    err "Cannot import app.main. Run ./scripts/setup_all.sh first."
+    err "Cannot import app.main. Run ./install.sh --profile harness first."
     exit 1
   fi
 

@@ -15,5 +15,36 @@ backend/data/dataflow_core/
 .idea/
 .vscode/
 
+# ---------------------------------------------------------------------------
+# Generated agent assets. The only hand-edited skill source is skills/canonical/;
+# everything below is produced from it by installers/generate_agent_assets.py.
+#
+# These are deliberately NOT tracked. They used to be, which made .claude/skills/
+# both a committed artifact and the destination of `--scope project` installs —
+# so a `skills`-profile install (rendered without MCP guidance) conflicted with
+# the committed `webui` rendering of the same file. One source, generated on
+# demand, removes the conflict. See docs/architecture/adr-001-source-of-truth.md.
+#
+# After cloning:  make skills   (or: python3 installers/generate_agent_assets.py)
+.claude/skills/
+.cursor/skills/
+.codex/skills/
+AGENTS.md
+.cursor/rules/generating-dataflow-pipeline.mdc
+.cursor/rules/dataflow-dev.mdc
+.cursor/rules/dataflow-operator-builder.mdc
+.cursor/rules/prompt-template-builder.mdc
+
 # stale "* copy" skill dirs accidentally committed in earlier branches
 .claude/skills/* copy/
+
+# installer artifacts
+.dataflow-install/
+.dataflow-install-receipt
+.backend.pid
+.backend.log
+
+# Project-scoped agent MCP config written by `install.sh configure-agent`:
+# .mcp.json and .cursor/mcp.json are tracked. Codex MCP config is never written
+# here — Codex only reads ~/.codex/config.toml. (.codex/skills/ IS written, and
+# is ignored above as generated output.)

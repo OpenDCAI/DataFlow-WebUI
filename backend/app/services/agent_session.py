@@ -29,7 +29,8 @@ logger = get_logger(__name__)
 # DataFlow-WebUI 根目录（CLI 在此目录运行，自动读取 .mcp.json 和 .claude/skills/）
 WEBUI_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 
-# Claude Code MCP 配置文件路径（Cursor / Codex 各自读自己的位置，由 setup_agent.sh 写入）
+# Claude Code MCP 配置文件路径（Cursor / Codex 各自读自己的位置，
+# 由 `./install.sh configure-agent --agent <name>` 写入）
 MCP_CONFIG = WEBUI_ROOT / ".mcp.json"
 
 # 历史会话持久化路径：backend/<RESOURCE_DIR>/agent_sessions.json

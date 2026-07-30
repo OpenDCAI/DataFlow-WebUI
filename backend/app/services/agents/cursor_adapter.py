@@ -6,7 +6,8 @@ that matter here:
 
 1. **MCP config location** — Cursor auto-reads ``.cursor/mcp.json`` from the
    workspace root. There is no equivalent of ``--mcp-config <path>``. Our
-   ``setup_agent.sh`` writes the file before this adapter is ever used.
+   ``./install.sh configure-agent --agent cursor`` writes the file before
+   this adapter is ever used.
 2. **System prompt delivery** — Cursor has no ``--append-system-prompt``
    flag. We prepend the system prompt to the user message instead.
 3. **Tool approval** — Cursor's ``-p`` print mode auto-grants all tools.
