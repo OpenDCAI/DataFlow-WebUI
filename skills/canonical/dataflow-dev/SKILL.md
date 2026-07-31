@@ -42,7 +42,11 @@ description: >
 - `context/dev_notes.md` — 开发规范与最佳实践
 - `diagnostics/known_issues.md` — 已知问题诊断表（Issue #001–#009）
 
+<!-- @if mcp==yes -->
 **有 MCP 时**：算子签名以 `get_operator_detail_by_name` 为准，它反映实际安装的版本；知识库是静态快照，冲突时以 MCP 为准。
+<!-- @else -->
+**离线模式**：以随技能提供的知识库和 `core_text` 静态参考为准；如果本地 DataFlow 版本不同，使用 Python 的 `inspect.signature` 做一次本地核对，并说明无法查询实时注册表。
+<!-- @endif -->
 ---
 
 ## 子命令路由
@@ -133,11 +137,13 @@ if TYPE_CHECKING:
 
 **跳过条件**：用户已明确提供上述三项信息，或 Pipeline 仅使用非 LLM 算子。
 
+<!-- @if profile==webui -->
 **WebUI 部署场景额外提醒**：
 - 在 WebUI Serving Manager 中创建 serving（填入 api_url + model_name + api_key）
 - 在 WebUI Pipeline 编辑器中，为**每个** LLM 算子分配 serving（不能只设置第一个）
 - 已知问题：AST 解析器无法解析 `self.llm_serving` 引用，导致导入的 Pipeline 中所有算子的
   `llm_serving` 参数为空，必须在 WebUI 中手动逐个分配
+<!-- @endif -->
 
 ### Step 2: 算子选择策略
 
@@ -188,7 +194,9 @@ if TYPE_CHECKING:
 | `DummyStorage` + `AttributeError` / `TypeError` | Issue #005（DummyStorage 不支持 get_keys_from_dataframe）|
 | `ModuleNotFoundError` + `dataflow.operators.reasoning.refine` | Issue（LazyLoader 路径，应从父模块 import）|
 | `AttributeError: 'NoneType' object has no attribute 'strip'` + `re.split` | Issue #006（re.split 捕获组 None 问题）|
+<!-- @if profile==webui -->
 | `Failed to process parameter: llm_serving` + `param_value: ''` | **WebUI caveat**（不是 `known_issues.md` 里的编号问题）：Pipeline 从 .py 文件导入后，AST 解析器无法解析 `self.llm_serving` 引用，导致所有算子的 llm_serving 为空 —— 需在 WebUI 中为**每个** LLM 算子手动分配 serving |
+<!-- @endif -->
 
 ---
 

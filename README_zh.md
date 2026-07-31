@@ -14,6 +14,8 @@ English: **[README.md](README.md)**
 | **`DataFlow-WebUI-<版本>.zip`** | 预构建前端的发布包，无需 clone 即可运行。见 [docs/RELEASE-PACKAGE.md](docs/RELEASE-PACKAGE.md)。 |
 
 本仓库提供**三个相互独立的层**，按需安装其中一个即可。
+这里的“独立”指安装和运行边界；内部的 standalone 与 MCP-aware Agent 指令
+统一从 `skills/canonical/` 渲染，避免出现两套需要分别维护的内容。
 
 ## 我该装哪一层？
 

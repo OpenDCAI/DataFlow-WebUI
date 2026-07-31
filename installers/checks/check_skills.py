@@ -131,6 +131,64 @@ def check_render_matrix(manifest: dict, md: Path) -> None:
                 return
 
 
+def check_profile_content_boundaries(manifest: dict) -> None:
+    """Standalone output must not instruct an agent to use unavailable systems."""
+    by_id = {skill["id"]: skill for skill in manifest["skills"]}
+
+    for skill_id, forbidden in {
+        "generating-dataflow-pipeline": (
+            "MCP",
+            "WebUI",
+            "get_operator_detail_by_name",
+            "validate_pipeline_config",
+            "Serving Manager",
+        ),
+        "dataflow-dev": ("MCP", "Serving Manager"),
+    }.items():
+        skill = by_id[skill_id]
+        source = REPO_ROOT / skill["canonical"] / "SKILL.md"
+        output = render(
+            source.read_text(encoding="utf-8"),
+            {
+                **manifest["agents"]["claude"]["context"],
+                "profile": "skills",
+                "mcp": "no",
+            },
+        )
+        for token in forbidden:
+            if token.lower() in output.lower():
+                fail(
+                    f"{skill_id}: skills profile still contains unavailable-system "
+                    f"wording {token!r}"
+                )
+
+    pipeline = by_id["generating-dataflow-pipeline"]
+    source = REPO_ROOT / pipeline["canonical"] / "SKILL.md"
+    harness_output = render(
+        source.read_text(encoding="utf-8"),
+        {
+            **manifest["agents"]["claude"]["context"],
+            "profile": "harness",
+            "mcp": "yes",
+        },
+    )
+    for token in ("Serving Manager", "WebUI deployment context", "canvas"):
+        if token.lower() in harness_output.lower():
+            fail(f"generating-dataflow-pipeline: harness profile contains WebUI-only wording {token!r}")
+
+    webui_output = render(
+        source.read_text(encoding="utf-8"),
+        {
+            **manifest["agents"]["claude"]["context"],
+            "profile": "webui",
+            "mcp": "yes",
+        },
+    )
+    for token in ("validate_pipeline_config", "WebUI Serving Manager"):
+        if token not in webui_output:
+            fail(f"generating-dataflow-pipeline: webui profile lost required wording {token!r}")
+
+
 def main() -> int:
     manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
     skills = manifest["skills"]
@@ -225,6 +283,8 @@ def main() -> int:
         for md in md_files:
             check_links(root, md)
             check_render_matrix(manifest, md)
+
+    check_profile_content_boundaries(manifest)
 
     # --- report -------------------------------------------------------------
     if notes:

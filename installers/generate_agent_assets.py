@@ -226,7 +226,11 @@ def generate_agents_md(manifest: dict, dest: Path, profile: str) -> None:
         if "mcp" in requires:
             needs_mcp = "required"
         elif "mcp-optional" in requires:
-            needs_mcp = "optional — richer with it"
+            needs_mcp = (
+                "no (bundled reference)"
+                if profile == "skills"
+                else "optional — richer with it"
+            )
         else:
             needs_mcp = "no"
         trigger = triggers.get(skill["id"], skill["summary"])

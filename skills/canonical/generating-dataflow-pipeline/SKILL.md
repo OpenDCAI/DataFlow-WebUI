@@ -1,6 +1,6 @@
 ---
 name: generating-dataflow-pipeline
-description: Plan and write a standard DataFlow pipeline from a target and representative JSONL data. Use when a user asks to select DataFlow operators, trace field dependencies, generate runnable pipeline code, or repair a pipeline with schema or field-flow errors. With MCP, validate and publish the result to the WebUI canvas.
+description: Plan and write a standard DataFlow pipeline from a target and representative JSONL data. Use when a user asks to select DataFlow operators, trace field dependencies, generate runnable pipeline code, or repair a pipeline with schema or field-flow errors.
 ---
 # DataFlow Pipeline Code Generator
 
@@ -61,17 +61,16 @@ When a specialized operator exists for the task, it MUST be used over generic op
 | Generate new content from a single field        | `PromptedGenerator`                                                                           | —                                         |
 | Generate new content from multiple fields       | `FormatStrPromptedGenerator`                                                                  | Multiple `PromptedGenerator` steps       |
 
-<!-- @if mcp==yes -->
-**Key principle**: `PromptedGenerator` is the fallback for generic single-field generation. If the target mentions "QA", "question-answer", "问答" — always reach for `Text2MultiHopQAGenerator` first. In MCP/WebUI mode, browse top-level category `core_text`; do not hallucinate query categories like `core_text/generate`.
-If both `core_text` and another top-level category seem plausible, call `recommend_operator_categories` with the task description plus dataset columns before spending more MCP context. Treat its result as a hard budget: inspect at most the top 1-2 suggested categories, then switch to `get_operator_detail_by_name` instead of further category scans.
-<!-- @else -->
 **Key principle**: `PromptedGenerator` is the fallback for generic single-field generation. If the target mentions "QA", "question-answer", "问答" — always reach for `Text2MultiHopQAGenerator` first.
+<!-- @if mcp==yes -->
+In MCP mode, browse top-level category `core_text`; do not hallucinate query categories like `core_text/generate`.
+If both `core_text` and another top-level category seem plausible, call `recommend_operator_categories` with the task description plus dataset columns before spending more MCP context. Treat its result as a hard budget: inspect at most the top 1-2 suggested categories, then switch to `get_operator_detail_by_name` instead of further category scans.
 <!-- @endif -->
 
 ## Field Dependency Rules (MANDATORY)
 
 <!-- @if mcp==yes -->
-When this skill is used through the WebUI agent rather than raw local codegen, first call `get_dataset_columns` for the registered dataset id and treat those returned column names as the ground-truth initial field set.
+When this skill is used with MCP and a registered dataset, first call `get_dataset_columns` for the dataset id and treat those returned column names as the ground-truth initial field set.
 <!-- @endif -->
 
 1. **Inspect sample first**: Identify all available fields in user's sample data
@@ -80,7 +79,7 @@ When this skill is used through the WebUI agent rather than raw local codegen, f
 4. **Never reference before creation**: Cannot consume a field before it exists
 5. **Avoid overwriting**: Do not overwrite original user fields unless explicitly requested
 <!-- @if mcp==yes -->
-6. **If committing through MCP/WebUI**: call `validate_pipeline_config` before create/update; field-flow errors should be fixed before commit
+6. **If committing through MCP**: call `validate_pipeline_config` before create/update; field-flow errors should be fixed before commit
 7. If `validate_pipeline_config` returns `missing_input_field`, treat its `suggested_fields` and `repair_hint` as the first repair path. Fix the binding and re-validate; do **not** broaden MCP browsing or switch categories just because a field name was wrong.
 <!-- @endif -->
 
@@ -178,7 +177,7 @@ Before generating pipeline code, the agent MUST confirm the user's LLM serving c
 - User explicitly provided all three pieces of info
 - Pipeline uses only non-LLM operators (e.g., `GeneralFilter`, `KBCChunkGenerator`, `FileOrURLToMarkdownConverterFlash`)
 
-<!-- @if mcp==yes -->
+<!-- @if profile==webui -->
 **WebUI deployment context**:
 
 When the pipeline is intended for WebUI execution (not local `python pipeline.py`), the serving must also be registered in the WebUI Serving Manager. After generating code, remind the user:
@@ -186,8 +185,10 @@ When the pipeline is intended for WebUI execution (not local `python pipeline.py
 - In the WebUI pipeline editor, assign the serving to **ALL** LLM-dependent operators (not just the first one)
 - Common failure: only the first operator gets a serving assigned; the rest remain empty, causing `Failed to process parameter: llm_serving` errors at execution time
 - In WebUI/MCP mode, older prompts may still say `list_servings`; the backend now provides both `list_serving` and a backward-compatible alias, but prefer `list_serving` in new prompts/skills
+<!-- @endif -->
 
-### MCP `create_pipeline` config structure (MANDATORY — WebUI/MCP mode)
+<!-- @if mcp==yes -->
+### MCP `create_pipeline` config structure (MANDATORY — MCP mode)
 
 When building a pipeline via the MCP `create_pipeline` / `update_pipeline` tools (NOT
 local codegen), the operator params JSON has two buckets — `init` and `run` — and
@@ -312,7 +313,7 @@ The key is **read from the environment at run time and never written anywhere**.
       model_name="gpt-4o",
   )
   ```
-<!-- @if mcp==yes -->
+<!-- @if profile==webui -->
 - **WebUI deployment**: The API key is managed by the WebUI Serving Manager — users input it
   in the `api_key` field when creating/editing a serving. The WebUI backend injects it into the
   environment at execution time. Do NOT include `api_key` or `key_name_of_api_key` in
@@ -411,12 +412,15 @@ Use the sibling `../core_text/` package only when the six core primitives above
 do not cover the task, or when you need an operator's edge cases, exact return
 semantics, or documented failure modes. Do not load it preemptively.
 
-1. With MCP, first call `get_operator_detail_by_name`; it reflects the installed
-   version and is authoritative.
-2. Without MCP, read `../core_text/SKILL.md` to choose a category, then read the
-   selected `../core_text/<category>/<operator>/SKILL.md` and its documented
-   failure example.
-3. Treat the six core primitives in this file as the fast path. The `core_text`
+<!-- @if mcp==yes -->
+1. Call `get_operator_detail_by_name`; it reflects the installed version and is
+   authoritative.
+<!-- @else -->
+1. Read `../core_text/SKILL.md` to choose a category, then read the selected
+   `../core_text/<category>/<operator>/SKILL.md` and its documented failure
+   example. This bundled reference is the offline source for this profile.
+<!-- @endif -->
+2. Treat the six core primitives in this file as the fast path. The `core_text`
    index owns the full operator list, so do not duplicate it here.
 
 ## Input File Content Analysis Rule (MANDATORY)

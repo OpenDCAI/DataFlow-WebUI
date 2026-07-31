@@ -1,7 +1,9 @@
 # Migrating from `OpenDCAI/DataFlow-Skills`
 
-The standalone skills now live in this repository. `DataFlow-Skills` becomes a
-read-only mirror.
+The standalone skills now live in this repository. `DataFlow-Skills` is now a
+compatibility bridge, not a second source of skill content. Its `install.sh`
+delegates to this repository's `--profile skills` installer, using a sibling
+WebUI checkout when available or cloning the selected WebUI ref temporarily.
 
 ## If you installed from the old repo
 
@@ -88,6 +90,8 @@ The old README pointed at `haolpku/DataFlow-Skills`, while the org repo is
 ## History
 
 This import is a content snapshot, not a history graft: the commit history of
-`DataFlow-Skills` stays in that repository. It remains available read-only for
-provenance. If full history is wanted here later, that should be a dedicated
-`git subtree` import PR.
+`DataFlow-Skills` stays in that repository for old clone URLs. Its historical
+files remain available for provenance, but the compatibility installer is the
+only supported entry point and no new skill changes should be made there. If
+full history is wanted here later, that should be a dedicated `git subtree`
+import PR.

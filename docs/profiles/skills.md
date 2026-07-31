@@ -125,4 +125,8 @@ Removes only what an install actually created, recorded in
 
 ## Relationship to OpenDCAI/DataFlow-Skills
 
-These skills previously lived in a separate repo. This repo is now the single source of truth — see [ADR-001](../architecture/adr-001-source-of-truth.md) and the [migration note](../migration/from-dataflow-skills.md).
+These skills previously lived in a separate repo. This repo is now the single
+source of truth. `OpenDCAI/DataFlow-Skills` is only a compatibility bridge: its
+installer delegates back to this profile, and its historical skill files are
+not maintained. See [ADR-001](../architecture/adr-001-source-of-truth.md) and the
+[migration note](../migration/from-dataflow-skills.md).

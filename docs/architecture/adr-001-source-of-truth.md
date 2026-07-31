@@ -1,6 +1,6 @@
 # ADR-001: One source of truth for skills
 
-- Status: **partially accepted** — see below
+- Status: **accepted**
 - Date: 2026-07-29
 - Supersedes: the informal arrangement where `OpenDCAI/DataFlow-Skills` and this
   repo both carried hand-maintained copies of the same skills
@@ -8,13 +8,11 @@
 | Scope | Status |
 |---|---|
 | Within this repo: `skills/canonical/` is the only hand-edited source; agent assets are generated | **accepted** — implemented and enforced by CI |
-| The fate of the external `OpenDCAI/DataFlow-Skills` repo (read-only mirror, archive, or continued independent life) | **proposed** — needs the repo owner's decision |
+| The fate of the external `OpenDCAI/DataFlow-Skills` repo | **accepted** — compatibility bridge to this repo's `skills` profile; no independent skill source |
 
-The second row is not this repo's call to make. Nothing here changes that
-repository; the content was imported as a snapshot, and until an owner decides,
-`DataFlow-Skills` should be treated as still live. If it stays writable, the
-duplication risk this ADR describes returns for the shared skills, and an
-automatic sync becomes necessary.
+`DataFlow-Skills` remains available for old clone URLs, but its installer now
+delegates to this repository's `skills` profile. Its historical skill files are
+not an alternate source and must not receive new fixes.
 
 ## Context
 
@@ -85,12 +83,11 @@ directory and diffs. A hand-edit of a generated file fails the build.
 Its `core_text` content is imported here (71 files), which also fixes the six
 broken `../core_text/` references.
 
-**Proposed, pending owner decision:** that `OpenDCAI/DataFlow-Skills` become a
-read-only mirror carrying a migration notice. This ADR does not enact that — no
-change has been made to that repository, and the import is a snapshot. The
-alternative, if the owner wants it to stay writable, is an automatic one-way sync
-from here; two independently editable copies is the situation that produced the
-drift documented above.
+**Compatibility bridge:** `OpenDCAI/DataFlow-Skills` carries a migration notice
+and a wrapper that invokes `DataFlow-WebUI/install.sh --profile skills`. A local
+`../DataFlow-WebUI` checkout is preferred; otherwise the wrapper clones a
+selected WebUI ref temporarily. This keeps the old entry point usable while
+ensuring the installed output comes from the current canonical source.
 
 ## Alternatives rejected
 
@@ -123,7 +120,7 @@ Costs:
   source, and CI names the file and the fix command
 - conditional directives make canonical files slightly harder to read than a
   finished one
-- users of the old `DataFlow-Skills` clone URL need the migration note
+- users of the old `DataFlow-Skills` clone URL are redirected by the bridge
 
 ## Verification
 

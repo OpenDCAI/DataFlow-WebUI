@@ -17,6 +17,9 @@ Build, run and manage [DataFlow](https://github.com/OpenDCAI/DataFlow) data pipe
 | **`DataFlow-WebUI-<version>.zip`** | A release package with the frontend pre-built, for running without a clone. See [docs/RELEASE-PACKAGE.md](docs/RELEASE-PACKAGE.md). |
 
 This repo ships **three independent layers**. Install only the one you need.
+They are independent at install and runtime; internally, all agent variants are
+rendered from the same `skills/canonical/` source so the standalone and
+MCP-aware instructions cannot drift.
 
 ## Which layer do I want?
 
