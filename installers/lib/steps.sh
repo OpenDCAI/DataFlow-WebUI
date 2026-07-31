@@ -17,22 +17,55 @@ df_pip_install() {
   "$DF_PYTHON" -m pip install $quiet "$@"
 }
 
+df_dataflow_framework_ready() {
+  # An import alone is not enough: a stale editable ``dataflow`` checkout can
+  # be importable while exposing a different CLI and operator set. The harness
+  # is tested against this exact release.
+  "$DF_PYTHON" -c '
+from importlib.metadata import version
+import dataflow  # noqa: F401
+if version("open-dataflow") != "1.0.10":
+    raise SystemExit(1)
+'
+}
+
 df_init_dataflow_core() {
   local core_dir="$DF_REPO_ROOT/backend/data/dataflow_core"
   if [[ "${DF_DRY_RUN:-0}" -eq 1 ]]; then
-    plan "mkdir -p $core_dir && (cd \"\$_\" && $DF_PYTHON -m dataflow init)"
+    plan "mkdir -p $core_dir && (cd \"$core_dir\" && $DF_PYTHON -m dataflow.cli init)"
     return 0
   fi
-  mkdir -p "$core_dir"
-  ( cd "$core_dir" && "$DF_PYTHON" -m dataflow init ) || {
-    warn "dataflow init returned non-zero; the directory exists but may be incomplete"
+
+  if df_dataflow_core_ready; then
+    skip "DataFlow core (already initialized)"
     return 0
+  fi
+
+  mkdir -p "$core_dir"
+  if [[ -n "$(find "$core_dir" -mindepth 1 -maxdepth 1 -print -quit)" ]]; then
+    err "DataFlow core is incomplete at $core_dir; refusing to merge into it"
+    err "  restore api_pipelines/ and example_data/, or move the incomplete directory aside before retrying"
+    return 1
+  fi
+
+  # ``open-dataflow==1.0.10`` exposes the command as dataflow.cli:app, but
+  # does not provide dataflow.__main__. Calling ``python -m dataflow init``
+  # therefore always fails. Using the selected interpreter also avoids picking
+  # a different environment's ``dataflow`` executable from PATH.
+  ( cd "$core_dir" && "$DF_PYTHON" -m dataflow.cli init ) || {
+    err "DataFlow core initialization failed; no incomplete core is accepted"
+    return 1
+  }
+
+  df_dataflow_core_ready || {
+    err "DataFlow initialization completed without api_pipelines/ and example_data/"
+    return 1
   }
 }
 
 df_dataflow_core_ready() {
   local core_dir="$DF_REPO_ROOT/backend/data/dataflow_core"
-  [[ -d "$core_dir" ]] && [[ -n "$(ls -A "$core_dir" 2>/dev/null)" ]]
+  [[ -d "$core_dir/api_pipelines" ]] && [[ -d "$core_dir/example_data" ]]
 }
 
 # ---------- frontend --------------------------------------------------------

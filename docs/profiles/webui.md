@@ -26,6 +26,12 @@ You want to see pipelines as a graph, edit them by hand, and chat with an agent 
 
 This project uses **npm**, not Yarn, despite a tracked `yarn.lock` — see [ADR-002](../architecture/adr-002-package-managers.md).
 
+If `python3` resolves to an older Python, select a 3.10+ interpreter explicitly:
+
+```bash
+DATAFLOW_PYTHON="$(command -v python3.10)" ./install.sh --profile webui
+```
+
 ## Install
 
 ```bash
@@ -122,6 +128,7 @@ Python packages and your pipelines under `backend/data/` are left alone.
 |---|---|---|
 | "UI index file not found" in logs | Frontend not built | `cd frontend && npm install && npm run build` |
 | Blank page at `:8000` | Stale or partial build | Delete `frontend/dist`, rebuild |
+| `DataFlow core is incomplete` | A prior initialization failed partway through | Move the incomplete `backend/data/dataflow_core/` aside, then re-run the install |
 | `<cli>: command not found` in backend logs | Agent CLI not on the backend's PATH | Set `DATAFLOW_CLAUDE_CLI` / `DATAFLOW_CODEX_CLI` to an absolute path before starting |
 | Chat replies empty, immediate `done` | Agent auth failed | Confirm the key is exported in the shell that started the backend; for Codex try `codex login` |
 | Agent invents operators | Skill not loaded | Re-run `./install.sh --profile webui --force` |

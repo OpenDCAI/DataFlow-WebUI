@@ -22,6 +22,9 @@ pip install -r requirements.txt
 ```
 
 `requirements.txt` includes `open-dataflow`. Python 3.10+ is required.
+`open-dataflow==1.0.10` and `fastapi-mcp==0.4.0` are pinned because the backend
+depends on their runtime CLI and MCP APIs. Do not replace them with an
+unverified editable DataFlow checkout.
 
 ## Run
 
@@ -47,7 +50,8 @@ your local network. Use `--host=127.0.0.1` to restrict it.
 ## Tests
 
 ```bash
-make test        # or: pytest -q
+pip install -r requirements-dev.txt
+pytest -q
 ```
 
 ## Layout

@@ -1,0 +1,4 @@
+# Test-only dependencies. Production installs use requirements.txt.
+-r requirements.txt
+pytest>=8,<9
+pytest-asyncio>=0.23,<1

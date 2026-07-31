@@ -22,6 +22,14 @@ This is a real product layer, not "webui with the frontend deleted". It installs
 - Python 3.10+ with pip
 - No Node.js required, and none is installed
 
+If your shell's `python3` is older (macOS commonly still provides 3.9), choose
+the intended interpreter explicitly. The installer installs and runs everything
+through that same interpreter:
+
+```bash
+DATAFLOW_PYTHON="$(command -v python3.10)" ./install.sh --profile harness
+```
+
 ## Install
 
 ```bash
@@ -125,6 +133,7 @@ Python packages are left in place; remove them with pip yourself. Runtime data u
 | Symptom | Cause | Fix |
 |---|---|---|
 | `Cannot import app.main` | Backend deps missing | Re-run the install; check you're in the right Python env |
+| `DataFlow core is incomplete` | A previous initialization failed partway through | Move the incomplete `backend/data/dataflow_core/` aside, then re-run the install; the installer will not merge into an unknown partial directory |
 | Agent reports "MCP server not reachable" | Backend not running, or wrong port | `./scripts/start.sh --status`; re-run `configure-agent` if you changed the port |
 | Cursor rejects MCP responses | Old build wrapping JSON-RPC in the API envelope | Fixed on `main`; make sure you are current |
 | Tool calls fail with "tool not found" | Whitelist and routes disagree | `python3 installers/checks/check_mcp_whitelist.py` |

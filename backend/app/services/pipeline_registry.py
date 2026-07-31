@@ -239,7 +239,7 @@ class PipelineRegistry:
         加载api_pipelines目录中的所有py文件并提取operator执行顺序
         """
         # using absolute path
-        self.path = os.path.join(settings.BASE_DIR, "data", "pipeline_registry.json")
+        self.path = path or settings.PIPELINE_REGISTRY
 
         self._init_registry_file()
         # 初始化后，更新所有api pipeline的operators列表

@@ -1,25 +1,61 @@
+"""Initialize the DataFlow files the backend reads at runtime."""
+
+from __future__ import annotations
+
+import subprocess
+import sys
+from pathlib import Path
+
 from app.core.config import settings
-# import logging
-from loguru import logger as logging
-from app.api.v1.endpoints.datasets import register_dataset
-from app.schemas.dataset import DatasetIn
-def setup_dataflow_core():
-    import os
-    import shutil
+from loguru import logger
 
-    core_dir = settings.DATAFLOW_CORE_DIR
-    if not os.path.exists(core_dir):
-        os.makedirs(core_dir, exist_ok=True)
-    
-    if not os.listdir(core_dir):
-        # 假设有一些初始文件需要复制到 core 目录
-        logging.info(f"Setting up DataFlow core directory at {core_dir}")
-        # 需要在core_dir工作路径下通过系统命令行执行 dataflow init指令，并归还工作路径
-        os.chdir(core_dir)
-        os.system("dataflow init")
-        os.chdir("../..")
-        logging.info("DataFlow core setup completed.")
-        print("Current working directory:", os.getcwd())
-    else:
-        logging.info(f"DataFlow core directory at {core_dir} already set up.")
 
+_REQUIRED_CORE_DIRS = ("api_pipelines", "example_data")
+
+
+def dataflow_core_ready(core_dir: Path) -> bool:
+    """Return whether a core directory has the minimum usable DataFlow layout."""
+    return all((core_dir / name).is_dir() for name in _REQUIRED_CORE_DIRS)
+
+
+def setup_dataflow_core() -> None:
+    """Create a usable core directory with the same interpreter as the backend.
+
+    open-dataflow 1.0.10 registers ``dataflow`` as ``dataflow.cli:app`` and
+    deliberately has no ``dataflow.__main__``.  ``python -m dataflow init`` is
+    consequently invalid.  Avoiding ``os.system`` and process-wide ``chdir``
+    also prevents a failed initialization from being mistaken for success.
+    """
+    core_dir = Path(settings.DATAFLOW_CORE_DIR)
+    core_dir.mkdir(parents=True, exist_ok=True)
+
+    if dataflow_core_ready(core_dir):
+        logger.info(f"DataFlow core directory is ready at {core_dir}")
+        return
+
+    if any(core_dir.iterdir()):
+        raise RuntimeError(
+            f"DataFlow core directory is incomplete at {core_dir}; refusing to merge into it. "
+            f"Restore {', '.join(_REQUIRED_CORE_DIRS)} or move the incomplete directory aside."
+        )
+
+    logger.info(f"Initializing DataFlow core directory at {core_dir}")
+    try:
+        subprocess.run(
+            [sys.executable, "-m", "dataflow.cli", "init"],
+            cwd=core_dir,
+            check=True,
+        )
+    except subprocess.CalledProcessError as exc:
+        raise RuntimeError(
+            f"DataFlow core initialization failed in {core_dir}. "
+            "Fix the active Python environment and retry."
+        ) from exc
+
+    if not dataflow_core_ready(core_dir):
+        raise RuntimeError(
+            f"DataFlow initialization completed but {core_dir} is incomplete; "
+            f"expected: {', '.join(_REQUIRED_CORE_DIRS)}"
+        )
+
+    logger.info(f"DataFlow core directory initialized at {core_dir}")

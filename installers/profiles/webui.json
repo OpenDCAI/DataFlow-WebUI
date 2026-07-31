@@ -52,8 +52,8 @@
     {
       "id": "dataflow",
       "label": "Install the DataFlow framework",
-      "run": "df_pip_install open-dataflow",
-      "skip_if": "$DF_PYTHON -c 'import dataflow' 2>/dev/null",
+      "run": "df_pip_install open-dataflow==1.0.10",
+      "skip_if": "df_dataflow_framework_ready",
       "produces": "python package: dataflow"
     },
     {

@@ -242,14 +242,6 @@ class TaskRegistry:
         
         return task_id, pipeline_config, initial_result
     
-    def get_execution_result(self, task_id: str) -> Optional[Dict[str, Any]]:
-        """获取任务执行结果"""
-        data = self._read()
-        execution_data = data.get("tasks", {}).get(task_id)    
-        if execution_data:
-            return execution_data.copy()  # 返回副本避免修改原数据
-        return None
-    
     def list_executions(self) -> List[Dict[str, Any]]:
         """列出所有任务执行记录"""
         data = self._read()

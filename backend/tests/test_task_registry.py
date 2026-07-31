@@ -47,6 +47,18 @@ class TestTaskRegistry:
         task = task_registry.get("nonexistent_id")
         assert task is None
 
+    def test_execution_lifecycle_uses_task_id(self, task_registry):
+        """Execution records are TaskRegistry state, keyed by task_id."""
+        config = {"file_path": "", "input_dataset": "test_dataset", "operators": []}
+
+        task_id, snapshot, initial = task_registry.start_execution(config=config)
+        result = task_registry.get_execution_result(task_id)
+
+        assert task_id == initial["task_id"]
+        assert snapshot == config
+        assert result["task_id"] == task_id
+        assert result["status"] == "queued"
+
     def test_update_task_status_to_running(self, task_registry, created_task):
         """测试更新任务状态为 running"""
         task_id = created_task["id"]
@@ -284,4 +296,3 @@ def test_filter_by_status(task_registry, sample_task_data, status):
     filtered_tasks = task_registry.list(status=status)
     assert len(filtered_tasks) >= 1
     assert all(t["status"] == status for t in filtered_tasks)
-
