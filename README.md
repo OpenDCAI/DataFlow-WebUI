@@ -170,10 +170,11 @@ CI regenerates and diffs, so a hand-edited generated file fails the build.
 }
 ```
 
+
 ## Community
 
 <p align="center">
-  <img src="https://github.com/user-attachments/assets/7992ab37-d5b1-4539-99e7-44139ca6808d" alt="DataFlow community QR code" width="85%">
+  <img src="https://github.com/user-attachments/assets/b958dc89-d76e-4e47-9277-22b3f6661944" alt="DataFlow community QR code" width="85%">
 </p>
 
 Licensed under Apache 2.0 — see [LICENSE](LICENSE).
