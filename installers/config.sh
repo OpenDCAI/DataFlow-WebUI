@@ -26,10 +26,12 @@ DF_MCP_URL="${DATAFLOW_MCP_URL:-http://localhost:${DF_PORT}${DF_MCP_PATH}}"
 DF_NODE_PM="npm"
 DF_NODE_PM_INSTALL_CMD="npm install --no-audit --no-fund"
 
-# Python: pip into whatever environment is active. The installer deliberately
-# does NOT create or activate a venv — that is the user's choice, and silently
-# installing into a system Python is worse than saying nothing.
+# Python packages are installed with uv by default. ``./install.sh --pip`` is
+# the explicit fallback for environments where uv cannot be used. The installer
+# deliberately does NOT create or activate a venv — that remains the user's
+# choice, and the README shows both venv and conda workflows.
 DF_PYTHON="${DATAFLOW_PYTHON:-python3}"
+DF_PYTHON_INSTALLER="${DATAFLOW_PYTHON_INSTALLER:-uv}"
 
 # ---------- paths -----------------------------------------------------------
 # Where installed skills go. Project scope is the default so that installing

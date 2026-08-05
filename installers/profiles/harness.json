@@ -9,7 +9,7 @@
   "description": "The DataFlow Harness backend: FastAPI service, MCP server over SSE, operator registry, pipeline validation, plus the MCP-aware workflow skills. Driven from Claude Code / Codex / Cursor — no browser UI.",
   "audience": "Users who drive DataFlow from an agent via MCP and never open the canvas.",
   "installs": [
-    "The DataFlow framework (open-dataflow) via pip",
+    "The DataFlow framework (open-dataflow) via uv (or pip with --pip)",
     "Backend Python dependencies from backend/requirements.txt",
     "The DataFlow core data directory",
     "Harness workflow skills (MCP-aware) and standalone skills"
@@ -28,11 +28,6 @@
       "check": "$DF_PYTHON --version",
       "min": "3.10",
       "reason": "backend runtime"
-    },
-    {
-      "id": "pip",
-      "check": "$DF_PYTHON -m pip --version",
-      "reason": "installs backend dependencies"
     }
   ],
   "skill_layers": [

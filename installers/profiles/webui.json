@@ -9,7 +9,7 @@
   "description": "The complete DataFlow-Harness stack: visual DAG canvas in the browser, FastAPI backend, MCP server, and all skills. Agent-built pipelines appear on the canvas.",
   "audience": "Users who want the visual canvas and browser-based agent chat.",
   "installs": [
-    "Everything in the harness profile",
+    "Everything in the harness profile (Python packages via uv by default)",
     "Frontend Node dependencies and a production build (frontend/dist)"
   ],
   "does_not_install": [
@@ -25,11 +25,6 @@
       "check": "$DF_PYTHON --version",
       "min": "3.10",
       "reason": "backend runtime"
-    },
-    {
-      "id": "pip",
-      "check": "$DF_PYTHON -m pip --version",
-      "reason": "installs backend dependencies"
     },
     {
       "id": "node",

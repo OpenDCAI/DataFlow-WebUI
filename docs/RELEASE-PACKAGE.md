@@ -14,7 +14,7 @@ zip, where no sibling repository files exist.)
 
 ### 1. 准备 Python 环境
 
-推荐 Python **3.10 / 3.11**，确保命令行可以直接使用 `python`。
+推荐 Python **3.10**（最低也是 3.10），确保命令行可以直接使用 `python`。
 
 任选一种：
 
@@ -32,9 +32,14 @@ conda activate dataflow
 
 ```bash
 cd backend
-pip install -r requirements.txt
+uv pip install -r requirements.txt
 cd ..
 ```
+
+若尚未安装 uv，可参阅项目 README 的各系统安装说明，或使用
+`python -m pip install -r requirements.txt` 作为备用方案。依赖已固定
+`setuptools<82`（避免 `pkg_resources` 缺失）和 `mcp<2`（避免
+`fastapi-mcp==0.4.0` 的 `Server.__init__` 参数不兼容）。
 
 ### 3. 启动服务
 
@@ -72,7 +77,7 @@ tool_timeout_sec = 120
 
 ### 1. Prepare Python
 
-Python **3.10 / 3.11** recommended; make sure `python` is on your `PATH`.
+Python **3.10** recommended and required; make sure `python` is on your `PATH`.
 
 ```bash
 # Option A: venv
@@ -88,9 +93,13 @@ conda activate dataflow
 
 ```bash
 cd backend
-pip install -r requirements.txt
+uv pip install -r requirements.txt
 cd ..
 ```
+
+If uv is unavailable, use `python -m pip install -r requirements.txt` instead.
+The requirements pin `setuptools<82` and `mcp<2` for compatibility with the
+bundled DataFlow and `fastapi-mcp==0.4.0` versions.
 
 ### 3. Run
 

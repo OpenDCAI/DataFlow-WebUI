@@ -49,6 +49,8 @@ Options:
                        project (default) → ./.claude/skills, inside this repo
                        user              → ~/.claude/skills, every project
   --force            Overwrite skills that already exist
+  --uv               Install Python packages with uv (default)
+  --pip              Install Python packages with pip instead
   --verbose          Show command output
   --uninstall        Remove only what a previous install recorded
   --list             Show the three profiles side by side
@@ -86,6 +88,8 @@ while [[ $# -gt 0 ]]; do
     --check|--check-only) DF_CHECK_ONLY=1; shift ;;
     --dry-run)    DF_DRY_RUN=1; shift ;;
     --force|-f)   DF_FORCE=1; shift ;;
+    --uv)         DF_PYTHON_INSTALLER="uv"; shift ;;
+    --pip)        DF_PYTHON_INSTALLER="pip"; shift ;;
     --verbose|-v) DF_VERBOSE=1; shift ;;
     --scope)      DF_SCOPE="${2:-}"; shift 2 ;;
     --scope=*)    DF_SCOPE="${1#*=}"; shift ;;
@@ -96,7 +100,12 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-export DF_REPO_ROOT DF_DRY_RUN DF_FORCE DF_VERBOSE DF_PYTHON
+case "$DF_PYTHON_INSTALLER" in
+  uv|pip) ;;
+  *) err "invalid Python installer: $DF_PYTHON_INSTALLER (use 'uv' or 'pip')"; exit 2 ;;
+esac
+
+export DF_REPO_ROOT DF_DRY_RUN DF_FORCE DF_VERBOSE DF_PYTHON DF_PYTHON_INSTALLER
 
 PROFILE_DIR="$DF_REPO_ROOT/installers/profiles"
 
@@ -286,6 +295,18 @@ for ((i = 0; i < prereq_count; i++)); do
   p_reason=$(df_json "$MANIFEST" "d['prerequisites'][$i]['reason']")
   df_check_prereq "$p_id" "$p_check" "$p_min" "$p_reason" || PREREQ_FAILED=$((PREREQ_FAILED + 1))
 done
+
+# The skills-only profile installs no packages. Runtime profiles use uv by
+# default, while --pip keeps a compatible escape hatch for restricted systems.
+if [[ "$DF_PROFILE" != "skills" ]]; then
+  if [[ "$DF_PYTHON_INSTALLER" == "uv" ]]; then
+    df_check_prereq "uv" "uv --version" "" "install Python packages" \
+      || PREREQ_FAILED=$((PREREQ_FAILED + 1))
+  else
+    df_check_prereq "pip" "$DF_PYTHON -m pip --version" "" "install Python packages" \
+      || PREREQ_FAILED=$((PREREQ_FAILED + 1))
+  fi
+fi
 
 if [[ "$PREREQ_FAILED" -gt 0 ]]; then
   err "$PREREQ_FAILED prerequisite(s) missing — fix them and re-run."

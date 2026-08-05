@@ -18,8 +18,14 @@ See [docs/profiles/harness.md](../docs/profiles/harness.md).
 Only if you are working on the backend itself and want nothing else touched.
 
 ```bash
-pip install -r requirements.txt
+uv pip install -r requirements.txt
 ```
+
+If uv is unavailable, use `python -m pip install -r requirements.txt`. Keep
+Python 3.10+ active in a venv or conda environment. The requirements pin
+`setuptools<82` because DataFlow still imports `pkg_resources`, and `mcp<2`
+because `fastapi-mcp==0.4.0` is not compatible with MCP 2's keyword-only
+`Server` constructor.
 
 `requirements.txt` includes `open-dataflow`. Python 3.10+ is required.
 `open-dataflow==1.0.10` and `fastapi-mcp==0.4.0` are pinned because the backend
@@ -50,7 +56,7 @@ your local network. Use `--host=127.0.0.1` to restrict it.
 ## Tests
 
 ```bash
-pip install -r requirements-dev.txt
+uv pip install -r requirements-dev.txt
 pytest -q
 ```
 

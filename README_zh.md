@@ -23,7 +23,7 @@ English: **[README.md](README.md)**
 |---|---|---|---|
 | **得到什么** | 可视化 DAG 画布 + 后端 + MCP | 后端 + MCP，无浏览器界面 | 仅 Agent skills |
 | **需要什么** | Python 3.10+、Node 20+ | Python 3.10+ | Python 3.9+（仅用于生成技能文件） |
-| **是否装包** | 是（pip + npm） | 是（pip） | **否** |
+| **是否装包** | 是（uv + npm） | 是（uv） | **否** |
 | **是否起服务** | 是，端口 8000 | 是，端口 8000 | **否** |
 | **Agent 能写管线** | ✅ | ✅ | ✅ |
 | **Agent 能查实时算子注册表** | ✅ | ✅ | ✗（用内置静态参考） |
@@ -49,6 +49,48 @@ cd DataFlow-WebUI
 三个 profile 都支持 `--check`（只查前置条件）、`--dry-run`（只打印计划，不改动任何文件）和 `--uninstall`。
 
 分层详细文档：**[webui](docs/profiles/webui.md)** · **[harness](docs/profiles/harness.md)** · **[skills](docs/profiles/skills.md)**
+
+## 安装与使用
+
+`webui` profile 会安装完整的浏览器端栈。以下命令都在仓库根目录执行，
+安装和启动应使用同一个已激活的环境。Python 推荐 3.10，最低要求也是
+3.10；另外需要 Node.js 20+、npm、Git 和 uv。
+
+各系统推荐安装方式：
+
+| 系统 | Python / Git | Node.js 20+ / npm | uv |
+|---|---|---|---|
+| macOS | `brew install python@3.10 git` | nvm，然后 `nvm install 20` | `brew install uv` |
+| Ubuntu/Debian | `sudo apt update && sudo apt install -y python3.10 python3.10-venv git` | [nvm](https://github.com/nvm-sh/nvm)，然后 `nvm install 20` | [uv 安装器](https://docs.astral.sh/uv/getting-started/installation/) |
+| Windows PowerShell | `winget install Python.Python.3.10 Git.Git` | `winget install OpenJS.NodeJS.LTS` | [PowerShell 安装器](https://docs.astral.sh/uv/getting-started/installation/) |
+
+macOS/Linux 可执行 `curl -LsSf https://astral.sh/uv/install.sh | sh` 安装 uv；
+Windows PowerShell 可执行 `powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"`。
+安装后重启终端，并确认 `python --version`、`node --version`（20+）、
+`npm --version` 和 `uv --version` 可用。
+
+二选一创建 Python 环境：
+
+```bash
+# venv（Windows PowerShell：py -3.10 -m venv .venv，然后 .venv\Scripts\Activate.ps1）
+python3.10 -m venv .venv
+source .venv/bin/activate
+
+# 或 conda（所有系统）
+conda create -n dataflow python=3.10 -y
+conda activate dataflow
+```
+
+然后安装并启动：
+
+```bash
+./install.sh --profile webui
+./scripts/start.sh             # 或 ./scripts/start.sh --daemon
+```
+
+浏览器打开 <http://localhost:8000/>，在聊天面板选择 Agent，描述想要的
+数据管线并在画布中检查结果。uv 是默认 Python 包管理器；若必须使用 pip，
+执行 `./install.sh --profile webui --pip`。
 
 ## 安装不会写入 Agent 配置
 

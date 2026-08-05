@@ -17,7 +17,8 @@ You want to see pipelines as a graph, edit them by hand, and chat with an agent 
 
 ## Prerequisites
 
-- Python 3.10+ with pip
+- Python 3.10+ (3.10 recommended) in an activated venv or conda environment
+- uv (the default Python package installer; use `--pip` as a fallback)
 - Node.js 20+ with npm (recommended: [nvm](https://github.com/nvm-sh/nvm) — `nvm install 20`)
 - At least one agent CLI, if you want the chat panel:
   - Claude Code: `curl -fsSL https://claude.ai/code/install.sh | sh`
@@ -38,9 +39,11 @@ DATAFLOW_PYTHON="$(command -v python3.10)" ./install.sh --profile webui
 ./install.sh --profile webui --check      # prerequisites only
 ./install.sh --profile webui --dry-run    # print the plan
 ./install.sh --profile webui
+# If uv is unavailable or disallowed:
+./install.sh --profile webui --pip
 ```
 
-Steps: install `open-dataflow` → backend deps → `npm install` + `npm run build` → initialize the DataFlow core directory → render and install all skills.
+Steps: install `open-dataflow` with uv → backend deps → `npm install` + `npm run build` → initialize the DataFlow core directory → render and install all skills. Pass `--pip` to use pip explicitly.
 
 The frontend build is the slow part. It is skipped when `frontend/dist/index.html` already exists; delete that file to force a rebuild.
 

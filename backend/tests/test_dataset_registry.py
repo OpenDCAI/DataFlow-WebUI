@@ -20,7 +20,9 @@ def test_registry():
     temp_files = []
     
     # 创建测试用的registry实例
-    registry = DatasetRegistry(TEST_REGISTRY_PATH)
+    # Unit tests must not auto-import the repository's example datasets into
+    # this temporary registry.
+    registry = DatasetRegistry(TEST_REGISTRY_PATH, scan=False)
     
     # 创建临时数据集文件并添加到registry
     for i in range(5):

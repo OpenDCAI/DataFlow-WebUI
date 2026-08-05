@@ -8,13 +8,22 @@
 # ---------- python ----------------------------------------------------------
 df_pip_install() {
   if [[ "${DF_DRY_RUN:-0}" -eq 1 ]]; then
-    plan "pip install $*"
+    if [[ "${DF_PYTHON_INSTALLER:-uv}" == "uv" ]]; then
+      plan "uv pip install --python $DF_PYTHON $*"
+    else
+      plan "$DF_PYTHON -m pip install $*"
+    fi
     return 0
   fi
   local quiet="-q"
   [[ "${DF_VERBOSE:-0}" -eq 1 ]] && quiet=""
-  # shellcheck disable=SC2086
-  "$DF_PYTHON" -m pip install $quiet "$@"
+  if [[ "${DF_PYTHON_INSTALLER:-uv}" == "uv" ]]; then
+    # shellcheck disable=SC2086
+    uv pip install --python "$DF_PYTHON" $quiet "$@"
+  else
+    # shellcheck disable=SC2086
+    "$DF_PYTHON" -m pip install $quiet "$@"
+  fi
 }
 
 df_dataflow_framework_ready() {

@@ -27,7 +27,7 @@ MCP-aware instructions cannot drift.
 |---|---|---|---|
 | **You get** | Visual DAG canvas + backend + MCP | Backend + MCP, no browser UI | Agent skills only |
 | **You need** | Python 3.10+, Node 20+ | Python 3.10+ | Python 3.9+ (to render the skills) |
-| **Installs packages** | yes (pip + npm) | yes (pip) | **no** |
+| **Installs packages** | yes (uv + npm) | yes (uv) | **no** |
 | **Runs a server** | yes, port 8000 | yes, port 8000 | **no** |
 | **Agent writes pipelines** | ✅ | ✅ | ✅ |
 | **Agent sees live operator registry** | ✅ | ✅ | ✗ (uses bundled reference) |
@@ -54,6 +54,73 @@ cd DataFlow-WebUI
 Every profile supports `--check` (prerequisites only), `--dry-run` (show the plan, change nothing) and `--uninstall`.
 
 Full per-layer guides: **[webui](docs/profiles/webui.md)** · **[harness](docs/profiles/harness.md)** · **[skills](docs/profiles/skills.md)**
+
+## Installation and usage
+
+The `webui` profile installs the complete browser-based stack. Run the commands
+below from the repository root and use the same activated environment for setup
+and startup. Python **3.10 is recommended and is the minimum supported version**.
+
+### Install prerequisites
+
+You need Git, Python 3.10+, Node.js 20+ (which includes npm), and uv. Suggested
+system installation methods:
+
+| System | Python and Git | Node.js 20+ and npm | uv |
+|---|---|---|---|
+| macOS | `brew install python@3.10 git` | `brew install nvm` then `nvm install 20` | `brew install uv` |
+| Ubuntu/Debian | `sudo apt update && sudo apt install -y python3.10 python3.10-venv git` | [nvm](https://github.com/nvm-sh/nvm), then `nvm install 20` | [uv installer](https://docs.astral.sh/uv/getting-started/installation/) |
+| Windows PowerShell | `winget install Python.Python.3.10 Git.Git` | `winget install OpenJS.NodeJS.LTS` | [PowerShell installer](https://docs.astral.sh/uv/getting-started/installation/) |
+
+On macOS/Linux, the uv installer is:
+
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+On Windows PowerShell:
+
+```powershell
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+```
+
+Restart the terminal after installing tools, then verify `python --version`,
+`node --version` (must be 20 or newer), `npm --version`, and `uv --version`.
+
+### Create and activate a Python environment
+
+Choose **one** of the following; do not mix environments.
+
+```bash
+# venv (macOS/Linux; Windows PowerShell uses .venv\Scripts\Activate.ps1)
+python3.10 -m venv .venv
+source .venv/bin/activate
+
+# Or conda (all systems)
+conda create -n dataflow python=3.10 -y
+conda activate dataflow
+```
+
+On Ubuntu/Debian, install `python3.10-venv` if `venv` reports that `ensurepip`
+is missing. On Windows, use `py -3.10 -m venv .venv` and activate it from
+PowerShell; `.sh` files do not run in plain `cmd.exe`.
+
+### Install, start, and use
+
+```bash
+./install.sh --profile webui
+./scripts/start.sh             # foreground; Ctrl+C stops it
+# or: ./scripts/start.sh --daemon
+```
+
+Open <http://localhost:8000/>. In the chat panel select an installed agent,
+describe the pipeline you want, and inspect the resulting DAG on the canvas.
+Check or stop a background server with `./scripts/start.sh --status` and
+`./scripts/start.sh --stop`.
+
+uv is the default Python package installer. If your environment requires pip,
+use `./install.sh --profile webui --pip` (or the compatibility
+`./scripts/setup_all.sh --pip`).
 
 ## Installing never writes agent configuration
 

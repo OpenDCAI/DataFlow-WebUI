@@ -75,6 +75,7 @@ df_check_prereq() {
       node)   err "  install Node.js 20+ (recommended: nvm install 20)" ;;
       npm)    err "  npm ships with Node.js — reinstall Node" ;;
       pip)    err "  run: python3 -m ensurepip --upgrade" ;;
+      uv)     err "  install uv: https://docs.astral.sh/uv/getting-started/installation/" ;;
     esac
     return 1
   fi

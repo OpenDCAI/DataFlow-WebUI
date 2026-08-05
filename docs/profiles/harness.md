@@ -19,7 +19,8 @@ This is a real product layer, not "webui with the frontend deleted". It installs
 
 ## Prerequisites
 
-- Python 3.10+ with pip
+- Python 3.10+ (3.10 recommended) in an activated venv or conda environment
+- uv (the default Python package installer; use `--pip` as a fallback)
 - No Node.js required, and none is installed
 
 If your shell's `python3` is older (macOS commonly still provides 3.9), choose
@@ -36,9 +37,11 @@ DATAFLOW_PYTHON="$(command -v python3.10)" ./install.sh --profile harness
 ./install.sh --profile harness --check      # verify prerequisites only
 ./install.sh --profile harness --dry-run    # print the plan, change nothing
 ./install.sh --profile harness
+# If uv is unavailable or disallowed:
+./install.sh --profile harness --pip
 ```
 
-Steps: install `open-dataflow` → install `backend/requirements.txt` → initialize the DataFlow core data directory → render and install the harness + standalone skills.
+Steps: install `open-dataflow` with uv → install `backend/requirements.txt` → initialize the DataFlow core data directory → render and install the harness + standalone skills. Pass `--pip` to use pip explicitly.
 
 Afterwards the installer verifies its own boundaries: it fingerprints every path
 listed in this profile's `must_not_touch` (`frontend/src`, `frontend/package.json`,
