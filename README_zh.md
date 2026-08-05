@@ -165,6 +165,20 @@ CI 会重新生成并比对，手工修改生成文件会导致构建失败。
 
 ## 引用
 
+如果使用了 DataFlow-Harness 平台、Agent 工作流、MCP 集成或可编辑管线
+界面，请引用 DataFlow-Harness 论文：
+
+```bibtex
+@article{he2026dataflow,
+  title={DataFlow-Harness: A Grounded Code-Agent Platform for Constructing Editable LLM Data Pipelines},
+  author={He, Runming and Wong, Zhen Hao and Liang, Hao and Meng, Zimo and Shen, Chengyu and Ma, Xiaochen and Zhang, Wentao},
+  journal={arXiv preprint arXiv:2607.16617},
+  year={2026}
+}
+```
+
+如果使用或引用了底层 DataFlow 框架，请引用原 DataFlow 技术报告：
+
 ```bibtex
 @article{liang2025dataflow,
   title={DataFlow: An LLM-Driven Framework for Unified Data Preparation and Workflow Automation in the Era of Data-Centric AI},

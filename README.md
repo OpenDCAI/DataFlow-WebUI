@@ -228,6 +228,20 @@ CI regenerates and diffs, so a hand-edited generated file fails the build.
 
 ## Citation
 
+If you use the DataFlow-Harness platform, its agent workflow, MCP integration,
+or editable pipeline interface, cite the DataFlow-Harness paper:
+
+```bibtex
+@article{he2026dataflow,
+  title={DataFlow-Harness: A Grounded Code-Agent Platform for Constructing Editable LLM Data Pipelines},
+  author={He, Runming and Wong, Zhen Hao and Liang, Hao and Meng, Zimo and Shen, Chengyu and Ma, Xiaochen and Zhang, Wentao},
+  journal={arXiv preprint arXiv:2607.16617},
+  year={2026}
+}
+```
+
+If you use or cite the underlying DataFlow framework, cite the DataFlow paper:
+
 ```bibtex
 @article{liang2025dataflow,
   title={DataFlow: An LLM-Driven Framework for Unified Data Preparation and Workflow Automation in the Era of Data-Centric AI},
@@ -236,7 +250,6 @@ CI regenerates and diffs, so a hand-edited generated file fails the build.
   year={2025}
 }
 ```
-
 
 ## Community
 
