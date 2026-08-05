@@ -60,7 +60,7 @@ jobs:
         run: |
           for p in webui harness skills; do
             echo "::group::dry-run $p"
-            ./install.sh --profile "$p" --dry-run
+            ./install.sh --profile "$p" --dry-run --pip
             echo "::endgroup::"
           done
 
@@ -423,7 +423,7 @@ for s in json.load(open('installers/skills.manifest.json'))['skills']:
       - name: Install the harness profile in a clean checkout
         run: |
           python -m pip install --upgrade pip
-          DATAFLOW_PYTHON=python ./install.sh --profile harness
+          DATAFLOW_PYTHON=python ./install.sh --profile harness --pip
 
       - name: Dependency consistency
         run: python -m pip check
