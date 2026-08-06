@@ -50,6 +50,12 @@ cd DataFlow-WebUI
 
 分层详细文档：**[webui](docs/profiles/webui.md)** · **[harness](docs/profiles/harness.md)** · **[skills](docs/profiles/skills.md)**
 
+## Agent 配置说明
+
+如果由 AI coding agent 配置本仓库，请在安装前先阅读
+**[docs/agents/SETUP.md](docs/agents/SETUP.md)**。其中列出了授权边界、
+准确的执行命令、验证步骤，以及必须先征得用户同意的操作。
+
 ## 安装与使用
 
 `webui` profile 会安装完整的浏览器端栈。以下命令都在仓库根目录执行，
@@ -91,6 +97,28 @@ conda activate dataflow
 浏览器打开 <http://localhost:8000/>，在聊天面板选择 Agent，描述想要的
 数据管线并在画布中检查结果。uv 是默认 Python 包管理器；若必须使用 pip，
 执行 `./install.sh --profile webui --pip`。
+
+### 配置 AI Agent
+
+WebUI 的聊天工作流需要至少安装一个支持的 Agent，并单独配置 MCP 连接：
+
+```bash
+# Claude Code
+curl -fsSL https://claude.ai/code/install.sh | sh
+export ANTHROPIC_API_KEY=sk-ant-...
+./install.sh configure-agent --agent claude
+
+# Codex（API key 或 `codex login` OAuth）
+npm install --global @openai/codex
+codex login                         # OAuth；或 export OPENAI_API_KEY=sk-...
+./install.sh configure-agent --agent codex
+
+# Cursor：安装 IDE 并打开本仓库，然后执行
+./install.sh configure-agent --agent cursor
+```
+
+安装与 Agent 配置是两个独立步骤；安装器不会写入 API key。完整授权边界、
+配置命令和验证步骤见 [Agent 安装说明](docs/agents/SETUP.md)。
 
 ## 安装不会写入 Agent 配置
 
@@ -139,10 +167,6 @@ DataFlow-Harness 把三部分组合起来：**skills**（算子选择、字段�
 | **Cursor** | 仅 IDE 模式 —— 不由 WebUI 调度 | `.cursor/mcp.json`（项目级） | Cursor 内置认证 |
 
 Cursor 的用法是在 IDE 中打开本项目，其 Agent 会自动发现 MCP server 并把管线推送到画布，不通过 WebUI 聊天面板调度。
-
-## 给 Agent 看的安装说明
-
-如果你是正在配置本仓库的 AI Agent，请阅读 **[docs/agents/SETUP.md](docs/agents/SETUP.md)**：其中说明了授权边界、可执行的具体命令、成功判据，以及哪些操作必须先询问用户。
 
 ## 架构与决策记录
 

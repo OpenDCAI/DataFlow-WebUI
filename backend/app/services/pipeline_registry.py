@@ -1291,9 +1291,16 @@ class PipelineRegistry:
                 raise ValueError(f"Invalid pipeline configuration: {joined_errors}")
             
         
-        # 更新字段，保留创建时间和状态
+        # 更新字段，保留创建时间和状态. Names come from an interactive UI
+        # dialog, so normalize surrounding whitespace and reject an empty rename
+        # instead of silently persisting an unusable pipeline name.
+        updated_name = updated_pipeline.get("name", "")
+        if "name" in pipeline_data:
+            updated_name = self._normalize_pipeline_name(pipeline_data.get("name", ""))
+            if not updated_name:
+                raise ValueError("Pipeline name cannot be empty")
         updated_pipeline.update({
-            "name": pipeline_data.get("name", updated_pipeline.get("name", "")),
+            "name": updated_name,
             # "config": pipeline_data.get("config", updated_pipeline.get("config", {})),
             "tags": pipeline_data.get("tags", updated_pipeline.get("tags", [])),
             "updated_at": self.get_current_time()

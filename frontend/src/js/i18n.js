@@ -951,6 +951,14 @@ export default {
         "en": "Rename pipeline success",
         "cn": "重命名Pipeline成功"
     },
+    "Rename pipeline failed": {
+        "en": "Rename pipeline failed",
+        "cn": "重命名Pipeline失败"
+    },
+    "Please select a pipeline first": {
+        "en": "Please select a pipeline first",
+        "cn": "请先选择一个Pipeline"
+    },
     "View": {
         "en": "View",
         "cn": "查看"

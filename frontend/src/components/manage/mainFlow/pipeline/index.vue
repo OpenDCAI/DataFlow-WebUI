@@ -35,7 +35,7 @@
                     :background="theme === 'dark' ? 'rgba(40, 40, 40, 0.6)' : 'rgba(255, 255, 255, 0.6)'"
                     :foreground="theme === 'dark' ? 'rgba(255, 255, 255, 1)' : 'rgba(90, 90, 90, 1)'" border-radius="8"
                     :is-box-shadow="true" style="width: calc(100% - 20px); height: 40px; margin-left: 10px"
-                    @click="(show.add = true), (addPanelMode = 'add')">{{ local('New Pipeline') }}</fv-button>
+                    @click="openAddPanel">{{ local('New Pipeline') }}</fv-button>
                 <div v-show="!lock.pipeline" class="pipeline-list-loading">
                     <fv-progress-ring loading="true" :r="20" :border-width="3" :color="color"
                         :background="'rgba(245, 245, 245, 1)'"></fv-progress-ring>
@@ -77,11 +77,11 @@
             </div>
             <pipeline-panel v-model="show.add" :obj="currentContextItem" :addPanelMode="addPanelMode"></pipeline-panel>
             <fv-right-menu v-model="show.rightMenu" ref="rightMenu">
-                <span @click="(show.add = true), (addPanelMode = 'add')">
+                <span @click="openAddPanel">
                     <i class="ms-Icon ms-Icon--Add" :style="{ color: color }"></i>
                     <p>{{ local('New Pipeline') }}</p>
                 </span>
-                <span @click="(show.add = true), (addPanelMode = 'rename')">
+                <span @click="openRenamePanel">
                     <i class="ms-Icon ms-Icon--Rename" :style="{ color: color }"></i>
                     <p>{{ local('Rename Pipeline') }}</p>
                 </span>
@@ -295,6 +295,27 @@ export default {
             $event.preventDefault()
             $event.stopPropagation()
             this.$refs.rightMenu.rightClick($event, document.body)
+        },
+        openAddPanel() {
+            // Set the mode before opening the child panel. This avoids the
+            // child seeing the previous mode during its modelValue watcher.
+            this.addPanelMode = 'add'
+            this.currentContextItem = null
+            this.show.rightMenu = false
+            this.show.add = true
+        },
+        openRenamePanel() {
+            if (!this.currentContextItem || !this.currentContextItem.id) {
+                this.$barWarning(this.local('Please select a pipeline first'), {
+                    status: 'warning'
+                })
+                return
+            }
+            // Set the mode before opening the child panel so refreshName()
+            // always receives the selected pipeline's current name.
+            this.addPanelMode = 'rename'
+            this.show.rightMenu = false
+            this.show.add = true
         }
     }
 }

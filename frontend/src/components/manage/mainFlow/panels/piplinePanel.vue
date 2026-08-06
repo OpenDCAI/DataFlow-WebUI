@@ -124,11 +124,11 @@ export default {
                 })
         },
         renamePipeline() {
-            if (!this.obj.id) return
-            console.log(this.obj)
+            const name = (this.addName || '').trim()
+            if (!this.obj.id || !name) return
             this.$api.pipelines
                 .update_pipeline(this.obj.id, {
-                    name: this.addName
+                    name
                 })
                 .then((res) => {
                     if (res.code === 200) {
@@ -138,7 +138,16 @@ export default {
                         this.thisValue = false
                         this.addName = ''
                         this.getPipelines()
+                    } else {
+                        this.$barWarning(res.message || this.local('Rename pipeline failed'), {
+                            status: 'warning'
+                        })
                     }
+                })
+                .catch((err) => {
+                    this.$barWarning(err?.message || this.local('Rename pipeline failed'), {
+                        status: 'warning'
+                    })
                 })
         }
     }

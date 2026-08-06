@@ -55,6 +55,13 @@ Every profile supports `--check` (prerequisites only), `--dry-run` (show the pla
 
 Full per-layer guides: **[webui](docs/profiles/webui.md)** · **[harness](docs/profiles/harness.md)** · **[skills](docs/profiles/skills.md)**
 
+## For agents setting this up
+
+If an AI coding agent is configuring this repository, point it to
+**[docs/agents/SETUP.md](docs/agents/SETUP.md)** before running installation.
+That guide defines the authorization boundaries, exact commands, verification
+steps, and actions that require human approval.
+
 ## Installation and usage
 
 The `webui` profile installs the complete browser-based stack. Run the commands
@@ -121,6 +128,30 @@ Check or stop a background server with `./scripts/start.sh --status` and
 uv is the default Python package installer. If your environment requires pip,
 use `./install.sh --profile webui --pip` (or the compatibility
 `./scripts/setup_all.sh --pip`).
+
+### Configure an AI agent
+
+The WebUI chat workflow requires at least one supported agent. Install and
+authenticate an agent, then explicitly configure its MCP connection:
+
+```bash
+# Claude Code
+curl -fsSL https://claude.ai/code/install.sh | sh
+export ANTHROPIC_API_KEY=sk-ant-...
+./install.sh configure-agent --agent claude
+
+# Codex (API key or `codex login` OAuth)
+npm install --global @openai/codex
+codex login                         # OAuth, or export OPENAI_API_KEY=sk-...
+./install.sh configure-agent --agent codex
+
+# Cursor: install the IDE, open this repository, then:
+./install.sh configure-agent --agent cursor
+```
+
+Agent configuration is intentionally a separate step from installation. The
+installer does not write API keys. See [Agent setup](docs/agents/SETUP.md) for
+the exact authorization boundaries and verification steps.
 
 ## Installing never writes agent configuration
 
@@ -199,10 +230,6 @@ installing this repo. Details and methodology: [DataFlow-Harness](https://huggin
 | **Cursor** | IDE only — not dispatched by the WebUI | `.cursor/mcp.json` (project) | Cursor built-in |
 
 Cursor is used by opening this project in the IDE; its agent discovers the MCP server and pushes pipelines onto the canvas. It is not driven from the WebUI chat panel.
-
-## For agents setting this up
-
-If you are an AI agent configuring this repo, read **[docs/agents/SETUP.md](docs/agents/SETUP.md)**. It states the authorization boundaries, the exact commands to run, success criteria, and which actions require asking the human first.
 
 ## Architecture and decisions
 

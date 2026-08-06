@@ -97,6 +97,24 @@ def test_update_preserves_identity_and_updates_the_requested_fields(pipeline_reg
     assert updated["status"] == "queued"
 
 
+def test_update_normalizes_and_persists_pipeline_name(pipeline_registry, pipeline_payload):
+    registry, _ = pipeline_registry
+    created = registry.create_pipeline(pipeline_payload)
+
+    updated = registry.update_pipeline(created["id"], {"name": "  Renamed pipeline  "})
+
+    assert updated["name"] == "Renamed pipeline"
+    assert registry.get_pipeline(created["id"])["name"] == "Renamed pipeline"
+
+
+def test_update_rejects_an_empty_pipeline_name(pipeline_registry, pipeline_payload):
+    registry, _ = pipeline_registry
+    created = registry.create_pipeline(pipeline_payload)
+
+    with pytest.raises(ValueError, match="name cannot be empty"):
+        registry.update_pipeline(created["id"], {"name": "   "})
+
+
 def test_update_nonexistent_pipeline_fails(pipeline_registry):
     registry, _ = pipeline_registry
 
