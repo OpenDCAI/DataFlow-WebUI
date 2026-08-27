@@ -81,6 +81,13 @@ pip install -r installers/requirements-configure.txt
 Without it, `configure-agent --agent codex` refuses and prints the block to add
 by hand. Claude and Cursor are unaffected — their configs are JSON.
 
+The WebUI requirements include `mcp-proxy`. The Codex configurator resolves the
+active Python interpreter to an absolute path and writes a stdio bridge that
+forwards to `http://localhost:8000/mcp`. This bridges the backend's legacy SSE
+transport to current Codex releases, whose direct URL entries use streamable
+HTTP. Run the configurator from the same activated environment used to install
+the backend.
+
 ### Auth
 
 ```bash

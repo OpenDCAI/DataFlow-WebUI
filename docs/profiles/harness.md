@@ -98,6 +98,12 @@ pip install -r installers/requirements-configure.txt
 Without it, `configure-agent --agent codex` refuses and prints the block to add
 by hand. Claude and Cursor are unaffected — their configs are JSON.
 
+The harness requirements include `mcp-proxy`. The Codex configurator records
+the active Python interpreter as a stdio bridge to the backend's legacy SSE MCP
+endpoint. Run it from the same activated environment used to install the
+harness; a direct `url = "http://localhost:8000/mcp"` entry is not compatible
+with current Codex releases.
+
 ## Minimal verification
 
 With the backend running:

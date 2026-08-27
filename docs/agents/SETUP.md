@@ -71,7 +71,9 @@ Rules you must follow:
 - **Codex is the exception:** it reads only `~/.codex/config.toml` and has no flag
   to point elsewhere, so it has no project scope. `--scope user` is required, and
   the command refuses project scope rather than writing a file Codex ignores. Ask
-  the user before configuring Codex.
+  the user before configuring Codex. Its entry launches the active backend Python
+  as a stdio `mcp-proxy` bridge because the DataFlow endpoint uses legacy SSE and
+  current Codex direct URL entries expect streamable HTTP.
 - Never write API keys anywhere. Agents read credentials from environment
   variables at run time. If auth is missing, tell the user which variable to
   export — do not ask them to paste a key into the chat, and do not put one in a

@@ -157,7 +157,7 @@ export ANTHROPIC_API_KEY=sk-ant-...
 # Codex (API key or `codex login` OAuth)
 npm install --global @openai/codex
 codex login                         # OAuth, or export OPENAI_API_KEY=sk-...
-./install.sh configure-agent --agent codex
+./install.sh configure-agent --agent codex --scope user
 
 # Cursor: install the IDE, open this repository, then:
 ./install.sh configure-agent --agent cursor
@@ -166,6 +166,10 @@ codex login                         # OAuth, or export OPENAI_API_KEY=sk-...
 Agent configuration is intentionally a separate step from installation. The
 installer does not write API keys. See [Agent setup](docs/agents/SETUP.md) for
 the exact authorization boundaries and verification steps.
+
+For Codex, the configurator writes a stdio bridge backed by the WebUI Python
+environment's `mcp-proxy`. This is required because the bundled DataFlow MCP
+endpoint uses legacy SSE while current Codex URL entries expect streamable HTTP.
 
 ## Installing never writes agent configuration
 

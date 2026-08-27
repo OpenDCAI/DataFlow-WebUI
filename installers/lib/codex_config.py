@@ -10,11 +10,16 @@ hold settings and MCP servers this project knows nothing about, so:
   and silently corrupts them.
 * **Never drop a key.** Keys inside the managed table that we do not own are
   preserved verbatim.
+* **Bridge the legacy SSE endpoint.** Current Codex releases accept streamable
+  HTTP URLs, while ``fastapi-mcp==0.4.0`` serves legacy SSE. The managed entry
+  therefore launches ``mcp-proxy`` through the backend Python interpreter and
+  talks to Codex over stdio.
 * **Refuse ambiguity.** An existing ``dataflow`` server that points elsewhere,
-  or that is configured as a ``command``/stdio server rather than SSE, is a real
-  conflict. Redirecting it requires ``--force``.
+  or that launches an unrelated command, is a real conflict. Redirecting it
+  requires ``--force``. The URL form written by older DataFlow installers is
+  migrated automatically when it points at the same endpoint.
 
-Usage: codex_config.py <path> <url> [--force]
+Usage: codex_config.py <path> <url> <python-command> [--force]
 
 Exit codes:
   0  merged content written to stdout
@@ -25,9 +30,11 @@ Exit codes:
 
 from __future__ import annotations
 
+import json
 import re
 import sys
 from pathlib import Path
+from urllib.parse import urlsplit
 
 MANAGED_KEY = "dataflow"
 MANAGED_PREFIX = "mcp_servers"
@@ -56,7 +63,54 @@ def load_parser():
         return None
 
 
-def merge(text: str, url: str, force: bool) -> tuple[str, int]:
+def _bridge_values(python_command: str, url: str) -> tuple[str, list[str]]:
+    return python_command, ["-m", "mcp_proxy", url]
+
+
+def _urls_equivalent(left: str, right: str) -> bool:
+    if left == right:
+        return True
+    try:
+        a = urlsplit(left)
+        b = urlsplit(right)
+        loopback = {"localhost", "127.0.0.1", "::1"}
+        return (
+            a.scheme == b.scheme
+            and a.hostname in loopback
+            and b.hostname in loopback
+            and a.port == b.port
+            and a.path == b.path
+            and a.query == b.query
+            and a.fragment == b.fragment
+        )
+    except ValueError:
+        return False
+
+
+def _is_equivalent_bridge(existing: dict, python_command: str, url: str) -> bool:
+    command = existing.get("command")
+    args = existing.get("args")
+    expected_command, expected_args = _bridge_values(python_command, url)
+    if (
+        command == expected_command
+        and isinstance(args, list)
+        and len(args) == 3
+        and args[:2] == expected_args[:2]
+        and isinstance(args[2], str)
+        and _urls_equivalent(args[2], url)
+    ):
+        return True
+    if isinstance(command, str) and Path(command).name in {"mcp-proxy", "mcp-proxy.exe"}:
+        return (
+            isinstance(args, list)
+            and len(args) == 1
+            and isinstance(args[0], str)
+            and _urls_equivalent(args[0], url)
+        )
+    return False
+
+
+def merge(text: str, url: str, python_command: str, force: bool) -> tuple[str, int]:
     loads = load_parser()
     if loads is None:
         sys.stderr.write(
@@ -77,23 +131,29 @@ def merge(text: str, url: str, force: bool) -> tuple[str, int]:
     servers = parsed.get(MANAGED_PREFIX)
     existing = servers.get(MANAGED_KEY) if isinstance(servers, dict) else None
 
+    preserve_existing_bridge = False
+    replacing_foreign_command = False
     if existing is not None:
         if not isinstance(existing, dict):
             sys.stderr.write(f"[{MANAGED_PREFIX}.{MANAGED_KEY}] is not a table\n")
             return "", 3
         current_url = existing.get("url")
-        # A command/stdio server is a different transport, not a stale URL.
-        # Merging our url into it would produce a hybrid config that is not a
-        # valid server definition of either kind.
         if "command" in existing:
-            if not force:
+            if _is_equivalent_bridge(existing, python_command, url):
+                preserve_existing_bridge = True
+            elif not force:
                 sys.stderr.write(
                     f"existing [{MANAGED_PREFIX}.{MANAGED_KEY}] is a command/stdio server "
-                    f"(command = {existing['command']!r}), not an SSE server.\n"
-                    "Converting it would produce a mixed command+url definition.\n"
+                    f"(command = {existing['command']!r}), not the DataFlow MCP bridge.\n"
                 )
                 return "", 4
-        elif isinstance(current_url, str) and current_url != url and not force:
+            else:
+                replacing_foreign_command = True
+        elif (
+            isinstance(current_url, str)
+            and not _urls_equivalent(current_url, url)
+            and not force
+        ):
             sys.stderr.write(
                 f"existing [{MANAGED_PREFIX}.{MANAGED_KEY}] points at {current_url!r}, "
                 f"not {url!r}.\n"
@@ -116,13 +176,21 @@ def merge(text: str, url: str, force: bool) -> tuple[str, int]:
         end = len(lines)
 
     if start is None:
+        if existing is not None:
+            sys.stderr.write(
+                f"existing [{MANAGED_PREFIX}.{MANAGED_KEY}] uses an inline or "
+                "otherwise unsupported TOML form; refusing to append a duplicate table.\n"
+            )
+            return "", 4
         out = list(lines)
         while out and not out[-1].strip():
             out.pop()
         if out:
             out.append("")
         out.append(f"[{MANAGED_PREFIX}.{MANAGED_KEY}]")
-        out.append(f'url = "{url}"')
+        command, args = _bridge_values(python_command, url)
+        out.append(f"command = {json.dumps(command)}")
+        out.append(f"args = {json.dumps(args)}")
         for key, value in DEFAULTS.items():
             out.append(f"{key} = {value}")
         return "\n".join(out) + "\n", 0
@@ -135,9 +203,11 @@ def merge(text: str, url: str, force: bool) -> tuple[str, int]:
         body.pop()
         trailing_blanks += 1
 
-    # With --force on a command/stdio entry, the transport keys must go: leaving
-    # them beside url is the hybrid config we refuse to create.
-    drop_keys = {"command", "args", "env"} if (existing and "command" in existing) else set()
+    if preserve_existing_bridge:
+        bridge_command = existing["command"]
+        bridge_args = existing["args"]
+    else:
+        bridge_command, bridge_args = _bridge_values(python_command, url)
 
     seen: set[str] = set()
     new_body: list[str] = []
@@ -147,12 +217,14 @@ def merge(text: str, url: str, force: bool) -> tuple[str, int]:
             new_body.append(raw)
             continue
         key = m.group(1).strip("\"'")
-        if key in drop_keys:
+        if key in {"url", "command", "args"}:
+            continue
+        if replacing_foreign_command and key == "env":
             continue
         seen.add(key)
-        new_body.append(f'url = "{url}"' if key == "url" else raw)
-    if "url" not in seen:
-        new_body.insert(0, f'url = "{url}"')
+        new_body.append(raw)
+    new_body.insert(0, f"args = {json.dumps(bridge_args)}")
+    new_body.insert(0, f"command = {json.dumps(bridge_command)}")
     for key, value in DEFAULTS.items():
         if key not in seen:
             new_body.append(f"{key} = {value}")
@@ -172,12 +244,16 @@ def merge(text: str, url: str, force: bool) -> tuple[str, int]:
 
 
 def main() -> int:
+    if len(sys.argv) < 4:
+        sys.stderr.write("usage: codex_config.py <path> <url> <python-command> [--force]\n")
+        return 1
     path = Path(sys.argv[1])
     url = sys.argv[2]
-    force = len(sys.argv) > 3 and sys.argv[3] == "--force"
+    python_command = sys.argv[3]
+    force = len(sys.argv) > 4 and sys.argv[4] == "--force"
 
     text = path.read_text(encoding="utf-8") if path.is_file() else ""
-    out, code = merge(text, url, force)
+    out, code = merge(text, url, python_command, force)
     if code != 0:
         return code
     sys.stdout.write(out)

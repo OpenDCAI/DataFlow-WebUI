@@ -56,6 +56,9 @@ jobs:
       - name: Documentation links resolve
         run: python3 installers/checks/check_docs.py
 
+      - name: Codex MCP config merge is safe and compatible
+        run: python3 installers/checks/check_codex_config.py
+
       - name: Installer dry-run for every profile
         run: |
           for p in webui harness skills; do
@@ -100,12 +103,12 @@ print('TOML parser available')
 
           printf 'this is [not valid toml\n' > /tmp/bad.toml
           before=$(md5sum /tmp/bad.toml | cut -d' ' -f1)
-          python3 installers/lib/codex_config.py /tmp/bad.toml http://localhost:8000/mcp >/dev/null 2>&1
+          python3 installers/lib/codex_config.py /tmp/bad.toml http://localhost:8000/mcp /usr/bin/python3 >/dev/null 2>&1
           [ $? -eq 0 ] && { echo "::error::accepted invalid TOML"; fail=1; }
           [ "$(md5sum /tmp/bad.toml | cut -d' ' -f1)" = "$before" ] || { echo "::error::modified invalid TOML"; fail=1; }
 
           printf '[mcp_servers.dataflow]\ncommand = "python"\n' > /tmp/stdio.toml
-          python3 installers/lib/codex_config.py /tmp/stdio.toml http://localhost:8000/mcp >/dev/null 2>&1
+          python3 installers/lib/codex_config.py /tmp/stdio.toml http://localhost:8000/mcp /usr/bin/python3 >/dev/null 2>&1
           [ $? -eq 4 ] || { echo "::error::did not refuse a command/stdio TOML entry"; fail=1; }
 
           printf '{"mcpServers":{"dataflow":{"command":"python"}}}\n' > /tmp/stdio.json
@@ -118,7 +121,7 @@ print('TOML parser available')
 
           # A quoted table name must be updated in place, not duplicated.
           printf '[mcp_servers."dataflow"]\nurl = "http://localhost:8000/mcp"\n' > /tmp/quoted.toml
-          out=$(python3 installers/lib/codex_config.py /tmp/quoted.toml http://localhost:8000/mcp 2>/dev/null)
+          out=$(python3 installers/lib/codex_config.py /tmp/quoted.toml http://localhost:8000/mcp /usr/bin/python3 2>/dev/null)
           n=$(printf '%s\n' "$out" | grep -c 'mcp_servers')
           [ "$n" -eq 1 ] || { echo "::error::quoted table produced $n dataflow tables"; fail=1; }
 

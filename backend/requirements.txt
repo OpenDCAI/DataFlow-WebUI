@@ -3,6 +3,9 @@ fastapi[standard]
 # MCP 2.x made description keyword-only, which raises a TypeError at startup.
 fastapi-mcp==0.4.0
 mcp>=1.12,<2
+# Codex supports streamable HTTP, while fastapi-mcp 0.4.0 exposes legacy SSE.
+# Run the remote SSE endpoint through a local stdio bridge for Codex.
+mcp-proxy==0.12.0
 uvicorn[standard]
 pydantic_settings
 pandas
