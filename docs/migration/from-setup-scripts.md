@@ -54,8 +54,9 @@ three config files, two of them in `$HOME`, without asking.
 
 ## If the old script already modified your config
 
-Nothing needs undoing. The new configurator is idempotent and merges: it will
-report "no change" if your existing `dataflow` entry already matches.
+Nothing needs undoing. The new configurator is idempotent and merges. A matching
+legacy Codex `url` entry is automatically migrated to the required stdio
+`mcp-proxy` bridge; an already matching bridge reports "no change".
 
 Worth checking once, if you had other MCP servers configured before running the
 old script — its Cursor path could overwrite `~/.cursor/mcp.json`:

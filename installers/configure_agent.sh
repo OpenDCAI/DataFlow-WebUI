@@ -42,8 +42,8 @@ Options:
                    user    → writes into your home directory, after showing a diff
   --dry-run        Print the exact file contents that would be written; write nothing
   --yes            Skip the confirmation prompt for --scope user
-  --force          Redirect an existing 'dataflow' MCP entry that points at a
-                   different URL. Without this, such a conflict is refused.
+  --force          Replace an existing 'dataflow' MCP entry that points at a
+                   different endpoint/command. Without this, conflicts are refused.
   --verbose        Show extra detail
   -h, --help       This message
 
@@ -186,12 +186,24 @@ merge_codex_toml() {
   # Delegates to installers/lib/codex_config.py, which parses the file as TOML
   # before touching it, preserves keys we do not manage, and refuses to redirect
   # an existing dataflow entry that points somewhere else.
-  local path="$1" rc=0 out=""
+  local path="$1" rc=0 out="" python_exec=""
   local force_arg=""
   [[ "$FORCE" -eq 1 ]] && force_arg="--force"
 
+  python_exec=$("$DF_PYTHON" -c 'import sys; print(sys.executable)') || {
+    err "cannot resolve the Python interpreter used for the Codex MCP bridge."
+    return 1
+  }
+  if ! "$python_exec" -c 'import mcp_proxy' >/dev/null 2>&1; then
+    err "mcp-proxy is not installed in $python_exec."
+    err "Install the WebUI backend requirements first:"
+    err "  $python_exec -m pip install -r backend/requirements.txt"
+    return 1
+  fi
+
   out=$("$DF_PYTHON" "$DF_REPO_ROOT/installers/lib/codex_config.py" \
-          "$path" "$DF_MCP_URL" $force_arg 2>/tmp/df_codex_err.$$) || rc=$?
+          "$path" "$DF_MCP_URL" "$python_exec" $force_arg \
+          2>/tmp/df_codex_err.$$) || rc=$?
 
   case "$rc" in
     0) printf '%s' "$out" ;;
@@ -203,7 +215,8 @@ merge_codex_toml() {
       err "  - add the block by hand:"
       err ""
       err "      [mcp_servers.dataflow]"
-      err "      url = \"$DF_MCP_URL\""
+      err "      command = \"$python_exec\""
+      err "      args = [\"-m\", \"mcp_proxy\", \"$DF_MCP_URL\"]"
       err "      enabled = true"
       err "      tool_timeout_sec = 120"
       rm -f /tmp/df_codex_err.$$
@@ -286,7 +299,7 @@ case "$AGENT" in
     info ""
     info "Codex reads its config at startup — restart the session to pick this up."
     info "Verify:"
-    info "  codex exec --json --full-auto \\"
+    info "  codex exec --json --approve-for-me \\"
     info "    \"call the dataflow MCP tool list_operator_categories and report the result\""
     ;;
 esac

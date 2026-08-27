@@ -66,9 +66,14 @@ cd ..
 
 Codex 则在 `~/.codex/config.toml` 追加：
 
+先确认发布包的 Python 环境已安装 `mcp-proxy`（后端依赖默认会安装），并取得
+解释器绝对路径：`python -c "import sys; print(sys.executable)"`。然后把下方
+`command` 替换为该路径：
+
 ```toml
 [mcp_servers.dataflow]
-url = "http://localhost:8000/mcp"
+command = "/absolute/path/to/python"
+args = ["-m", "mcp_proxy", "http://localhost:8000/mcp"]
 enabled = true
 tool_timeout_sec = 120
 ```
@@ -126,9 +131,15 @@ by hand:
 
 For Codex, append to `~/.codex/config.toml`:
 
+First confirm that `mcp-proxy` is installed in the release package's Python
+environment (the backend requirements install it), then get the interpreter's
+absolute path with `python -c "import sys; print(sys.executable)"`. Replace the
+`command` value below with that path:
+
 ```toml
 [mcp_servers.dataflow]
-url = "http://localhost:8000/mcp"
+command = "/absolute/path/to/python"
+args = ["-m", "mcp_proxy", "http://localhost:8000/mcp"]
 enabled = true
 tool_timeout_sec = 120
 ```

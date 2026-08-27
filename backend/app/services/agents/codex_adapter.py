@@ -10,7 +10,9 @@ into NormalizedEvent. Codex differs from Claude Code in key ways:
 2. **System prompt delivery** — ``codex exec`` does not accept a system
    prompt flag in headless mode. We prepend the harness rules to the user
    message, same approach as Cursor.
-3. **Tool approval** — ``--sandbox workspace-write`` grants full auto-approve.
+3. **Tool approval** — ``--approve-for-me`` reviews headless tool calls
+   automatically and applies Codex's workspace-write sandbox. Current Codex
+   releases reject combining this flag with an explicit ``--sandbox`` value.
 4. **Session resume** — ``codex exec`` itself does not accept ``--resume``;
    the top-level ``codex resume`` subcommand is for interactive sessions.
    We treat each turn as stateless and rely on Codex's own conversation
@@ -26,6 +28,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+from collections import deque
 from typing import AsyncGenerator, Optional
 
 from app.core.logger_setup import get_logger
@@ -42,6 +45,34 @@ def _format_user_message(system_prompt: str, message: str) -> str:
         "[User message]\n"
         f"{message}"
     )
+
+
+def _build_exec_command(
+    cli_path: str,
+    webui_root: str,
+    system_prompt: str,
+    message: str,
+) -> list[str]:
+    """Build a command compatible with current headless Codex CLI releases."""
+    return [
+        cli_path,
+        "exec",
+        "--json",
+        "--approve-for-me",
+        "--cd",
+        webui_root,
+        _format_user_message(system_prompt, message),
+    ]
+
+
+def _format_process_error(returncode: int, stderr: str) -> str:
+    """Turn a failed Codex invocation into a useful WebUI error."""
+    detail = "\n".join(line for line in stderr.splitlines() if line.strip())
+    if len(detail) > 1200:
+        detail = detail[-1200:]
+    if detail:
+        return f"Codex exited with status {returncode}: {detail}"
+    return f"Codex exited with status {returncode} without an error message."
 
 
 class CodexAdapter(AgentAdapter):
@@ -73,13 +104,12 @@ class CodexAdapter(AgentAdapter):
         import os
 
         # Codex's `exec` does not resume; session_id is ignored.
-        cmd = [
-            self.cli_path, "exec",
-            "--json",
-            "--sandbox", "workspace-write",
-            "--cwd", str(self.webui_root),
-            _format_user_message(self.system_prompt, message),
-        ]
+        cmd = _build_exec_command(
+            self.cli_path,
+            str(self.webui_root),
+            self.system_prompt,
+            message,
+        )
 
         # Forward auth-related env vars. Codex config.toml may reference
         # CODEX_API_KEY, OPENAI_API_KEY, or OPENAI_BASE_URL depending on
@@ -96,6 +126,17 @@ class CodexAdapter(AgentAdapter):
         )
         self._process = process
         emitted_session = False
+        emitted_error = False
+        stderr_lines: deque[str] = deque(maxlen=40)
+
+        async def drain_stderr() -> None:
+            assert process.stderr is not None
+            async for raw in process.stderr:
+                line = raw.decode("utf-8", errors="replace").rstrip()
+                if line:
+                    stderr_lines.append(line)
+
+        stderr_task = asyncio.create_task(drain_stderr())
 
         try:
             assert process.stdout is not None
@@ -108,12 +149,12 @@ class CodexAdapter(AgentAdapter):
                 except json.JSONDecodeError:
                     continue
 
-                # Codex emits a session-id at the top of the stream when
-                # available. Tolerate either a top-level field or a typed
-                # `session_started` event.
+                # Current Codex emits ``thread.started`` with ``thread_id``;
+                # older builds used session_id in one of two shapes.
                 if not emitted_session:
                     sid = (
-                        chunk.get("session_id")
+                        chunk.get("thread_id")
+                        or chunk.get("session_id")
                         or (chunk.get("msg") or {}).get("session_id")
                     )
                     if sid:
@@ -121,8 +162,19 @@ class CodexAdapter(AgentAdapter):
                         yield {"type": "session", "session_id": sid}
 
                 async for evt in self._translate(chunk):
+                    if evt.get("type") == "error":
+                        emitted_error = True
                     yield evt
 
+            returncode = await process.wait()
+            await stderr_task
+            if returncode != 0 and not emitted_error:
+                yield {
+                    "type": "error",
+                    "message": _format_process_error(
+                        returncode, "\n".join(stderr_lines)
+                    ),
+                }
             yield {"type": "done"}
         except asyncio.CancelledError:
             yield {"type": "done"}
@@ -137,10 +189,74 @@ class CodexAdapter(AgentAdapter):
                     process.kill()
                 except Exception:
                     pass
+            if not stderr_task.done():
+                stderr_task.cancel()
             self._process = None
 
     async def _translate(self, chunk: dict) -> AsyncGenerator[NormalizedEvent, None]:
-        # Codex events are typed via msg.type per the docs.
+        # Codex 0.149+ uses top-level lifecycle events with an ``item`` payload.
+        ctype = chunk.get("type", "")
+        item = chunk.get("item") if isinstance(chunk.get("item"), dict) else {}
+        item_type = item.get("type", "")
+
+        if ctype == "item.completed" and item_type == "agent_message":
+            text = item.get("text", "")
+            if text:
+                yield {"type": "text_chunk", "content": str(text)}
+            return
+
+        if ctype == "item.started" and item_type == "mcp_tool_call":
+            server = item.get("server", "")
+            tool = item.get("tool", "")
+            name = f"mcp__{server}__{tool}" if server and tool else tool
+            yield {
+                "type": "tool_call_start",
+                "tool_use_id": item.get("id", ""),
+                "name": name,
+                "input_preview": truncate_preview(item.get("arguments") or {}),
+            }
+            return
+
+        if ctype == "item.completed" and item_type == "mcp_tool_call":
+            error = item.get("error")
+            yield {
+                "type": "tool_call_end",
+                "tool_use_id": item.get("id", ""),
+                "is_error": bool(error),
+                "output_preview": truncate_preview(error or item.get("result") or ""),
+            }
+            return
+
+        if ctype == "item.started" and item_type == "command_execution":
+            yield {
+                "type": "tool_call_start",
+                "tool_use_id": item.get("id", ""),
+                "name": "command_execution",
+                "input_preview": truncate_preview(item.get("command") or ""),
+            }
+            return
+
+        if ctype == "item.completed" and item_type == "command_execution":
+            exit_code = item.get("exit_code")
+            yield {
+                "type": "tool_call_end",
+                "tool_use_id": item.get("id", ""),
+                "is_error": exit_code not in (None, 0),
+                "output_preview": truncate_preview(item.get("aggregated_output") or ""),
+            }
+            return
+
+        if ctype in ("turn.failed", "error"):
+            error = chunk.get("error")
+            if isinstance(error, dict):
+                message = error.get("message") or str(error)
+            else:
+                message = chunk.get("message") or str(error or chunk)
+            yield {"type": "error", "message": message}
+            return
+
+        # Older Codex events were typed via msg.type. Keep accepting them so
+        # the WebUI does not become tied to one narrow CLI release.
         msg = chunk.get("msg") if isinstance(chunk.get("msg"), dict) else chunk
         mtype = msg.get("type", "")
 

@@ -32,5 +32,6 @@ check: skills
 	@$(PYTHON) installers/checks/check_mcp_whitelist.py
 	@$(PYTHON) installers/checks/check_profiles.py
 	@$(PYTHON) installers/checks/check_docs.py
+	@$(PYTHON) installers/checks/check_codex_config.py
 
 checks: check

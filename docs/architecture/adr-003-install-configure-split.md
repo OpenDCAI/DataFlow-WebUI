@@ -48,9 +48,10 @@ Rules for `configure-agent`:
    cannot validate. Other servers and unmanaged keys inside the `dataflow` entry
    are preserved.
 4. **Refuse conflicts instead of resolving them.** An existing `dataflow` entry
-   pointing at a different URL, or configured as a `command`/stdio server rather
-   than SSE, requires `--force`. Silently merging a URL into a stdio definition
-   would produce a hybrid that is valid as neither.
+   pointing at a different endpoint, or launching an unrelated command, requires
+   `--force`. A matching legacy Codex URL entry is migrated automatically to a
+   stdio `mcp-proxy` bridge because current Codex treats direct URLs as streamable
+   HTTP while this backend exposes legacy SSE.
 5. **Never touch credentials.** No key is read, written or logged. Agents get
    credentials from the environment at run time.
 6. **Idempotent.** Re-running reports "no change" instead of rewriting.
