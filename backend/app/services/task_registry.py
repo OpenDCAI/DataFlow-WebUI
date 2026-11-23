@@ -367,17 +367,19 @@ class TaskRegistry:
                     step = 0
         
         # 读取缓存文件（使用绝对路径）
-        cache_path = settings.CACHE_DIR
+        # 执行器把每个算子的输出写到 <CACHE_DIR>/<task_id>_output/ 下，
+        # 文件名从 step1 开始编号，而算子 index 从 0 开始。
+        cache_path = os.path.join(settings.CACHE_DIR, f"{task_id}_output")
         cache_file_prefix = "dataflow_cache_step"
-        cache_file = os.path.join(cache_path, f"{cache_file_prefix}_step{step}.jsonl")
-        
+        cache_file = os.path.join(cache_path, f"{cache_file_prefix}_step{step + 1}.jsonl")
+
         sample_data = []
         total_count = 0
         file_exists = False
-        
+
         # 如果当前 step 的文件不存在，尝试读取上一步的文件
         if not os.path.exists(cache_file) and step > 0:
-            cache_file = os.path.join(cache_path, f"{cache_file_prefix}_step{step-1}.jsonl")
+            cache_file = os.path.join(cache_path, f"{cache_file_prefix}_step{step}.jsonl")
         
         if os.path.exists(cache_file):
             file_exists = True
