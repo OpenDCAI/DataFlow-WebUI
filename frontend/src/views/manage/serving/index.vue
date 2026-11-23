@@ -132,7 +132,9 @@ export default {
                 int: '0',
                 Any: '',
                 float: '0.0',
-                'dict': {}
+                'dict': {},
+                bool: false,
+                'float | None': ''
             },
             formatValues: {
                 str: (val) => val.toString(),
@@ -146,7 +148,9 @@ export default {
                     catch (error) {
                         return {}
                     }
-                }
+                },
+                bool: (val) => val === true || val === 1 || String(val).toLowerCase() === 'true' || val === '1',
+                'float | None': (val) => (val === '' || val === null || val === undefined ? null : parseFloat(val))
             },
             show: {
                 add: false
@@ -230,7 +234,9 @@ export default {
         },
         valueBuilder(item) {
             let type = item.type
-            return this.formatValues[type](item.value)
+            let formatter = this.formatValues[type]
+            if (!formatter) return item.value === undefined ? null : item.value
+            return formatter(item.value)
         },
         handleAdd() {
             this.show.add ^= true
